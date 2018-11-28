@@ -24,7 +24,7 @@ class Example(object):
 
     # Process the article
     # article_words = article.split()
-    article_sents = article.split('<split1>')
+    article_sents = article.decode().split('<split1>')
     article_sents = article_sents[:30]
     article_words = [sent.split()[:30] for sent in article_sents]
     # if len(article_words) > config.max_enc_steps:
