@@ -73,8 +73,13 @@ class Train(object):
         return start_iter, start_loss
 
     def train_one_batch(self, batch):
-        enc_batch, enc_padding_mask, enc_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
+        enc_batch, enc_padding_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
             get_input_from_batch(batch, use_cuda)
+        print(enc_batch.size())
+        print(enc_padding_mask.size())
+        print(enc_doc_lens.size())
+        print(enc_sent_lens.size())
+        exit()
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 

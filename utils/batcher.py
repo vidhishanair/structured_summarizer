@@ -23,12 +23,18 @@ class Example(object):
     stop_decoding = vocab.word2id(data.STOP_DECODING)
 
     # Process the article
-    article_words = article.split()
-    if len(article_words) > config.max_enc_steps:
-      article_words = article_words[:config.max_enc_steps]
-    self.enc_len = len(article_words) # store the length after truncation but before padding
-    self.enc_input = [vocab.word2id(w) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
-
+    # article_words = article.split()
+    article_sents = article.split('<split1>')
+    article_sents = article_sents[:30]
+    article_words = [sent.split()[:30] for sent in article_sents]
+    # if len(article_words) > config.max_enc_steps:
+    #   article_words = article_words[:config.max_enc_steps]
+    self.enc_tok_len = [len(sent) for sent in article_words] # store the length after truncation but before padding
+    self.enc_doc_len = len(article_words)
+    #self.enc_input = [vocab.word2id(w) for sent in article_words for w in sent] # list of word ids; OOVs are represented by the id for UNK token
+    self.enc_input = []
+    for sent in article_words:
+        self.enc_input.append([vocab.word2id(w) for w in sent])
     # Process the abstract
     abstract = ' '.join(abstract_sentences) # string
     abstract_words = abstract.split() # list of strings
@@ -51,6 +57,7 @@ class Example(object):
 
     # Store the original strings
     self.original_article = article
+    self.article_words = article_words
     self.original_abstract = abstract
     self.original_abstract_sents = abstract_sentences
 
@@ -74,12 +81,21 @@ class Example(object):
       self.target.append(pad_id)
 
 
-  def pad_encoder_input(self, max_len, pad_id):
+  def pad_encoder_tokens(self, max_len, pad_id):
+    for i in range(0, len(self.enc_input)):
+      while len(self.enc_input[i]) < max_len:
+        self.enc_input[i].append(pad_id)
+    if config.pointer_gen:
+      for i in range(0, len(self.enc_input_extend_vocab)):
+        while len(self.enc_input_extend_vocab) < max_len:
+          self.enc_input_extend_vocab[i].append(pad_id)
+
+  def pad_encoder_docs(self, max_len, pad_id, max_tok_len):
     while len(self.enc_input) < max_len:
-      self.enc_input.append(pad_id)
+      self.enc_input.append([pad_id]*max_tok_len)
     if config.pointer_gen:
       while len(self.enc_input_extend_vocab) < max_len:
-        self.enc_input_extend_vocab.append(pad_id)
+        self.enc_input_extend_vocab.append([pad_id]*max_tok_len)
 
 
 class Batch(object):
@@ -93,24 +109,31 @@ class Batch(object):
 
   def init_encoder_seq(self, example_list):
     # Determine the maximum length of the encoder input sequence in this batch
-    max_enc_seq_len = max([ex.enc_len for ex in example_list])
+    max_enc_tok_len = max([max(ex.enc_tok_len) for ex in example_list])
+    max_enc_doc_len = max([ex.enc_doc_len for ex in example_list])
 
     # Pad the encoder input sequences up to the length of the longest sequence
     for ex in example_list:
-      ex.pad_encoder_input(max_enc_seq_len, self.pad_id)
+      ex.pad_encoder_tokens(max_enc_tok_len, self.pad_id)
+    for ex in example_list:
+      ex.pad_encoder_docs(max_enc_doc_len, self.pad_id)
 
     # Initialize the numpy arrays
     # Note: our enc_batch can have different length (second dimension) for each batch because we use dynamic_rnn for the encoder.
-    self.enc_batch = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.int32)
-    self.enc_lens = np.zeros((self.batch_size), dtype=np.int32)
-    self.enc_padding_mask = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.float32)
+    #self.enc_batch = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.int32)
+    self.enc_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
+    self.enc_doc_lens = np.zeros((self.batch_size), dtype=np.int32)
+    self.enc_sent_lens = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.int32)
+    self.enc_padding_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
 
     # Fill in the numpy arrays
     for i, ex in enumerate(example_list):
-      self.enc_batch[i, :] = ex.enc_input[:]
-      self.enc_lens[i] = ex.enc_len
-      for j in range(ex.enc_len):
-        self.enc_padding_mask[i][j] = 1
+      self.enc_batch[i, :] = np.array(ex.enc_input[:])
+      self.enc_doc_lens[i] = ex.enc_doc_len
+      for j in range(len(ex.enc_tok_len)):
+        self.enc_sent_lens[i][j] = ex.enc_tok_len[j]
+        for k in range(ex.enc_tok_len[j]):
+          self.enc_padding_mask[i][j][k] = 1
 
     # For pointer-generator mode, need to store some extra info
     if config.pointer_gen:
@@ -119,9 +142,9 @@ class Batch(object):
       # Store the in-article OOVs themselves
       self.art_oovs = [ex.article_oovs for ex in example_list]
       # Store the version of the enc_batch that uses the article OOV ids
-      self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.int32)
+      self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
       for i, ex in enumerate(example_list):
-        self.enc_batch_extend_vocab[i, :] = ex.enc_input_extend_vocab[:]
+        self.enc_batch_extend_vocab[i, :] = np.array(ex.enc_input_extend_vocab[:])
 
   def init_decoder_seq(self, example_list):
     # Pad the inputs and targets
