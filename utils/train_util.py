@@ -32,6 +32,8 @@ def get_input_from_batch(batch, use_cuda):
   if use_cuda:
     enc_batch = enc_batch.cuda()
     enc_padding_mask = enc_padding_mask.cuda()
+    enc_padding_sent_mask = enc_padding_sent_mask.cuda()
+    enc_padding_token_mask = enc_padding_token_mask.cuda()
 
     if enc_batch_extend_vocab is not None:
       enc_batch_extend_vocab = enc_batch_extend_vocab.cuda()
