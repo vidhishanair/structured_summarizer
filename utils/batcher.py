@@ -25,8 +25,8 @@ class Example(object):
     # Process the article
     # article_words = article.split()
     article_sents = article.decode().split('<split1>')
-    article_sents = article_sents[:30]
-    article_words = [sent.split()[:30] for sent in article_sents]
+    article_sents = article_sents[:10]
+    article_words = [sent.split()[:20] for sent in article_sents]
     # if len(article_words) > config.max_enc_steps:
     #   article_words = article_words[:config.max_enc_steps]
     self.enc_tok_len = [len(sent) for sent in article_words] # store the length after truncation but before padding
@@ -123,8 +123,8 @@ class Batch(object):
     #self.enc_batch = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.int32)
     self.enc_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
     self.enc_doc_lens = np.zeros((self.batch_size), dtype=np.int32)
-    self.enc_sent_lens = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.int32)
-    self.enc_padding_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
+    self.enc_sent_lens = np.ones((self.batch_size, max_enc_doc_len), dtype=np.int32)
+    self.enc_padding_mask = np.ones((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
 
     self.enc_padding_token_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
     self.enc_padding_sent_mask = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.float32)

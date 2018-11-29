@@ -29,7 +29,7 @@ rand_unif_init_mag=0.02
 trunc_norm_init_std=1e-4
 max_grad_norm=2.0
 
-pointer_gen = True
+pointer_gen = False #need to figure out how to copy
 is_coverage = False
 
 cov_loss_wt = 1.0

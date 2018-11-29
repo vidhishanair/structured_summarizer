@@ -2,11 +2,13 @@ from __future__ import unicode_literals, print_function, division
 
 import os
 import time
+import gc 
 
 from tensorboardX import SummaryWriter
 import torch
 from models.model import Model
 from torch.nn.utils import clip_grad_norm
+from tqdm import tqdm
 
 from utils.custom_adagrad import AdagradCustom
 
@@ -75,12 +77,14 @@ class Train(object):
     def train_one_batch(self, batch):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
             get_input_from_batch(batch, use_cuda)
+        #print(enc_batch.size())
+    
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
         self.optimizer.zero_grad()
 
-        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_sent_mask)
+        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
         s_t_1 = self.model.reduce_state(encoder_hidden)
         if config.use_maxpool_init_ctx:
             c_t_1 = max_encoder_output
@@ -113,13 +117,16 @@ class Train(object):
         clip_grad_norm(self.model.reduce_state.parameters(), config.max_grad_norm)
 
         self.optimizer.step()
-
+        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage
+        gc.collect()
+        torch.cuda.empty_cache()
         return loss.item()
 
     def trainIters(self, n_iters, model_file_path=None):
         iter, running_avg_loss = self.setup_train(model_file_path)
         start = time.time()
-        while iter < n_iters:
+        #while iter < n_iters:
+        for iter in tqdm(range(n_iters)):
             batch = self.batcher.next_batch()
             loss = self.train_one_batch(batch)
 
