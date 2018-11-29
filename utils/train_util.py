@@ -4,7 +4,7 @@ import torch
 import utils.config as config
 
 def get_input_from_batch(batch, use_cuda):
-  batch_size = len(batch.enc_lens)
+  batch_size = len(batch.enc_doc_lens)
 
   enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
   enc_padding_mask = Variable(torch.from_numpy(batch.enc_padding_mask)).float()

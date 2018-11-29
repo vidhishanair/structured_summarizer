@@ -87,7 +87,7 @@ class Example(object):
         self.enc_input[i].append(pad_id)
     if config.pointer_gen:
       for i in range(0, len(self.enc_input_extend_vocab)):
-        while len(self.enc_input_extend_vocab) < max_len:
+        while len(self.enc_input_extend_vocab[i]) < max_len:
           self.enc_input_extend_vocab[i].append(pad_id)
 
   def pad_encoder_docs(self, max_len, pad_id, max_tok_len):
@@ -116,7 +116,7 @@ class Batch(object):
     for ex in example_list:
       ex.pad_encoder_tokens(max_enc_tok_len, self.pad_id)
     for ex in example_list:
-      ex.pad_encoder_docs(max_enc_doc_len, self.pad_id)
+      ex.pad_encoder_docs(max_enc_doc_len, self.pad_id, max_enc_tok_len)
 
     # Initialize the numpy arrays
     # Note: our enc_batch can have different length (second dimension) for each batch because we use dynamic_rnn for the encoder.
@@ -255,7 +255,7 @@ class Batcher(object):
         inputs = []
         for _ in range(self.batch_size * self._bucketing_cache_size):
           inputs.append(self._example_queue.get())
-        inputs = sorted(inputs, key=lambda inp: inp.enc_len, reverse=True) # sort by length of encoder sequence
+        inputs = sorted(inputs, key=lambda inp: inp.enc_doc_len, reverse=True) # sort by length of encoder sequence
 
         # Group the sorted Examples into batches, optionally shuffle the batches, and place in the batch queue.
         batches = []
