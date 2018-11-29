@@ -13,6 +13,8 @@ log_root = os.path.join(root_dir, "log")
 
 # Hyperparameters
 hidden_dim= 256
+sem_dim_size = 150
+
 emb_dim= 128
 batch_size= 8
 max_enc_steps=400
@@ -29,6 +31,7 @@ max_grad_norm=2.0
 
 pointer_gen = True
 is_coverage = False
+
 cov_loss_wt = 1.0
 
 eps = 1e-12

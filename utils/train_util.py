@@ -8,6 +8,8 @@ def get_input_from_batch(batch, use_cuda):
 
   enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
   enc_padding_mask = Variable(torch.from_numpy(batch.enc_padding_mask)).float()
+  enc_padding_token_mask = Variable(torch.from_numpy(batch.enc_padding_token_mask)).float()
+  enc_padding_sent_mask = Variable(torch.from_numpy(batch.enc_padding_sent_mask)).float()
   #enc_lens = batch.enc_lens
   enc_doc_lens = batch.enc_doc_lens
   enc_sent_lens = batch.enc_sent_lens
@@ -40,7 +42,7 @@ def get_input_from_batch(batch, use_cuda):
     if coverage is not None:
       coverage = coverage.cuda()
 
-  return enc_batch, enc_padding_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage
+  return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage
 
 def get_output_from_batch(batch, use_cuda):
   dec_batch = Variable(torch.from_numpy(batch.dec_batch).long())

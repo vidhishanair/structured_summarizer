@@ -126,6 +126,9 @@ class Batch(object):
     self.enc_sent_lens = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.int32)
     self.enc_padding_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
 
+    self.enc_padding_token_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
+    self.enc_padding_sent_mask = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.float32)
+
     # Fill in the numpy arrays
     for i, ex in enumerate(example_list):
       self.enc_batch[i, :] = np.array(ex.enc_input[:])
@@ -134,6 +137,8 @@ class Batch(object):
         self.enc_sent_lens[i][j] = ex.enc_tok_len[j]
         for k in range(ex.enc_tok_len[j]):
           self.enc_padding_mask[i][j][k] = 1
+          self.enc_padding_token_mask[i][j][k] = 1
+        self.enc_padding_sent_mask[i][j] = 1
 
     # For pointer-generator mode, need to store some extra info
     if config.pointer_gen:

@@ -73,19 +73,14 @@ class Train(object):
         return start_iter, start_loss
 
     def train_one_batch(self, batch):
-        enc_batch, enc_padding_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
+        enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
             get_input_from_batch(batch, use_cuda)
-        print(enc_batch.size())
-        print(enc_padding_mask.size())
-        print(enc_doc_lens.size())
-        print(enc_sent_lens.size())
-        exit()
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
         self.optimizer.zero_grad()
 
-        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_lens)
+        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_sent_mask)
         s_t_1 = self.model.reduce_state(encoder_hidden)
         if config.use_maxpool_init_ctx:
             c_t_1 = max_encoder_output
@@ -94,7 +89,7 @@ class Train(object):
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1,  c_t_1, attn_dist, p_gen, coverage = self.model.decoder(y_t_1, s_t_1,
-                                                                                       encoder_outputs, enc_padding_mask, c_t_1,
+                                                                                       encoder_outputs, enc_padding_sent_mask, c_t_1,
                                                                                        extra_zeros, enc_batch_extend_vocab,
                                                                                        coverage)
             target = target_batch[:, di]
