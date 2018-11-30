@@ -70,7 +70,7 @@ class Evaluate(object):
         gc.collect()
         torch.cuda.empty_cache()
 
-        return loss.data[0]
+        return loss.item()
 
     def run_eval(self):
         running_avg_loss, iter = 0, 0
