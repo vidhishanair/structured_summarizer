@@ -1,5 +1,6 @@
 .idea/
 saved_nodels/
+pycocoevalcap/*
 .pyc
 .txt
 *.iml

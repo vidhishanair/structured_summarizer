@@ -57,9 +57,9 @@ class BeamSearch(object):
         # self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
-        # for p in [self._decode_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
-        #     if not os.path.exists(p):
-        #         os.mkdir(p)
+        for p in [self._decode_dir]:
+            if not os.path.exists(p):
+                os.mkdir(p)
 
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
@@ -80,8 +80,10 @@ class BeamSearch(object):
         batch = self.batcher.next_batch()
         while batch is not None:
             # Run beam search to get best Hypothesis
-            best_summary = self.beam_search(batch)
-
+            boo, best_summary = self.beam_search(batch)
+            if boo==False:
+                batch = self.batcher.next_batch()
+                continue
             # Extract the output ids from the hypothesis and convert back to words
             output_ids = [int(t) for t in best_summary.tokens[1:]]
             decoded_words = data.outputids2words(output_ids, self.vocab,
@@ -96,8 +98,8 @@ class BeamSearch(object):
 
             original_abstract_sents = batch.original_abstracts_sents[0]
 
-            abstract_ref.append(original_abstract_sents)
-            abstract_pred.append(decoded_words)
+            abstract_ref.append(" ".join(original_abstract_sents))
+            abstract_pred.append(" ".join(decoded_words))
 #            write_for_rouge(original_abstract_sents, decoded_words, counter,
 #                            self._rouge_ref_dir, self._rouge_dec_dir)
             counter += 1
@@ -113,9 +115,7 @@ class BeamSearch(object):
         #rouge_log(results_dict, self._decode_dir)
         write_to_json_file(abstract_ref, self._rouge_ref_file)
         write_to_json_file(abstract_pred, self._rouge_pred_file)
-        coco = COCO(abstract_ref)
-        cocoRes = coco.loadRes(abstract_pred)
-        cocoEval = COCOEvalCap(coco, cocoRes)
+        cocoEval = COCOEvalCap(self._rouge_ref_file, self._rouge_pred_file)
         cocoEval.evaluate()
         for metric, score in cocoEval.eval.items():
             print('%s: %.3f'%(metric, score))
@@ -126,7 +126,8 @@ class BeamSearch(object):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0 = \
             get_input_from_batch(batch, use_cuda)
-
+        if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
+            return False, None
         encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
         s_t_0 = self.model.reduce_state(encoder_hidden)
 
@@ -195,8 +196,8 @@ class BeamSearch(object):
                 coverage_i = (coverage_t[i] if config.is_coverage else None)
 
                 for j in range(config.beam_size * 2):  # for each of the top 2*beam_size hyps:
-                    new_beam = h.extend(token=topk_ids[i, j].data[0],
-                                        log_prob=topk_log_probs[i, j].data[0],
+                    new_beam = h.extend(token=topk_ids[i, j].item(),
+                                        log_prob=topk_log_probs[i, j].item(),
                                         state=state_i,
                                         context=context_i,
                                         coverage=coverage_i)
@@ -219,7 +220,7 @@ class BeamSearch(object):
 
         beams_sorted = self.sort_beams(results)
 
-        return beams_sorted[0]
+        return True, beams_sorted[0]
 
 if __name__ == '__main__':
     model_filename = sys.argv[1]

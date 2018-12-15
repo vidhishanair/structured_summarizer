@@ -126,6 +126,7 @@ class Train(object):
         iter, running_avg_loss = self.setup_train(model_file_path)
         start = time.time()
         #while iter < n_iters:
+        #for iter in tqdm(range(n_iters)):
         for iter in tqdm(range(n_iters)):
             batch = self.batcher.next_batch()
             loss = self.train_one_batch(batch)
