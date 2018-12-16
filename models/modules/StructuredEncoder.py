@@ -64,7 +64,7 @@ class StructuredEncoder(nn.Module):
         # BiLSTM
         encoded_sentences, hidden = self.sentence_encoder.forward_packed(input, sent_l)
 
-        mask = tokens_mask.view(tokens_mask.size(0)*tokens_mask.size(1), tokens_mask.size(2)).unsqueeze(2).repeat(1,1,encoded_sentences.size(2))
+        mask = tokens_mask.view(tokens_mask.size(0)*tokens_mask.size(1), tokens_mask.size(2)).unsqueeze(2).repeat(1, 1, encoded_sentences.size(2))
         encoded_sentences = encoded_sentences * mask
 
         # Structure ATT
@@ -72,8 +72,8 @@ class StructuredEncoder(nn.Module):
 
         # Reshape and max pool
         encoded_sentences = encoded_sentences.contiguous().view(batch_size, sent_size, token_size, encoded_sentences.size(2))
-        encoded_sentences = encoded_sentences + ((tokens_mask-1)*999).unsqueeze(3).repeat(1,1,1,encoded_sentences.size(3))
-        encoded_sentences = encoded_sentences.max(dim=2)[0] # Batch * sent * dim
+        encoded_sentences = encoded_sentences + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, encoded_sentences.size(3))
+        encoded_sentences = encoded_sentences.max(dim=2)[0]  # Batch * sent * dim
 
         # Doc BiLSTM
         encoded_documents, hidden = self.document_encoder.forward(encoded_sentences, doc_l)
