@@ -85,7 +85,7 @@ class StructuredEncoder(nn.Module):
 
         # Max Pool
         max_encoded_documents = encoded_documents + ((sent_mask-1)*999).unsqueeze(2).repeat(1,1,encoded_documents.size(2))
-        mask = sent_mask.unsqueeze(2).repeat(1,1,encoded_documents.size(2))
+        mask = sent_mask.unsqueeze(2).repeat(1, 1, encoded_documents.size(2))
         encoded_documents = encoded_documents * mask
 
         max_encoded_documents = max_encoded_documents.max(dim=1)[0]

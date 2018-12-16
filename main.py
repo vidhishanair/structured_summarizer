@@ -24,8 +24,10 @@ use_cuda = config.use_gpu and torch.cuda.is_available()
 class Train(object):
     def __init__(self):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
-        self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
+        self.train_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
                                batch_size=config.batch_size, single_pass=False)
+        self.eval_batcher = Batcher(config.eval_data_path, self.vocab, mode='eval',
+                               batch_size=config.batch_size, single_pass=True)
         time.sleep(15)
 
         train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
@@ -97,7 +99,7 @@ class Train(object):
 
         for iter in tqdm(range(n_iters)):
             self.model.train()
-            batch = self.batcher.next_batch()
+            batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch)
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
@@ -155,12 +157,12 @@ class Train(object):
     def run_eval(self):
         running_avg_loss, iter = 0, 0
         self.model.eval()
-        batch = self.batcher.next_batch()
+        batch = self.eval_batcher.next_batch()
         while batch is not None:
             loss = self.get_loss(batch).item()
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
             iter += 1
-            batch = self.batcher.next_batch()
+            batch = self.eval_batcher.next_batch()
         print('Eval: loss: %f' % running_avg_loss)
         return running_avg_loss
 
