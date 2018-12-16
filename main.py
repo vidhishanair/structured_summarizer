@@ -2,7 +2,8 @@ from __future__ import unicode_literals, print_function, division
 
 import os
 import time
-import gc 
+import gc
+import argparse
 
 from tensorboardX import SummaryWriter
 import torch
@@ -22,7 +23,7 @@ use_cuda = config.use_gpu and torch.cuda.is_available()
 
 
 class Train(object):
-    def __init__(self):
+    def __init__(self, model_name=None):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.train_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
                                batch_size=config.batch_size, single_pass=False)
@@ -30,10 +31,13 @@ class Train(object):
                                batch_size=config.batch_size, single_pass=True)
         time.sleep(15)
 
-        train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
+        if model_name is None:
+            train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
+        else:
+            train_dir = os.path.join(config.log_root, 'train_'+model_name)
+
         if not os.path.exists(train_dir):
             os.mkdir(train_dir)
-
         self.model_dir = os.path.join(train_dir, 'model')
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
@@ -168,5 +172,9 @@ class Train(object):
 
 
 if __name__ == '__main__':
-    train_processor = Train()
+    parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
+    parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
+    args = parser.parse_args()
+    save_path = args.save_path
+    train_processor = Train(save_path)
     train_processor.train_iters(config.max_iterations)

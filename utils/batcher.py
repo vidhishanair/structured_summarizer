@@ -25,9 +25,14 @@ class Example(object):
 
         # Process the article
         # article_words = article.split()
-        article_sents = article.decode().split('<split1>')
-        article_sents = article_sents[:10]
-        article_words = [sent.split()[:20] for sent in article_sents]
+        if config.autoencode == True:
+            article_sents = abstract_sentences
+            article_sents = article_sents[:10]
+            article_words = [sent.split()[:20] for sent in article_sents]
+        else:
+            article_sents = article.decode().split('<split1>')
+            article_sents = article_sents[:10]
+            article_words = [sent.split()[:20] for sent in article_sents]
         # if len(article_words) > config.max_enc_steps:
         #   article_words = article_words[:config.max_enc_steps]
         self.enc_tok_len = [len(sent) for sent in article_words]  # store the length after truncation but before padding
