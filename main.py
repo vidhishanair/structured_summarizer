@@ -20,6 +20,7 @@ from utils.train_util import get_input_from_batch, get_output_from_batch
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
+
 class Train(object):
     def __init__(self):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
@@ -93,7 +94,9 @@ class Train(object):
         #while iter < n_iters:
         #for iter in tqdm(range(n_iters)):
         best_val_loss = None
+
         for iter in tqdm(range(n_iters)):
+            self.model.train()
             batch = self.batcher.next_batch()
             loss = self.train_one_batch(batch)
 
@@ -150,7 +153,7 @@ class Train(object):
 
     def run_eval(self):
         running_avg_loss, iter = 0, 0
-
+        self.model.eval()
         batch = self.batcher.next_batch()
         while batch is not None:
             loss = self.get_loss(batch).item()
@@ -159,6 +162,7 @@ class Train(object):
             batch = self.batcher.next_batch()
         print('Eval: loss: %f' % running_avg_loss)
         return running_avg_loss
+
 
 if __name__ == '__main__':
     train_processor = Train()
