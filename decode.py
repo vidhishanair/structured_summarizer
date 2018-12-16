@@ -66,7 +66,8 @@ class BeamSearch(object):
                                batch_size=config.beam_size, single_pass=True)
         time.sleep(15)
 
-        self.model = Model(model_file_path, is_eval=True)
+        self.model = Model(model_file_path)
+        self.model.eval()
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)

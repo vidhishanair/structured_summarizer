@@ -31,7 +31,7 @@ max_grad_norm=2.0
 
 pointer_gen = False #need to figure out how to copy
 is_coverage = False
-autoencode = False
+autoencode = True
 
 cov_loss_wt = 1.0
 
