@@ -207,6 +207,15 @@ class Batcher(object):
             self._bucketing_cache_size = 1  # 100 # how many batches-worth of examples to load into cache before bucketing
 
         # Start the threads that load the queues
+        self.setup_queues()
+
+        # Start a thread that watches the other threads and restarts them if they're dead
+        if not single_pass:  # We don't want a watcher in single_pass mode because the threads shouldn't run forever
+            self._watch_thread = Thread(target=self.watch_threads)
+            self._watch_thread.daemon = True
+            self._watch_thread.start()
+
+    def setup_queues(self):
         self._example_q_threads = []
         for _ in range(self._num_example_q_threads):
             self._example_q_threads.append(Thread(target=self.fill_example_queue))
@@ -217,12 +226,6 @@ class Batcher(object):
             self._batch_q_threads.append(Thread(target=self.fill_batch_queue))
             self._batch_q_threads[-1].daemon = True
             self._batch_q_threads[-1].start()
-
-        # Start a thread that watches the other threads and restarts them if they're dead
-        if not single_pass:  # We don't want a watcher in single_pass mode because the threads shouldn't run forever
-            self._watch_thread = Thread(target=self.watch_threads)
-            self._watch_thread.daemon = True
-            self._watch_thread.start()
 
     def next_batch(self):
         # If the batch queue is empty, print a warning
@@ -241,8 +244,7 @@ class Batcher(object):
 
         while True:
             try:
-                (article, abstract) = next(
-                    input_gen)  # read the next example from file. article and abstract are both strings.
+                (article, abstract) = next(input_gen)  # read the next example from file. article and abstract are both strings.
             except StopIteration:  # if there are no more examples:
                 print("The example generator for this example queue filling thread has exhausted data.")
                 if self._single_pass:
