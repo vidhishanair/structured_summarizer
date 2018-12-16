@@ -75,27 +75,62 @@ class Train(object):
         return start_iter, start_loss
 
     def train_one_batch(self, batch):
-        enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
-            get_input_from_batch(batch, use_cuda)
-        #print(enc_batch.size())
-    
-        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-            get_output_from_batch(batch, use_cuda)
 
         self.optimizer.zero_grad()
+        loss = self.get_loss(batch)
+        loss.backward()
 
-        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
+        clip_grad_norm(self.model.encoder.parameters(), config.max_grad_norm)
+        clip_grad_norm(self.model.decoder.parameters(), config.max_grad_norm)
+        clip_grad_norm(self.model.reduce_state.parameters(), config.max_grad_norm)
+
+        self.optimizer.step()
+        return loss.item()
+
+    def train_iters(self, n_iters, model_file_path=None):
+        iter, running_avg_loss = self.setup_train(model_file_path)
+        start = time.time()
+        #while iter < n_iters:
+        #for iter in tqdm(range(n_iters)):
+        best_val_loss = None
+        for iter in tqdm(range(n_iters)):
+            batch = self.batcher.next_batch()
+            loss = self.train_one_batch(batch)
+
+            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
+            iter += 1
+
+            print_interval = 1000
+            if iter % print_interval == 0:
+                print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
+                                                                           time.time() - start, loss))
+                start = time.time()
+            if iter % config.eval_interval == 0:
+                loss = self.run_eval()
+                if best_val_loss is None or loss < best_val_loss:
+                    best_val_loss = loss
+                    self.save_model(running_avg_loss, iter)
+
+    def get_loss(self, batch):
+        enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \
+            get_input_from_batch(batch, use_cuda)
+        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
+            get_output_from_batch(batch, use_cuda)
+        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens,
+                                                                                 enc_padding_token_mask,
+                                                                                 enc_padding_sent_mask)
         s_t_1 = self.model.reduce_state(encoder_hidden)
         if config.use_maxpool_init_ctx:
             c_t_1 = max_encoder_output
-
         step_losses = []
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
-            final_dist, s_t_1,  c_t_1, attn_dist, p_gen, coverage = self.model.decoder(y_t_1, s_t_1,
-                                                                                       encoder_outputs, enc_padding_sent_mask, c_t_1,
-                                                                                       extra_zeros, enc_batch_extend_vocab,
-                                                                                       coverage)
+            final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.decoder(y_t_1, s_t_1,
+                                                                                      encoder_outputs,
+                                                                                      enc_padding_sent_mask, c_t_1,
+                                                                                      extra_zeros,
+                                                                                      enc_batch_extend_vocab,
+                                                                                      coverage)
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps)
@@ -105,45 +140,26 @@ class Train(object):
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
             step_losses.append(step_loss)
-
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-        batch_avg_loss = sum_losses/dec_lens_var
+        batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
-
-        loss.backward()
-
-        clip_grad_norm(self.model.encoder.parameters(), config.max_grad_norm)
-        clip_grad_norm(self.model.decoder.parameters(), config.max_grad_norm)
-        clip_grad_norm(self.model.reduce_state.parameters(), config.max_grad_norm)
-
-        self.optimizer.step()
-        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage
+        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage
         gc.collect()
         torch.cuda.empty_cache()
-        return loss.item()
+        return loss
 
-    def trainIters(self, n_iters, model_file_path=None):
-        iter, running_avg_loss = self.setup_train(model_file_path)
-        start = time.time()
-        #while iter < n_iters:
-        #for iter in tqdm(range(n_iters)):
-        for iter in tqdm(range(n_iters)):
-            batch = self.batcher.next_batch()
-            loss = self.train_one_batch(batch)
+    def run_eval(self):
+        running_avg_loss, iter = 0, 0
 
+        batch = self.batcher.next_batch()
+        while batch is not None:
+            loss = self.get_loss(batch).item()
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
             iter += 1
-
-            # if iter % 100 == 0:
-            #     self.summary_writer.flush()
-            print_interval = 1000
-            if iter % print_interval == 0:
-                print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
-                                                                           time.time() - start, loss))
-                start = time.time()
-            if iter % 5000 == 0:
-                self.save_model(running_avg_loss, iter)
+            batch = self.batcher.next_batch()
+        print('Eval: loss: %f' % running_avg_loss)
+        return running_avg_loss
 
 if __name__ == '__main__':
     train_processor = Train()
-    train_processor.trainIters(config.max_iterations)
+    train_processor.train_iters(config.max_iterations)
