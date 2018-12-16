@@ -174,7 +174,9 @@ class Train(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
     parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
+    parser.add_argument('--reload_path', type=str, default=None, help='location of the older saved path')
     args = parser.parse_args()
     save_path = args.save_path
+    reload_path = args.reload_path
     train_processor = Train(save_path)
-    train_processor.train_iters(config.max_iterations)
+    train_processor.train_iters(config.max_iterations, reload_path)
