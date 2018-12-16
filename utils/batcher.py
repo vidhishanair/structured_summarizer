@@ -316,7 +316,7 @@ class Batcher(object):
                 print('Failed to get article or abstract from example')
                 continue
             if len(article_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
-                print('Found an example with empty article text. Skipping it.')
+                #print('Found an example with empty article text. Skipping it.')
                 continue
             else:
                 yield (article_text, abstract_text)
