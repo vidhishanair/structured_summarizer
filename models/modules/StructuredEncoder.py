@@ -5,6 +5,7 @@ import torch.nn as nn
 
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
 from models.modules.StructuredAttention import StructuredAttention
+from models.utils import init_wt_normal
 from utils import config
 from numpy import random
 import itertools
@@ -46,14 +47,6 @@ class StructuredEncoder(nn.Module):
 
     #seq_lens should be in descending order
     def forward(self, input, sent_l, doc_l, mask_tokens, mask_sents):
-        # embedded = self.embedding(input)
-        #
-        # packed = pack_padded_sequence(embedded, seq_lens, batch_first=True)
-        # output, hidden = self.lstm(packed)
-        #
-        # h, _ = pad_packed_sequence(output, batch_first=True)  # h dim = B x t_k x n
-        # h = h.contiguous()
-        # max_h, _ = h.max(dim=1)
 
         batch_size, sent_size, token_size = input.size()
 
@@ -63,35 +56,38 @@ class StructuredEncoder(nn.Module):
         input = self.embedding(input)
         input = self.drop(input)
 
-        #reshape to 3D tensor
+        # reshape to 3D tensor
         input = input.contiguous().view(input.size(0)*input.size(1), input.size(2), input.size(3))
         sent_l = list(itertools.chain.from_iterable(sent_l))
 
 
-        #BiLSTM
+        # BiLSTM
         encoded_sentences, hidden = self.sentence_encoder.forward_packed(input, sent_l)
 
         mask = tokens_mask.view(tokens_mask.size(0)*tokens_mask.size(1), tokens_mask.size(2)).unsqueeze(2).repeat(1,1,encoded_sentences.size(2))
         encoded_sentences = encoded_sentences * mask
 
-        #Structure ATT
+        # Structure ATT
         encoded_sentences, sent_attention_matrix = self.sentence_structure_att.forward(encoded_sentences)
 
-        #Reshape and max pool
+        # Reshape and max pool
         encoded_sentences = encoded_sentences.contiguous().view(batch_size, sent_size, token_size, encoded_sentences.size(2))
         encoded_sentences = encoded_sentences + ((tokens_mask-1)*999).unsqueeze(3).repeat(1,1,1,encoded_sentences.size(3))
         encoded_sentences = encoded_sentences.max(dim=2)[0] # Batch * sent * dim
 
-        #Doc BiLSTM
+        # Doc BiLSTM
         encoded_documents, hidden = self.document_encoder.forward(encoded_sentences, doc_l)
         mask = sent_mask.unsqueeze(2).repeat(1,1,encoded_documents.size(2))
         encoded_documents = encoded_documents * mask
 
-        #structure Att
+        # structure Att
         encoded_documents, doc_attention_matrix = self.document_structure_att.forward(encoded_documents)
 
-        #Max Pool
-        encoded_documents = encoded_documents + ((sent_mask-1)*999).unsqueeze(2).repeat(1,1,encoded_documents.size(2))
-        max_encoded_documents = encoded_documents.max(dim=1)[0]
+        # Max Pool
+        max_encoded_documents = encoded_documents + ((sent_mask-1)*999).unsqueeze(2).repeat(1,1,encoded_documents.size(2))
+        mask = sent_mask.unsqueeze(2).repeat(1,1,encoded_documents.size(2))
+        encoded_documents = encoded_documents * mask
+
+        max_encoded_documents = max_encoded_documents.max(dim=1)[0]
 
         return encoded_documents, hidden, max_encoded_documents
