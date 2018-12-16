@@ -113,6 +113,7 @@ class Train(object):
                 if best_val_loss is None or loss < best_val_loss:
                     best_val_loss = loss
                     self.save_model(running_avg_loss, iter)
+                    print("Saving best model")
 
     def get_loss(self, batch):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = \

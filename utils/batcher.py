@@ -125,7 +125,7 @@ class Batch(object):
         self.enc_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
         self.enc_doc_lens = np.zeros((self.batch_size), dtype=np.int32)
         self.enc_sent_lens = np.ones((self.batch_size, max_enc_doc_len), dtype=np.int32)
-        self.enc_padding_mask = np.zeroes((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
+        self.enc_padding_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
 
         self.enc_padding_token_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
         self.enc_padding_sent_mask = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.float32)
