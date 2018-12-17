@@ -42,9 +42,14 @@ class Attention(nn.Module):
     def __init__(self):
         super(Attention, self).__init__()
         # attention
-        self.W_h = nn.Linear(config.sem_dim_size * 2, config.hidden_dim * 2, bias=False)
+        if config.concat_rep:
+            self.W_h = nn.Linear(config.sem_dim_size * 4, config.hidden_dim * 2, bias=False)
+        else:
+            self.W_h = nn.Linear(config.sem_dim_size * 2, config.hidden_dim * 2, bias=False)
+
         if config.is_coverage:
             self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
+
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
 
@@ -59,6 +64,7 @@ class Attention(nn.Module):
         dec_fea_expanded = dec_fea_expanded.view(-1, n)  # B * t_k x 2*hidden_dim
 
         att_features = encoder_feature + dec_fea_expanded # B * t_k x 2*hidden_dim
+
         if config.is_coverage:
             coverage_input = coverage.view(-1, 1)  # B * t_k x 1
             coverage_feature = self.W_c(coverage_input)  # B * t_k x 2*hidden_dim
@@ -94,7 +100,10 @@ class Decoder(nn.Module):
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
 
-        self.x_context = nn.Linear(config.sem_dim_size * 2 + config.emb_dim, config.emb_dim)
+        if config.concat_rep:
+            self.x_context = nn.Linear(config.sem_dim_size * 4 + config.emb_dim, config.emb_dim)
+        else:
+            self.x_context = nn.Linear(config.sem_dim_size * 2 + config.emb_dim, config.emb_dim)
 
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
         init_lstm_wt(self.lstm)

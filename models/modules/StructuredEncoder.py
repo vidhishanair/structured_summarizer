@@ -68,10 +68,10 @@ class StructuredEncoder(nn.Module):
         encoded_sentences = encoded_sentences * mask
 
         # Structure ATT
-        encoded_sentences, sent_attention_matrix = self.sentence_structure_att.forward(encoded_sentences)
+        orig_encoded_sentences, sent_attention_matrix = self.sentence_structure_att.forward(encoded_sentences)
 
         # Reshape and max pool
-        encoded_sentences = encoded_sentences.contiguous().view(batch_size, sent_size, token_size, encoded_sentences.size(2))
+        encoded_sentences = orig_encoded_sentences.contiguous().view(batch_size, sent_size, token_size, orig_encoded_sentences.size(2))
         encoded_sentences = encoded_sentences + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, encoded_sentences.size(3))
         encoded_sentences = encoded_sentences.max(dim=2)[0]  # Batch * sent * dim
 
@@ -81,13 +81,21 @@ class StructuredEncoder(nn.Module):
         encoded_documents = encoded_documents * mask
 
         # structure Att
-        encoded_documents, doc_attention_matrix = self.document_structure_att.forward(encoded_documents)
+        orig_encoded_documents, doc_attention_matrix = self.document_structure_att.forward(encoded_documents)
 
         # Max Pool
-        max_encoded_documents = encoded_documents + ((sent_mask-1)*999).unsqueeze(2).repeat(1,1,encoded_documents.size(2))
-        mask = sent_mask.unsqueeze(2).repeat(1, 1, encoded_documents.size(2))
-        encoded_documents = encoded_documents * mask
-
+        max_encoded_documents = orig_encoded_documents + ((sent_mask-1)*999).unsqueeze(2).repeat(1,1,orig_encoded_documents.size(2))
         max_encoded_documents = max_encoded_documents.max(dim=1)[0]
 
-        return encoded_documents, hidden, max_encoded_documents
+        mask = sent_mask.unsqueeze(2).repeat(1, 1, orig_encoded_documents.size(2))
+        masked_encoded_documents = orig_encoded_documents * mask
+
+        if config.concat_rep:
+            ext_encoded_documents = orig_encoded_documents.contiguous().view(orig_encoded_documents.size(0)*orig_encoded_documents.size(1), orig_encoded_documents.size(2))
+            ext_encoded_documents = ext_encoded_documents.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size, ext_encoded_documents.size(1))
+            ext_encoded_tokens = orig_encoded_sentences.contiguous().view(batch_size, sent_size*token_size, orig_encoded_sentences.size(2))
+            encoded_tokens = torch.cat([ext_encoded_tokens, ext_encoded_documents])
+        else:
+            encoded_tokens = None
+
+        return masked_encoded_documents, hidden, max_encoded_documents, encoded_tokens

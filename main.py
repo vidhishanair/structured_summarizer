@@ -126,9 +126,17 @@ class Train(object):
             get_input_from_batch(batch, use_cuda)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
-        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens,
+        encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens,
                                                                                  enc_padding_token_mask,
                                                                                  enc_padding_sent_mask)
+        if config.concat_rep:
+            encoder_outputs = encoded_tokens
+            enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+            enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0), enc_batch_extend_vocab.size(1)*enc_batch_extend_vocab.size(2))
+        else:
+            encoder_outputs = encoder_doc_outputs
+            enc_padding_mask = enc_padding_sent_mask
+
         s_t_1 = self.model.reduce_state(encoder_hidden)
         if config.use_maxpool_init_ctx:
             c_t_1 = max_encoder_output
@@ -137,7 +145,7 @@ class Train(object):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.decoder(y_t_1, s_t_1,
                                                                                       encoder_outputs,
-                                                                                      enc_padding_sent_mask, c_t_1,
+                                                                                      enc_padding_mask, c_t_1,
                                                                                       extra_zeros,
                                                                                       enc_batch_extend_vocab,
                                                                                       coverage)
