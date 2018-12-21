@@ -34,7 +34,7 @@ class Train(object):
         if model_name is None:
             train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
         else:
-            train_dir = os.path.join(config.log_root, 'train_'+model_name)
+            train_dir = os.path.join(config.log_root, model_name)
 
         if not os.path.exists(train_dir):
             os.mkdir(train_dir)
@@ -185,8 +185,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
     parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
     parser.add_argument('--reload_path', type=str, default=None, help='location of the older saved path')
+
     args = parser.parse_args()
     save_path = args.save_path
     reload_path = args.reload_path
     train_processor = Train(save_path)
     train_processor.train_iters(config.max_iterations, reload_path)
+

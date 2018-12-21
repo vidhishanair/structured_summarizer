@@ -9,6 +9,7 @@ import sys
 
 import os
 import time
+import argparse
 
 import torch
 from torch.autograd import Variable
@@ -50,9 +51,9 @@ class Beam(object):
 
 
 class BeamSearch(object):
-    def __init__(self, model_file_path):
+    def __init__(self, model_file_path, save_path):
         model_name = os.path.basename(model_file_path)
-        self._decode_dir = os.path.join(config.log_root, 'decode_%s' % (model_name))
+        self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
         # self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
         # self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
@@ -224,8 +225,13 @@ class BeamSearch(object):
         return True, beams_sorted[0]
 
 if __name__ == '__main__':
-    model_filename = sys.argv[1]
-    beam_Search_processor = BeamSearch(model_filename)
+    parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
+    parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
+    parser.add_argument('--model_path', type=str, default=None, help='location of the older saved path')
+    args = parser.parse_args()
+    model_filename = args.model_path
+    save_path = args.save_path
+    beam_Search_processor = BeamSearch(model_filename, save_path)
     beam_Search_processor.decode()
 
 
