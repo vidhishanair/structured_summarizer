@@ -9,6 +9,7 @@ import sys
 
 import os
 import time
+import argparse
 
 import torch
 from torch.autograd import Variable
@@ -50,9 +51,9 @@ class Beam(object):
 
 
 class BeamSearch(object):
-    def __init__(self, model_file_path):
+    def __init__(self, model_file_path, save_path):
         model_name = os.path.basename(model_file_path)
-        self._decode_dir = os.path.join(config.log_root, 'decode_%s' % (model_name))
+        self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
         # self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
         # self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
@@ -66,7 +67,8 @@ class BeamSearch(object):
                                batch_size=config.beam_size, single_pass=True)
         time.sleep(15)
 
-        self.model = Model(model_file_path, is_eval=True)
+        self.model = Model(model_file_path)
+        self.model.eval()
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
@@ -128,9 +130,17 @@ class BeamSearch(object):
             get_input_from_batch(batch, use_cuda)
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
             return False, None
-        encoder_outputs, encoder_hidden, max_encoder_output = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
-        s_t_0 = self.model.reduce_state(encoder_hidden)
+        encoder_outputs, encoder_hidden, max_encoder_output, encoded_tokens = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
+        
+        if config.concat_rep:
+            encoder_outputs = encoded_tokens
+            enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+            enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0), enc_batch_extend_vocab.size(1)*enc_batch_extend_vocab.size(2))
+        else:
+            encoder_outputs = encoder_doc_outputs
+            enc_padding_mask = enc_padding_sent_mask
 
+        s_t_0 = self.model.reduce_state(encoder_hidden)
 
         if config.use_maxpool_init_ctx:
             c_t_0 = max_encoder_output
@@ -178,7 +188,7 @@ class BeamSearch(object):
                 coverage_t_1 = torch.stack(all_coverage, 0)
 
             final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
-                                                                                    encoder_outputs, enc_padding_sent_mask, c_t_1,
+                                                                                    encoder_outputs, enc_padding_mask, c_t_1,
                                                                                     extra_zeros, enc_batch_extend_vocab, coverage_t_1)
 
             topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
@@ -223,8 +233,13 @@ class BeamSearch(object):
         return True, beams_sorted[0]
 
 if __name__ == '__main__':
-    model_filename = sys.argv[1]
-    beam_Search_processor = BeamSearch(model_filename)
+    parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
+    parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
+    parser.add_argument('--model_path', type=str, default=None, help='location of the older saved path')
+    args = parser.parse_args()
+    model_filename = args.model_path
+    save_path = args.save_path
+    beam_Search_processor = BeamSearch(model_filename, save_path)
     beam_Search_processor.decode()
 
 

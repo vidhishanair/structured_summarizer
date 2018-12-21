@@ -29,16 +29,19 @@ rand_unif_init_mag=0.02
 trunc_norm_init_std=1e-4
 max_grad_norm=2.0
 
-pointer_gen = False #need to figure out how to copy
+pointer_gen = True #need to figure out how to copy
 is_coverage = False
+autoencode = False
+concat_rep = True
 
 cov_loss_wt = 1.0
 
 eps = 1e-12
 max_iterations = 500000
+eval_interval = 5000
 
 use_gpu=True
 
 lr_coverage=0.15
 
-use_maxpool_init_ctx = False
+use_maxpool_init_ctx = True
