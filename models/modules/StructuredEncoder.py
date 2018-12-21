@@ -94,7 +94,8 @@ class StructuredEncoder(nn.Module):
             ext_encoded_documents = orig_encoded_documents.contiguous().view(orig_encoded_documents.size(0)*orig_encoded_documents.size(1), orig_encoded_documents.size(2))
             ext_encoded_documents = ext_encoded_documents.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size, ext_encoded_documents.size(1))
             ext_encoded_tokens = orig_encoded_sentences.contiguous().view(batch_size, sent_size*token_size, orig_encoded_sentences.size(2))
-            encoded_tokens = torch.cat([ext_encoded_tokens, ext_encoded_documents])
+            encoded_tokens = torch.cat([ext_encoded_tokens, ext_encoded_documents], dim=2)
+            max_encoded_documents = encoded_tokens.max(dim=1)[0]
         else:
             encoded_tokens = None
 

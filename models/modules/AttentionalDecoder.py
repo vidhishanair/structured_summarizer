@@ -81,7 +81,10 @@ class Attention(nn.Module):
         attn_dist = attn_dist.unsqueeze(1)  # B x 1 x t_k
         h = h.view(-1, t_k, n1)  # B x t_k x 2*hidden_dim
         c_t = torch.bmm(attn_dist, h)  # B x 1 x n
-        c_t = c_t.view(-1, config.sem_dim_size * 2)  # B x 2*hidden_dim
+        if config.concat_rep:
+            c_t = c_t.view(-1, config.sem_dim_size * 4)
+        else:
+            c_t = c_t.view(-1, config.sem_dim_size * 2)  # B x 2*hidden_dim
 
         attn_dist = attn_dist.view(-1, t_k)  # B x t_k
 
@@ -109,10 +112,13 @@ class Decoder(nn.Module):
         init_lstm_wt(self.lstm)
 
         if config.pointer_gen:
-            self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 2 * config.sem_dim_size + config.emb_dim, 1)
+            self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 4 * config.sem_dim_size + config.emb_dim, 1)
 
         # p_vocab
-        self.out1 = nn.Linear(config.hidden_dim + 2*config.sem_dim_size, config.hidden_dim)
+        if config.concat_rep:
+            self.out1 = nn.Linear(config.hidden_dim + 4*config.sem_dim_size, config.hidden_dim)
+        else:
+            self.out1 = nn.Linear(config.hidden_dim + 2*config.sem_dim_size, config.hidden_dim)
         self.out2 = nn.Linear(config.hidden_dim, config.vocab_size)
         init_linear_wt(self.out2)
 
