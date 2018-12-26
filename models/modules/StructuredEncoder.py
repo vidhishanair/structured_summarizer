@@ -19,9 +19,10 @@ if torch.cuda.is_available():
 
 
 class StructuredEncoder(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(StructuredEncoder, self).__init__()
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+        self.concat_rep = args.concat_rep
         self.drop = nn.Dropout(0.3)
         init_wt_normal(self.embedding.weight)
         bidirectional = True
@@ -90,7 +91,7 @@ class StructuredEncoder(nn.Module):
         mask = sent_mask.unsqueeze(2).repeat(1, 1, orig_encoded_documents.size(2))
         masked_encoded_documents = orig_encoded_documents * mask
 
-        if config.concat_rep:
+        if self.concat_rep:
             ext_encoded_documents = orig_encoded_documents.contiguous().view(orig_encoded_documents.size(0)*orig_encoded_documents.size(1), orig_encoded_documents.size(2))
             ext_encoded_documents = ext_encoded_documents.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size, ext_encoded_documents.size(1))
             ext_encoded_tokens = orig_encoded_sentences.contiguous().view(batch_size, sent_size*token_size, orig_encoded_sentences.size(2))

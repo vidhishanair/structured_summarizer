@@ -39,15 +39,17 @@ class ReduceState(nn.Module):
 
 
 class Attention(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(Attention, self).__init__()
         # attention
-        if config.concat_rep:
+        self.concat_rep = args.concat_rep
+        self.is_coverage = args.is_coverage
+        if self.concat_rep:
             self.W_h = nn.Linear(config.sem_dim_size * 4, config.hidden_dim * 2, bias=False)
         else:
             self.W_h = nn.Linear(config.sem_dim_size * 2, config.hidden_dim * 2, bias=False)
 
-        if config.is_coverage:
+        if self.is_coverage:
             self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
 
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
@@ -65,7 +67,7 @@ class Attention(nn.Module):
 
         att_features = encoder_feature + dec_fea_expanded # B * t_k x 2*hidden_dim
 
-        if config.is_coverage:
+        if self.is_coverage:
             coverage_input = coverage.view(-1, 1)  # B * t_k x 1
             coverage_feature = self.W_c(coverage_input)  # B * t_k x 2*hidden_dim
             att_features = att_features + coverage_feature
@@ -81,14 +83,14 @@ class Attention(nn.Module):
         attn_dist = attn_dist.unsqueeze(1)  # B x 1 x t_k
         h = h.view(-1, t_k, n1)  # B x t_k x 2*hidden_dim
         c_t = torch.bmm(attn_dist, h)  # B x 1 x n
-        if config.concat_rep:
+        if self.concat_rep:
             c_t = c_t.view(-1, config.sem_dim_size * 4)
         else:
             c_t = c_t.view(-1, config.sem_dim_size * 2)  # B x 2*hidden_dim
 
         attn_dist = attn_dist.view(-1, t_k)  # B x t_k
 
-        if config.is_coverage:
+        if self.is_coverage:
             coverage = coverage.view(-1, t_k)
             coverage = coverage + attn_dist
 
@@ -96,14 +98,15 @@ class Attention(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(Decoder, self).__init__()
-        self.attention_network = Attention()
+        self.attention_network = Attention(args)
+        self.pointer_gen = args.pointer_gen
         # decoder
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
 
-        if config.concat_rep:
+        if args.concat_rep:
             self.x_context = nn.Linear(config.sem_dim_size * 4 + config.emb_dim, config.emb_dim)
         else:
             self.x_context = nn.Linear(config.sem_dim_size * 2 + config.emb_dim, config.emb_dim)
@@ -111,11 +114,11 @@ class Decoder(nn.Module):
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
         init_lstm_wt(self.lstm)
 
-        if config.pointer_gen:
+        if args.pointer_gen:
             self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 4 * config.sem_dim_size + config.emb_dim, 1)
 
         # p_vocab
-        if config.concat_rep:
+        if args.concat_rep:
             self.out1 = nn.Linear(config.hidden_dim + 4*config.sem_dim_size, config.hidden_dim)
         else:
             self.out1 = nn.Linear(config.hidden_dim + 2*config.sem_dim_size, config.hidden_dim)
@@ -136,7 +139,7 @@ class Decoder(nn.Module):
                                                           enc_padding_mask, coverage)
 
         p_gen = None
-        if config.pointer_gen:
+        if self.pointer_gen:
             p_gen_input = torch.cat((c_t, s_t_hat, x), 1)  # B x (2*2*hidden_dim + emb_dim)
             p_gen = self.p_gen_linear(p_gen_input)
             p_gen = F.sigmoid(p_gen)
@@ -149,7 +152,7 @@ class Decoder(nn.Module):
         output = self.out2(output) # B x vocab_size
         vocab_dist = F.softmax(output, dim=1)
 
-        if config.pointer_gen:
+        if self.pointer_gen:
             vocab_dist_ = p_gen * vocab_dist
             attn_dist_ = (1 - p_gen) * attn_dist
 

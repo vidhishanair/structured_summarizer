@@ -49,14 +49,14 @@ def rouge_log(results_dict, dir_to_write):
         f.write(log_str)
 
 
-def calc_running_avg_loss(loss, running_avg_loss, summary_writer, step, decay=0.99):
+def calc_running_avg_loss(loss, running_avg_loss, step, decay=0.99):
     if running_avg_loss == 0:  # on the first iteration just take the loss
         running_avg_loss = loss
     else:
         running_avg_loss = running_avg_loss * decay + (1 - decay) * loss
     running_avg_loss = min(running_avg_loss, 12)  # clip
     tag_name = 'running_avg_loss/decay=%f' % (decay)
-    summary_writer.add_scalar(tag=tag_name, scalar_value=running_avg_loss)
+    #summary_writer.add_scalar(tag=tag_name, scalar_value=running_avg_loss)
     return running_avg_loss
 
 
