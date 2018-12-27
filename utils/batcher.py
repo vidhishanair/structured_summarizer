@@ -18,14 +18,15 @@ random.seed(1234)
 
 class Example(object):
 
-    def __init__(self, article, abstract_sentences, vocab):
+    def __init__(self, article, abstract_sentences, vocab, args):
         # Get ids of special tokens
         start_decoding = vocab.word2id(data.START_DECODING)
         stop_decoding = vocab.word2id(data.STOP_DECODING)
+        self.pointer_gen = args.pointer_gen
 
         # Process the article
         # article_words = article.split()
-        if config.autoencode == True:
+        if args.autoencode == True:
             article_sents = abstract_sentences
             article_sents = article_sents[:10]
             article_words = [sent.split()[:20] for sent in article_sents]
@@ -53,7 +54,7 @@ class Example(object):
         self.dec_len = len(self.dec_input)
 
         # If using pointer-generator mode, we need to store some extra info
-        if config.pointer_gen:
+        if args.pointer_gen:
             # Store a version of the enc_input where in-article OOVs are represented by their temporary OOV id; also store the in-article OOVs words themselves
             self.enc_input_extend_vocab, self.article_oovs = data.article2ids(article_words, vocab)
 
@@ -91,7 +92,7 @@ class Example(object):
         for i in range(0, len(self.enc_input)):
             while len(self.enc_input[i]) < max_len:
                 self.enc_input[i].append(pad_id)
-        if config.pointer_gen:
+        if self.pointer_gen:
             for i in range(0, len(self.enc_input_extend_vocab)):
                 while len(self.enc_input_extend_vocab[i]) < max_len:
                     self.enc_input_extend_vocab[i].append(pad_id)
@@ -99,14 +100,15 @@ class Example(object):
     def pad_encoder_docs(self, max_len, pad_id, max_tok_len):
         while len(self.enc_input) < max_len:
             self.enc_input.append([pad_id] * max_tok_len)
-        if config.pointer_gen:
+        if self.pointer_gen:
             while len(self.enc_input_extend_vocab) < max_len:
                 self.enc_input_extend_vocab.append([pad_id] * max_tok_len)
 
 
 class Batch(object):
-    def __init__(self, example_list, vocab, batch_size):
+    def __init__(self, example_list, vocab, batch_size, args):
         self.batch_size = batch_size
+        self.pointer_gen = args.pointer_gen
         self.pad_id = vocab.word2id(data.PAD_TOKEN)  # id of the PAD token used to pad sequences
         self.init_encoder_seq(example_list)  # initialize the input to the encoder
         self.init_decoder_seq(example_list)  # initialize the input and targets for the decoder
@@ -147,7 +149,7 @@ class Batch(object):
                 self.enc_padding_sent_mask[i][j] = 1
 
         # For pointer-generator mode, need to store some extra info
-        if config.pointer_gen:
+        if self.pointer_gen:
             # Determine the max number of in-article OOVs in this batch
             self.max_art_oovs = max([len(ex.article_oovs) for ex in example_list])
             # Store the in-article OOVs themselves
@@ -185,12 +187,13 @@ class Batch(object):
 class Batcher(object):
     BATCH_QUEUE_MAX = 100  # max number of batches the batch_queue can hold
 
-    def __init__(self, data_path, vocab, mode, batch_size, single_pass):
+    def __init__(self, data_path, vocab, mode, batch_size, single_pass, args):
         self._data_path = data_path
         self._vocab = vocab
         self._single_pass = single_pass
         self.mode = mode
         self.batch_size = batch_size
+        self.args = args
         # Initialize a queue of Batches waiting to be used, and a queue of Examples waiting to be batched
         self._batch_queue = queue.Queue(self.BATCH_QUEUE_MAX)
         self._example_queue = queue.Queue(self.BATCH_QUEUE_MAX * self.batch_size)
@@ -256,7 +259,7 @@ class Batcher(object):
 
             abstract_sentences = [sent.strip() for sent in data.abstract2sents(
                 abstract)]  # Use the <s> and </s> tags in abstract to get a list of sentences.
-            example = Example(article, abstract_sentences, self._vocab)  # Process into an Example.
+            example = Example(article, abstract_sentences, self._vocab, self.args)  # Process into an Example.
             self._example_queue.put(example)  # place the Example in the example queue.
 
     def fill_batch_queue(self):
@@ -265,7 +268,7 @@ class Batcher(object):
                 # beam search decode mode single example repeated in the batch
                 ex = self._example_queue.get()
                 b = [ex for _ in range(self.batch_size)]
-                self._batch_queue.put(Batch(b, self._vocab, self.batch_size))
+                self._batch_queue.put(Batch(b, self._vocab, self.batch_size, self.args))
             else:
                 # Get bucketing_cache_size-many batches of Examples into a list, then sort
                 inputs = []
@@ -281,7 +284,7 @@ class Batcher(object):
                 if not self._single_pass:
                     shuffle(batches)
                 for b in batches:  # each b is a list of Example objects
-                    self._batch_queue.put(Batch(b, self._vocab, self.batch_size))
+                    self._batch_queue.put(Batch(b, self._vocab, self.batch_size, self.args))
 
     def watch_threads(self):
         while True:
