@@ -133,7 +133,7 @@ class Train(object):
                 logger.debug(msg)
                 start = time.time()
             if iter % config.eval_interval == 0:
-                loss = self.run_eval(logger)
+                loss = self.run_eval(logger, args)
                 if best_val_loss is None or loss < best_val_loss:
                     best_val_loss = loss
                     self.save_model(running_avg_loss, iter)
@@ -191,14 +191,14 @@ class Train(object):
         torch.cuda.empty_cache()
         return loss
 
-    def run_eval(self, logger):
+    def run_eval(self, logger, args):
         running_avg_loss, iter = 0, 0
         self.model.eval()
         self.eval_batcher._finished_reading = False
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
         while batch is not None:
-            loss = self.get_loss(batch).item()
+            loss = self.get_loss(batch, args).item()
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
             iter += 1
             batch = self.eval_batcher.next_batch()
