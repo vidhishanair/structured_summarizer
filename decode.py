@@ -286,6 +286,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
     parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
     parser.add_argument('--model_path', type=str, default=None, help='location of the older saved path')
+    parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
+    parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
+    parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
+    parser.add_argument('--concat_rep', action='store_true', default=False, help='concatenate representation')
+    # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
     args = parser.parse_args()
     model_filename = args.model_path
     save_path = args.save_path
