@@ -53,8 +53,9 @@ class Beam(object):
 
 
 class BeamSearch(object):
-    def __init__(self, model_file_path, save_path):
+    def __init__(self, args, model_file_path, save_path):
         model_name = os.path.basename(model_file_path)
+        self.args= args
         self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
         self._structures_dir = os.path.join(self._decode_dir, 'structures')
         # self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
@@ -67,7 +68,7 @@ class BeamSearch(object):
 
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
-                               batch_size=config.beam_size, single_pass=True)
+                               batch_size=config.beam_size, single_pass=True, args=args)
         time.sleep(15)
 
         self.model = Model(model_file_path)
@@ -181,7 +182,7 @@ class BeamSearch(object):
 
         self.extract_structures(batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda)
         
-        if config.concat_rep:
+        if self.args.concat_rep:
             encoder_outputs = encoded_tokens
             enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
             enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0), enc_batch_extend_vocab.size(1)*enc_batch_extend_vocab.size(2))
@@ -230,7 +231,7 @@ class BeamSearch(object):
             c_t_1 = torch.stack(all_context, 0)
 
             coverage_t_1 = None
-            if config.is_coverage:
+            if self.args.is_coverage:
                 all_coverage = []
                 for h in beams:
                     all_coverage.append(h.coverage)
@@ -252,7 +253,7 @@ class BeamSearch(object):
                 h = beams[i]
                 state_i = (dec_h[i], dec_c[i])
                 context_i = c_t[i]
-                coverage_i = (coverage_t[i] if config.is_coverage else None)
+                coverage_i = (coverage_t[i] if self.args.is_coverage else None)
 
                 for j in range(config.beam_size * 2):  # for each of the top 2*beam_size hyps:
                     new_beam = h.extend(token=topk_ids[i, j].item(),
@@ -288,7 +289,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     model_filename = args.model_path
     save_path = args.save_path
-    beam_Search_processor = BeamSearch(model_filename, save_path)
+    beam_Search_processor = BeamSearch(args, model_filename, save_path)
     beam_Search_processor.decode()
 
 

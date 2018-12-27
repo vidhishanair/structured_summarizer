@@ -25,12 +25,12 @@ use_cuda = config.use_gpu and torch.cuda.is_available()
 
 
 class Train(object):
-    def __init__(self, model_name=None):
+    def __init__(self, args, model_name=None):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.train_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
-                                     batch_size=config.batch_size, single_pass=False)
+                                     batch_size=config.batch_size, single_pass=False, args=args)
         self.eval_batcher = Batcher(config.eval_data_path, self.vocab, mode='eval',
-                                    batch_size=config.batch_size, single_pass=True)
+                                    batch_size=config.batch_size, single_pass=True, args = args)
         time.sleep(15)
 
         if model_name is None:
@@ -222,5 +222,5 @@ if __name__ == '__main__':
     save_path = args.save_path
     # reload_path = args.reload_path
 
-    train_processor = Train(save_path)
+    train_processor = Train(args, save_path)
     train_processor.train_iters(config.max_iterations, args)
