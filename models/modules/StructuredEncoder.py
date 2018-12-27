@@ -100,4 +100,4 @@ class StructuredEncoder(nn.Module):
         else:
             encoded_tokens = None
 
-        return masked_encoded_documents, hidden, max_encoded_documents, encoded_tokens
+        return masked_encoded_documents, hidden, max_encoded_documents, encoded_tokens, sent_attention_matrix, doc_attention_matrix

@@ -95,10 +95,10 @@ class Train(object):
         logger.addHandler(ah)
         return logger
 
-    def train_one_batch(self, batch):
+    def train_one_batch(self, batch, args):
 
         self.optimizer.zero_grad()
-        loss = self.get_loss(batch)
+        loss = self.get_loss(batch, args)
         loss.backward()
 
         clip_grad_norm(self.model.encoder.parameters(), config.max_grad_norm)
@@ -120,7 +120,7 @@ class Train(object):
         for iter in tqdm(range(n_iters)):
             self.model.train()
             batch = self.train_batcher.next_batch()
-            loss = self.train_one_batch(batch)
+            loss = self.train_one_batch(batch, args)
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
             iter += 1
@@ -140,17 +140,17 @@ class Train(object):
                     print("Saving best model")
                     logger.debug("Saving best model")
 
-    def get_loss(self, batch):
+    def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
         enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = get_input_from_batch(batch, use_cuda)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
-        encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens = self.model.encoder(enc_batch,
+        encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens, sent_attention_matrix, doc_attention_matrix = self.model.encoder(enc_batch,
                                                                                                      enc_sent_lens,
                                                                                                      enc_doc_lens,
                                                                                                      enc_padding_token_mask,
                                                                                                      enc_padding_sent_mask)
-        if config.concat_rep:
+        if args.concat_rep:
             encoder_outputs = encoded_tokens
             enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
                                                                         enc_padding_token_mask.size(
@@ -177,7 +177,7 @@ class Train(object):
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps)
-            if config.is_coverage:
+            if args.is_coverage:
                 step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
                 step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
             step_mask = dec_padding_mask[:, di]

@@ -13,6 +13,8 @@ import argparse
 
 import torch
 from torch.autograd import Variable
+from dependency_decoding import chu_liu_edmonds
+import numpy as np
 
 from utils.batcher import Batcher
 from utils.data import Vocab
@@ -54,11 +56,12 @@ class BeamSearch(object):
     def __init__(self, model_file_path, save_path):
         model_name = os.path.basename(model_file_path)
         self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
+        self._structures_dir = os.path.join(self._decode_dir, 'structures')
         # self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
         # self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
-        for p in [self._decode_dir]:
+        for p in [self._decode_dir, self._structures_dir]:
             if not os.path.exists(p):
                 os.mkdir(p)
 
@@ -73,6 +76,50 @@ class BeamSearch(object):
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
 
+    def extract_structures(self, batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda):
+        fileName = os.path.join(self._structures_dir, str(count)+".txt")
+        fp = open(fileName, "w")
+        fp.write("Doc: "+str(count)+"\n")
+
+        l = batch.enc_doc_lens[0].item()
+        doc_sent_no = 0
+        for i in range(l):
+            printstr = ''
+            sent = batch.enc_batch[0][i]
+            #scores = str_scores_sent[sent_no][0:l, 0:l]
+            token_count = 0
+            for j in range(batch.enc_sent_lens[0][i].item()):
+                token = sent[j].item()
+                printstr += self.vocab.id2word(token)+" "
+                token_count = token_count + 1
+            #print(printstr)
+            fp.write(printstr+"\n")
+
+            scores = sent_attention_matrix[doc_sent_no][0:token_count, 0:token_count]
+            shape2 = sent_attention_matrix[doc_sent_no][0:token_count,0:token_count].size()
+            row = torch.ones([1, shape2[1]+1]).cuda()
+            column = torch.zeros([shape2[0], 1]).cuda()
+            new_scores = torch.cat([column, scores], dim=1)
+            new_scores = torch.cat([row, new_scores], dim=0)
+
+            heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
+            #print(heads, tree_score)
+            fp.write(str(heads)+" ")
+            fp.write(str(tree_score)+"\n")
+            doc_sent_no+=1
+
+        shape2 = doc_attention_matrix[0][0:l,0:l].size()
+        row = torch.ones([1, shape2[1]+1]).cuda()
+        column = torch.zeros([shape2[0], 1]).cuda()
+        scores = doc_attention_matrix[0][0:l, 0:l]
+        new_scores = torch.cat([column, scores], dim=1)
+        new_scores = torch.cat([row, new_scores], dim=0)
+        heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
+        #print(heads, tree_score)
+        fp.write("\n")
+        fp.write(str(heads)+" ")
+        fp.write(str(tree_score)+"\n")
+        fp.close()
 
     def decode(self):
         start = time.time()
@@ -82,7 +129,7 @@ class BeamSearch(object):
         batch = self.batcher.next_batch()
         while batch is not None:
             # Run beam search to get best Hypothesis
-            boo, best_summary = self.beam_search(batch)
+            boo, best_summary = self.beam_search(batch, counter)
             if boo==False:
                 batch = self.batcher.next_batch()
                 continue
@@ -124,13 +171,15 @@ class BeamSearch(object):
 
 
 
-    def beam_search(self, batch):
+    def beam_search(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0 = \
             get_input_from_batch(batch, use_cuda)
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
             return False, None
-        encoder_outputs, encoder_hidden, max_encoder_output, encoded_tokens = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
+        encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens, sent_attention_matrix, doc_attention_matrix = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
+
+        self.extract_structures(batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda)
         
         if config.concat_rep:
             encoder_outputs = encoded_tokens

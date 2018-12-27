@@ -4,7 +4,7 @@ import torch
 import utils.config as config
 
 
-def get_input_from_batch(batch, use_cuda):
+def get_input_from_batch(batch, use_cuda, args):
     batch_size = len(batch.enc_doc_lens)
 
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
@@ -18,7 +18,7 @@ def get_input_from_batch(batch, use_cuda):
     extra_zeros = None
     enc_batch_extend_vocab = None
 
-    if config.pointer_gen:
+    if args.pointer_gen:
         enc_batch_extend_vocab = Variable(torch.from_numpy(batch.enc_batch_extend_vocab).long())
         # max_art_oovs is the max over all the article oov list in the batch
         if batch.max_art_oovs > 0:
@@ -27,7 +27,7 @@ def get_input_from_batch(batch, use_cuda):
     # c_t_1 = Variable(torch.zeros((batch_size, 2 * config.hidden_dim)))
     c_t_1 = Variable(torch.zeros((batch_size, 2 * config.sem_dim_size))) # add 4 * for pointergen
     coverage = None
-    if config.is_coverage:
+    if args.is_coverage:
         coverage = Variable(torch.zeros(enc_batch.size()))
 
     if use_cuda:
