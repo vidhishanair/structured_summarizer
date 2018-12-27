@@ -142,7 +142,7 @@ class Train(object):
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-        enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = get_input_from_batch(batch, use_cuda)
+        enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = get_input_from_batch(batch, use_cuda, args)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
         encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens, sent_attention_matrix, doc_attention_matrix = self.model.encoder(enc_batch,

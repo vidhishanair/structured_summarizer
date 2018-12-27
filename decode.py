@@ -175,7 +175,7 @@ class BeamSearch(object):
     def beam_search(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0 = \
-            get_input_from_batch(batch, use_cuda)
+            get_input_from_batch(batch, use_cuda, self.args)
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
             return False, None
         encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens, sent_attention_matrix, doc_attention_matrix = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
