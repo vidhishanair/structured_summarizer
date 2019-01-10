@@ -45,7 +45,7 @@ class Attention(nn.Module):
         self.concat_rep = args.concat_rep
         self.is_coverage = args.is_coverage
         if self.concat_rep:
-            self.W_h = nn.Linear(config.sem_dim_size * 4, config.hidden_dim * 2, bias=False)
+            self.W_h = nn.Linear(config.sem_dim_size * 2 + config.hidden_dim * 2, config.hidden_dim * 2, bias=False)
         else:
             self.W_h = nn.Linear(config.sem_dim_size * 2, config.hidden_dim * 2, bias=False)
 
@@ -84,7 +84,7 @@ class Attention(nn.Module):
         h = h.view(-1, t_k, n1)  # B x t_k x 2*hidden_dim
         c_t = torch.bmm(attn_dist, h)  # B x 1 x n
         if self.concat_rep:
-            c_t = c_t.view(-1, config.sem_dim_size * 4)
+            c_t = c_t.view(-1, config.sem_dim_size * 2 + config.hidden_dim*2)
         else:
             c_t = c_t.view(-1, config.sem_dim_size * 2)  # B x 2*hidden_dim
 
@@ -107,7 +107,7 @@ class Decoder(nn.Module):
         init_wt_normal(self.embedding.weight)
 
         if args.concat_rep:
-            self.x_context = nn.Linear(config.sem_dim_size * 4 + config.emb_dim, config.emb_dim)
+            self.x_context = nn.Linear(config.sem_dim_size * 2 + config.hidden_dim *2 + config.emb_dim, config.emb_dim)
         else:
             self.x_context = nn.Linear(config.sem_dim_size * 2 + config.emb_dim, config.emb_dim)
 
@@ -115,11 +115,11 @@ class Decoder(nn.Module):
         init_lstm_wt(self.lstm)
 
         if args.pointer_gen:
-            self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 4 * config.sem_dim_size + config.emb_dim, 1)
+            self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 2 * config.hidden_dim + 2 * config.sem_dim_size + config.emb_dim, 1)
 
         # p_vocab
         if args.concat_rep:
-            self.out1 = nn.Linear(config.hidden_dim + 4*config.sem_dim_size, config.hidden_dim)
+            self.out1 = nn.Linear(config.hidden_dim + 2*config.hidden_dim + 2*config.sem_dim_size, config.hidden_dim)
         else:
             self.out1 = nn.Linear(config.hidden_dim + 2*config.sem_dim_size, config.hidden_dim)
         self.out2 = nn.Linear(config.hidden_dim, config.vocab_size)

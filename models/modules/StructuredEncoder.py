@@ -39,7 +39,7 @@ class StructuredEncoder(nn.Module):
             self.doc_hidden_size = config.hidden_dim
 
         self.sentence_encoder = BiLSTMEncoder(device, self.sent_hidden_size, config.emb_dim, 1, dropout=0.3, bidirectional=bidirectional)
-        self.document_encoder = BiLSTMEncoder(device, self.doc_hidden_size, self.sem_dim_size, 1, dropout=0.3, bidirectional=bidirectional)
+        self.document_encoder = BiLSTMEncoder(device, self.doc_hidden_size, self.sent_hidden_size, 1, dropout=0.3, bidirectional=bidirectional)
 
         self.sentence_structure_att = StructuredAttention(device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "nightly")
         self.document_structure_att = StructuredAttention(device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "nightly")
@@ -72,7 +72,8 @@ class StructuredEncoder(nn.Module):
         orig_encoded_sentences, sent_attention_matrix = self.sentence_structure_att.forward(encoded_sentences)
 
         # Reshape and max pool
-        encoded_sentences = orig_encoded_sentences.contiguous().view(batch_size, sent_size, token_size, orig_encoded_sentences.size(2))
+        orig_encoded_sentences = encoded_sentences
+        encoded_sentences = encoded_sentences.contiguous().view(batch_size, sent_size, token_size, orig_encoded_sentences.size(2))
         encoded_sentences = encoded_sentences + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, encoded_sentences.size(3))
         encoded_sentences = encoded_sentences.max(dim=2)[0]  # Batch * sent * dim
 

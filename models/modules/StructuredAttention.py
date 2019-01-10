@@ -105,7 +105,8 @@ class StructuredAttention(nn.Module):
         finp = torch.cat([sem_v, pinp, cinp],dim = 2)
         
         #output = F.relu(self.fzlinear(finp))
-        output = self.fzlinear(finp)
+        #output = self.fzlinear(finp)
+        output = F.tanh(self.fzlinear(finp))
 
         return output, df
 
