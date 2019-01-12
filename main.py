@@ -140,18 +140,9 @@ class Train(object):
                     print("Saving best model")
                     logger.debug("Saving best model")
 
-    def get_loss(self, batch, args):
-        enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-        enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = get_input_from_batch(batch, use_cuda, args)
-        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-            get_output_from_batch(batch, use_cuda)
-        encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens, sent_attention_matrix, doc_attention_matrix = self.model.encoder(enc_batch,
-                                                                                                     enc_sent_lens,
-                                                                                                     enc_doc_lens,
-                                                                                                     enc_padding_token_mask,
-                                                                                                     enc_padding_sent_mask)
-        if args.concat_rep:
-            encoder_outputs = encoded_tokens
+    def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
+        if args.concat_rep or args.no_sa:
+            encoder_outputs = encoder_output["encoded_tokens"]
             enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
                                                                         enc_padding_token_mask.size(
                                                                             1) * enc_padding_token_mask.size(2))
@@ -159,12 +150,27 @@ class Train(object):
                                                                               enc_batch_extend_vocab.size(
                                                                                   1) * enc_batch_extend_vocab.size(2))
         else:
-            encoder_outputs = encoder_doc_outputs
+            encoder_outputs = encoder_output["encoded_sents"]
             enc_padding_mask = enc_padding_sent_mask
+        encoder_hidden = encoder_output["sent_hidden"]
+        max_encoder_output = encoder_output["document_rep"]
 
-        s_t_1 = self.model.reduce_state(encoder_hidden)
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab
+
+    def get_loss(self, batch, args):
+        enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
+            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = get_input_from_batch(batch, use_cuda, args)
+        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
+            get_output_from_batch(batch, use_cuda)
+
+        encoder_output = self.model.encoder.forward(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
+            self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+
+        s_t_1 = self.model.reduce_state(encoder_last_hidden)
         if config.use_maxpool_init_ctx:
             c_t_1 = max_encoder_output
+
         step_losses = []
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
@@ -212,10 +218,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
     parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
     parser.add_argument('--reload_path', type=str, default=None, help='location of the older saved path')
+
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
     parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
     parser.add_argument('--concat_rep', action='store_true', default=False, help='concatenate representation')
+    parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
+    parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
+
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 
     args = parser.parse_args()

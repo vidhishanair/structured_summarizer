@@ -7,6 +7,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from models.modules.AttentionalDecoder import Decoder, ReduceState
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
+from models.modules.Encoder import Encoder
 from models.modules.StructuredAttention import StructuredAttention
 from models.modules.StructuredEncoder import StructuredEncoder
 from models.utils import init_wt_normal, init_lstm_wt, init_linear_wt, init_wt_unif
@@ -24,7 +25,10 @@ if torch.cuda.is_available():
 
 class Model(object):
     def __init__(self, args):
-        encoder = StructuredEncoder(args)
+        if args.no_sa:
+            encoder = Encoder(args)
+        else:
+            encoder = StructuredEncoder(args)
         decoder = Decoder(args)
         reduce_state = ReduceState()
 
