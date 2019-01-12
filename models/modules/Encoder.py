@@ -32,6 +32,7 @@ class Encoder(nn.Module):
 
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
         init_lstm_wt(self.lstm)
+        self.device = torch.device("cuda" if config.use_gpu else "cpu")
 
     #seq_lens should be in descending order
     def forward_withoutsorting(self, input, seq_lens):
