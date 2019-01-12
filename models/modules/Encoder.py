@@ -29,10 +29,13 @@ class Encoder(nn.Module):
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
         self.drop = nn.Dropout(0.3)
-
-        self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
-        init_lstm_wt(self.lstm)
         self.device = torch.device("cuda" if config.use_gpu else "cpu")
+        # self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
+        # init_lstm_wt(self.lstm)
+
+        self.bilstmenc = BiLSTMEncoder(self.device, config.hidden_dim, config.emb_dim, 1, dropout=0.3,
+                                              bidirectional=True)
+
 
     #seq_lens should be in descending order
     def forward_withoutsorting(self, input, seq_lens):
@@ -51,29 +54,10 @@ class Encoder(nn.Module):
         # Sort by length (keep idx)
         input = self.embedding(input)
         input = self.drop(input)
-
         seq_len = list(itertools.chain.from_iterable(sent_l))
-        seq_len = np.array(seq_len)
-        sent_len, idx_sort = np.sort(seq_len)[::-1], np.argsort(-seq_len)
-        idx_unsort = np.argsort(idx_sort)
-
-        idx_sort = torch.from_numpy(idx_sort).to(self.device)
-        sent_variable = input.index_select(0, idx_sort)
-
-        # Handling padding in Recurrent Networks
-        #print(seq_len)
-        #print(sent_len)
-        sent_packed = nn.utils.rnn.pack_padded_sequence(sent_variable, sent_len.copy(), batch_first=True)
-        sent_output, hidden = self.bilstm(sent_packed)
-        sent_output = nn.utils.rnn.pad_packed_sequence(sent_output, batch_first=True)[0]
-
-        # Un-sort by length
-        idx_unsort = torch.from_numpy(idx_unsort).to(self.device)
-        sent_output = sent_output.index_select(0, idx_unsort)
-        sent_output = sent_output.contiguous()
+        sent_output, hidden = self.bilstmenc(input, seq_len)
         max_h, _ = sent_output.max(dim=1)
 
-        del idx_sort, idx_unsort
         output = {"encoded_tokens": sent_output,
                   "sent_hidden": hidden,
                   "document_rep": max_h}
