@@ -23,7 +23,7 @@ if torch.cuda.is_available():
 
 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(Encoder, self).__init__()
         print("Using default encoder")
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
