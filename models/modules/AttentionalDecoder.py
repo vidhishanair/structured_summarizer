@@ -121,8 +121,10 @@ class Decoder(nn.Module):
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
         init_lstm_wt(self.lstm)
 
-        if args.pointer_gen:
+        if args.pointer_gen and args.no_sent_sa:
             self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 2 * config.hidden_dim + 2 * config.sem_dim_size + config.emb_dim, 1)
+        elif args.pointer_gen and not args.no_sent_sa:
+            self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 2 * config.sem_dim_size + 2 * config.sem_dim_size + config.emb_dim, 1)
 
         # p_vocab
         if args.concat_rep:
