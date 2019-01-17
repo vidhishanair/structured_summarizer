@@ -122,7 +122,7 @@ class StructuredEncoder(nn.Module):
                           "token_hidden": token_hidden,
                           "encoded_sents": sa_encoded_sents,
                           "sent_hidden": sent_hidden,
-                          "document_rep" : max_pooled_sa_doc,
+                          "document_rep" : max_pooled_doc,
                           "token_attention_matrix" : token_attention_matrix,
                           "sent_attention_matrix" : sent_attention_matrix}
 
