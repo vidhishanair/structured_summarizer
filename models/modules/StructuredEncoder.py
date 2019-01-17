@@ -110,7 +110,7 @@ class StructuredEncoder(nn.Module):
 
         if self.concat_rep:
             # ext_encoded_documents = orig_encoded_documents.contiguous().view(orig_encoded_documents.size(0)*orig_encoded_documents.size(1), orig_encoded_documents.size(2))
-            encoded_sents = sa_encoded_sents.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size,
+            encoded_sents = sa_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
                                                                                         sa_encoded_sents.size(2))
             encoded_tokens = encoded_tokens.contiguous().view(batch_size, sent_size*token_size, encoded_tokens.size(3))
             encoded_tokens = torch.cat([encoded_tokens, encoded_sents], dim=2)
