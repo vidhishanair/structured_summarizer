@@ -44,8 +44,11 @@ class Attention(nn.Module):
         # attention
         self.concat_rep = args.concat_rep
         self.is_coverage = args.is_coverage
-        if self.concat_rep:
+        self.no_sent_sa = args.no_sent_sa
+        if self.concat_rep and args.no_sent_sa:
             self.W_h = nn.Linear(config.sem_dim_size * 2 + config.hidden_dim * 2, config.hidden_dim * 2, bias=False)
+        elif self.concat_rep and not args.no_sent_sa:
+            self.W_h = nn.Linear(config.sem_dim_size * 2 + config.sem_dim_size * 2, config.hidden_dim * 2, bias=False)
         else:
             self.W_h = nn.Linear(config.sem_dim_size * 2, config.hidden_dim * 2, bias=False)
 
@@ -83,8 +86,10 @@ class Attention(nn.Module):
         attn_dist = attn_dist.unsqueeze(1)  # B x 1 x t_k
         h = h.view(-1, t_k, n1)  # B x t_k x 2*hidden_dim
         c_t = torch.bmm(attn_dist, h)  # B x 1 x n
-        if self.concat_rep:
+        if self.concat_rep and self.no_sent_sa:
             c_t = c_t.view(-1, config.sem_dim_size * 2 + config.hidden_dim*2)
+        elif self.concat_rep and not self.no_sent_sa:
+            c_t = c_t.view(-1, config.sem_dim_size * 2 + config.sem_dim_size*2)
         else:
             c_t = c_t.view(-1, config.sem_dim_size * 2)  # B x 2*hidden_dim
 
