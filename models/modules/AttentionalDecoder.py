@@ -106,8 +106,10 @@ class Decoder(nn.Module):
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
 
-        if args.concat_rep:
+        if args.concat_rep and args.no_sent_sa:
             self.x_context = nn.Linear(config.sem_dim_size * 2 + config.hidden_dim *2 + config.emb_dim, config.emb_dim)
+        elif args.concat_rep and not args.no_sent_sa:
+            self.x_context = nn.Linear(config.sem_dim_size * 2 + config.sem_dim_size *2 + config.emb_dim, config.emb_dim)
         else:
             self.x_context = nn.Linear(config.sem_dim_size * 2 + config.emb_dim, config.emb_dim)
 
