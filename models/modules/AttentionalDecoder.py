@@ -127,8 +127,10 @@ class Decoder(nn.Module):
             self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 2 * config.sem_dim_size + 2 * config.sem_dim_size + config.emb_dim, 1)
 
         # p_vocab
-        if args.concat_rep:
+        if args.concat_rep and args.no_sent_sa:
             self.out1 = nn.Linear(config.hidden_dim + 2*config.hidden_dim + 2*config.sem_dim_size, config.hidden_dim)
+        elif args.concat_rep and not args.no_sent_sa:
+            self.out1 = nn.Linear(config.hidden_dim + 2*config.sem_dim_size + 2*config.sem_dim_size, config.hidden_dim)
         else:
             self.out1 = nn.Linear(config.hidden_dim + 2*config.sem_dim_size, config.hidden_dim)
         self.out2 = nn.Linear(config.hidden_dim, config.vocab_size)
