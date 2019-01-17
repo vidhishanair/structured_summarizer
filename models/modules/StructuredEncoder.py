@@ -105,6 +105,7 @@ class StructuredEncoder(nn.Module):
         # Max Pool
         masked_sa_encoded_sents = sa_encoded_sents + ((sent_mask-1)*999).unsqueeze(2).repeat(1,1, self.sem_dim_size)
         max_pooled_sa_doc = masked_sa_encoded_sents.max(dim=1)[0] #Batch * dim
+        mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
         sa_encoded_sents = sa_encoded_sents * mask
 
         if self.concat_rep:
