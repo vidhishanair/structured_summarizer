@@ -171,6 +171,33 @@ class BeamSearch(object):
             print('%s: %.3f'%(metric, score))
 
 
+    def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
+        if args.concat_rep or args.no_sa:
+            encoder_outputs = encoder_output["encoded_tokens"]
+            enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
+                                                                        enc_padding_token_mask.size(
+                                                                            1) * enc_padding_token_mask.size(2))
+            enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
+                                                                              enc_batch_extend_vocab.size(
+                                                                                  1) * enc_batch_extend_vocab.size(2))
+        else:
+            encoder_outputs = encoder_output["encoded_sents"]
+            enc_padding_mask = enc_padding_sent_mask
+        encoder_hidden = encoder_output["sent_hidden"]
+        max_encoder_output = encoder_output["document_rep"]
+
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab
+
+    def get_loss(self, batch, args):
+        enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
+        enc_batch_extend_vocab, extra_zeros, c_t_1, coverage = get_input_from_batch(batch, use_cuda, args)
+        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
+            get_output_from_batch(batch, use_cuda)
+
+        encoder_output = self.model.encoder.forward(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
+            self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+
 
     def beam_search(self, batch, count):
         #batch should have only one example
@@ -178,19 +205,14 @@ class BeamSearch(object):
             get_input_from_batch(batch, use_cuda, self.args)
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
             return False, None
-        encoder_doc_outputs, encoder_hidden, max_encoder_output, encoded_tokens, sent_attention_matrix, doc_attention_matrix = self.model.encoder(enc_batch, enc_sent_lens, enc_doc_lens, enc_padding_token_mask, enc_padding_sent_mask)
 
-        self.extract_structures(batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda)
-        
-        if self.args.concat_rep:
-            encoder_outputs = encoded_tokens
-            enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
-            enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0), enc_batch_extend_vocab.size(1)*enc_batch_extend_vocab.size(2))
-        else:
-            encoder_outputs = encoder_doc_outputs
-            enc_padding_mask = enc_padding_sent_mask
+        encoder_output = self.model.encoder.forward(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
+            self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
-        s_t_0 = self.model.reduce_state(encoder_hidden)
+        self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
+
+        s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
         if config.use_maxpool_init_ctx:
             c_t_0 = max_encoder_output
@@ -290,6 +312,8 @@ if __name__ == '__main__':
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
     parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
     parser.add_argument('--concat_rep', action='store_true', default=False, help='concatenate representation')
+    parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
+    parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
     args = parser.parse_args()
     model_filename = args.reload_path
