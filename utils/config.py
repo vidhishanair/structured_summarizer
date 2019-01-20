@@ -16,7 +16,7 @@ hidden_dim= 256
 sem_dim_size = 150
 
 emb_dim= 128
-batch_size= 32
+batch_size=32
 max_enc_steps=400
 max_dec_steps=100
 beam_size=4

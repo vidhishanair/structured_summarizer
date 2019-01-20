@@ -1,5 +1,7 @@
 from __future__ import unicode_literals, print_function, division
 
+import time
+
 import torch
 import torch.nn as nn
 
@@ -131,6 +133,7 @@ class StructuredEncoder(nn.Module):
     #seq_lens should be in descending order
     def forward_test(self, input, sent_l, doc_l, mask_tokens, mask_sents):
 
+        
         batch_size, sent_size, token_size = input.size()
 
         tokens_mask = mask_tokens
@@ -149,18 +152,15 @@ class StructuredEncoder(nn.Module):
         mask = tokens_mask.view(tokens_mask.size(0)*tokens_mask.size(1),
                                 tokens_mask.size(2)).unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
         bilstm_encoded_tokens = bilstm_encoded_tokens * mask
-
         bilstm_encoded_tokens = bilstm_encoded_tokens.contiguous().view(batch_size, sent_size, token_size, self.sent_hidden_size)
         masked_bilstm_encoded_tokens = bilstm_encoded_tokens + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, self.sent_hidden_size)
         max_pooled_bilstm_sents = masked_bilstm_encoded_tokens.max(dim=2)[0]  # Batch * sent * dim
         encoded_tokens =  bilstm_encoded_tokens
-
         bilstm_encoded_sents, sent_hidden = self.document_encoder.forward_packed(max_pooled_bilstm_sents, doc_l)
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.doc_hidden_size)
         bilstm_encoded_sents = bilstm_encoded_sents * mask
         encoded_sents = bilstm_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
                                                                                            bilstm_encoded_sents.size(2))
-
         encoded_tokens = encoded_tokens.contiguous().view(batch_size, sent_size*token_size, encoded_tokens.size(3))
         encoded_tokens = torch.cat([encoded_tokens, encoded_sents], dim=2)
         max_pooled_doc = encoded_tokens.max(dim=1)[0]
