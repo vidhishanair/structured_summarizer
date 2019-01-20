@@ -127,3 +127,50 @@ class StructuredEncoder(nn.Module):
                           "sent_attention_matrix" : sent_attention_matrix}
 
         return encoder_output
+
+    #seq_lens should be in descending order
+    def forward_test(self, input, sent_l, doc_l, mask_tokens, mask_sents):
+
+        batch_size, sent_size, token_size = input.size()
+
+        tokens_mask = mask_tokens
+        sent_mask = mask_sents
+
+        input = self.embedding(input)
+        input = self.drop(input)
+
+        # reshape to 3D tensor
+        input = input.contiguous().view(input.size(0)*input.size(1), input.size(2), input.size(3))
+        sent_l = list(itertools.chain.from_iterable(sent_l))
+
+
+        # BiLSTM
+        bilstm_encoded_tokens, token_hidden = self.sentence_encoder.forward_packed(input, sent_l)
+        mask = tokens_mask.view(tokens_mask.size(0)*tokens_mask.size(1),
+                                tokens_mask.size(2)).unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
+        bilstm_encoded_tokens = bilstm_encoded_tokens * mask
+
+        bilstm_encoded_tokens = bilstm_encoded_tokens.contiguous().view(batch_size, sent_size, token_size, self.sent_hidden_size)
+        masked_bilstm_encoded_tokens = bilstm_encoded_tokens + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, self.sent_hidden_size)
+        max_pooled_bilstm_sents = masked_bilstm_encoded_tokens.max(dim=2)[0]  # Batch * sent * dim
+        encoded_tokens =  bilstm_encoded_tokens
+
+        bilstm_encoded_sents, sent_hidden = self.document_encoder.forward_packed(max_pooled_bilstm_sents, doc_l)
+        mask = sent_mask.unsqueeze(2).repeat(1,1, self.doc_hidden_size)
+        bilstm_encoded_sents = bilstm_encoded_sents * mask
+        encoded_sents = bilstm_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
+                                                                                           bilstm_encoded_sents.size(2))
+
+        encoded_tokens = encoded_tokens.contiguous().view(batch_size, sent_size*token_size, encoded_tokens.size(3))
+        encoded_tokens = torch.cat([encoded_tokens, encoded_sents], dim=2)
+        max_pooled_doc = encoded_tokens.max(dim=1)[0]
+
+        encoder_output = {"encoded_tokens": encoded_tokens,
+                          "token_hidden": token_hidden,
+                          "encoded_sents": bilstm_encoded_sents,
+                          "sent_hidden": sent_hidden,
+                          "document_rep" : max_pooled_doc,
+                          "token_attention_matrix" : None,
+                          "sent_attention_matrix" : None}
+
+        return encoder_output

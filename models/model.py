@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from models.modules.AttentionalDecoder import Decoder, ReduceState
+from models.modules.AttentionalDecoderTest import Decoder, ReduceState
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
 from models.modules.Encoder import Encoder
 from models.modules.StructuredAttention import StructuredAttention
