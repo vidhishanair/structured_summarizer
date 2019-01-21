@@ -180,7 +180,7 @@ class StructuredEncoder(nn.Module):
                           "encoded_sents": bilstm_encoded_sents,
                           "sent_hidden": sent_hidden,
                           "document_rep" : max_pooled_doc,
-                          "token_attention_matrix" : None,
+                          "token_attention_matrix" : token_attention_matrix,
                           "sent_attention_matrix" : None}
 
         return encoder_output
