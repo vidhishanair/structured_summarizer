@@ -58,11 +58,11 @@ class BeamSearch(object):
         self.args= args
         self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
         self._structures_dir = os.path.join(self._decode_dir, 'structures')
-        # self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
-        # self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
+        self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
+        self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
-        for p in [self._decode_dir, self._structures_dir]:
+        for p in [self._decode_dir, self._structures_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
             if not os.path.exists(p):
                 os.mkdir(p)
 
@@ -150,8 +150,8 @@ class BeamSearch(object):
 
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
-#            write_for_rouge(original_abstract_sents, decoded_words, counter,
-#                            self._rouge_ref_dir, self._rouge_dec_dir)
+            write_for_rouge(original_abstract_sents, decoded_words, counter,
+                            self._rouge_ref_dir, self._rouge_dec_dir)
             counter += 1
             if counter % 1000 == 0:
                 print('%d example in %d sec'%(counter, time.time() - start))
@@ -160,7 +160,7 @@ class BeamSearch(object):
             batch = self.batcher.next_batch()
 
         print("Decoder has finished reading dataset for single_pass.")
-        #print("Now starting ROUGE eval...")
+        print("Now starting PYCOCO - ROUGE eval...")
         #results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
         #rouge_log(results_dict, self._decode_dir)
         write_to_json_file(abstract_ref, self._rouge_ref_file)
@@ -194,7 +194,7 @@ class BeamSearch(object):
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
-        encoder_output = self.model.encoder.forward(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
+        encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
@@ -206,11 +206,11 @@ class BeamSearch(object):
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
             return False, None
 
-        encoder_output = self.model.encoder.forward(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
+        encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
-        self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
+#        self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
 
         s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
