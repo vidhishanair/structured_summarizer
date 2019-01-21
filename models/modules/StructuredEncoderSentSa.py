@@ -153,12 +153,20 @@ class StructuredEncoder(nn.Module):
                                 tokens_mask.size(2)).unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
         bilstm_encoded_tokens = bilstm_encoded_tokens * mask
 
+        # Structure ATT
+        sa_encoded_tokens, token_attention_matrix = self.sentence_structure_att.forward(bilstm_encoded_tokens)
+
+        # Reshape and max pool
+        sa_encoded_tokens = sa_encoded_tokens.contiguous().view(batch_size, sent_size, token_size, self.sem_dim_size)
+        masked_sa_encoded_tokens = sa_encoded_tokens + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, self.sem_dim_size)
+        max_pooled_sa_sents = masked_sa_encoded_tokens.max(dim=2)[0]  # Batch * sent * dim
+
         bilstm_encoded_tokens = bilstm_encoded_tokens.contiguous().view(batch_size, sent_size, token_size, self.sent_hidden_size)
         masked_bilstm_encoded_tokens = bilstm_encoded_tokens + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, self.sent_hidden_size)
         max_pooled_bilstm_sents = masked_bilstm_encoded_tokens.max(dim=2)[0]  # Batch * sent * dim
         encoded_tokens =  bilstm_encoded_tokens
 
-        bilstm_encoded_sents, sent_hidden = self.document_encoder.forward_packed(max_pooled_bilstm_sents, doc_l)
+        bilstm_encoded_sents, sent_hidden = self.document_encoder.forward_packed(max_pooled_sa_sents, doc_l)
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.doc_hidden_size)
         bilstm_encoded_sents = bilstm_encoded_sents * mask
         encoded_sents = bilstm_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
