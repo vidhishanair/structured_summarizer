@@ -9,6 +9,7 @@ import logging
 # from tensorboardX import SummaryWriter
 
 import torch
+import torch.nn as nn
 from models.model import Model
 from torch.nn.utils import clip_grad_norm
 from tqdm import tqdm
@@ -49,9 +50,9 @@ class Train(object):
     def save_model(self, running_avg_loss, iter):
         state = {
             'iter': iter,
-            'encoder_state_dict': self.model.encoder.state_dict(),
-            'decoder_state_dict': self.model.decoder.state_dict(),
-            'reduce_state_dict': self.model.reduce_state.state_dict(),
+            'encoder_state_dict': self.model.module.encoder.state_dict(),
+            'decoder_state_dict': self.model.module.decoder.state_dict(),
+            'reduce_state_dict': self.model.module.reduce_state.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'current_loss': running_avg_loss
         }
@@ -59,10 +60,10 @@ class Train(object):
         torch.save(state, model_save_path)
 
     def setup_train(self, args):
-        self.model = Model(args)
+        self.model = nn.DataParallel(Model(args))
 
-        params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
-                 list(self.model.reduce_state.parameters())
+        params = list(self.model.module.encoder.parameters()) + list(self.model.module.decoder.parameters()) + \
+                 list(self.model.module.reduce_state.parameters())
 
         initial_lr = config.lr_coverage if args.is_coverage else config.lr
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
@@ -101,9 +102,9 @@ class Train(object):
         loss = self.get_loss(batch, args)
         loss.backward()
 
-        clip_grad_norm(self.model.encoder.parameters(), config.max_grad_norm)
-        clip_grad_norm(self.model.decoder.parameters(), config.max_grad_norm)
-        clip_grad_norm(self.model.reduce_state.parameters(), config.max_grad_norm)
+        clip_grad_norm(self.model.module.encoder.parameters(), config.max_grad_norm)
+        clip_grad_norm(self.model.module.decoder.parameters(), config.max_grad_norm)
+        clip_grad_norm(self.model.module.reduce_state.parameters(), config.max_grad_norm)
 
         self.optimizer.step()
         return loss.item()
@@ -118,7 +119,7 @@ class Train(object):
         best_val_loss = None
 
         for iter in tqdm(range(n_iters)):
-            self.model.train()
+            self.model.module.train()
             batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch, args)
 
@@ -163,18 +164,18 @@ class Train(object):
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
-        encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
+        encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
-        s_t_1 = self.model.reduce_state(encoder_last_hidden)
+        s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
         if config.use_maxpool_init_ctx:
             c_t_1 = max_encoder_output
 
         step_losses = []
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
-            final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.decoder(y_t_1, s_t_1,
+            final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.module.decoder(y_t_1, s_t_1,
                                                                                       encoder_outputs,
                                                                                       enc_padding_mask, c_t_1,
                                                                                       extra_zeros,
@@ -199,7 +200,7 @@ class Train(object):
 
     def run_eval(self, logger, args):
         running_avg_loss, iter = 0, 0
-        self.model.eval()
+        self.model.module.eval()
         self.eval_batcher._finished_reading = False
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
