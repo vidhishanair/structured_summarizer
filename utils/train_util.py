@@ -8,12 +8,15 @@ def get_input_from_batch(batch, use_cuda, args):
     batch_size = len(batch.enc_doc_lens)
 
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
+    word_batch = Variable(torch.from_numpy(batch.word_batch).long())
+    word_padding_mask = Variable(torch.from_numpy(batch.enc_padding_word_mask)).float()
     enc_padding_mask = Variable(torch.from_numpy(batch.enc_padding_mask)).float()
     enc_padding_token_mask = Variable(torch.from_numpy(batch.enc_padding_token_mask)).float()
     enc_padding_sent_mask = Variable(torch.from_numpy(batch.enc_padding_sent_mask)).float()
     # enc_lens = batch.enc_lens
     enc_doc_lens = batch.enc_doc_lens
     enc_sent_lens = batch.enc_sent_lens
+    enc_word_lens = batch.enc_word_lens
 
     extra_zeros = None
     enc_batch_extend_vocab = None
@@ -45,7 +48,7 @@ def get_input_from_batch(batch, use_cuda, args):
         if coverage is not None:
             coverage = coverage.cuda()
 
-    return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage
+    return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
 
 
 def get_output_from_batch(batch, use_cuda):

@@ -131,7 +131,7 @@ class StructuredEncoder(nn.Module):
         return encoder_output
 
     #seq_lens should be in descending order
-    def forward_test(self, input, sent_l, doc_l, mask_tokens, mask_sents):
+    def forward_test(self, input, sent_l, doc_l, mask_tokens, mask_sents, word_batch, word_padding_mask, enc_word_lens):
 
         
         batch_size, sent_size, token_size = input.size()
@@ -141,6 +141,13 @@ class StructuredEncoder(nn.Module):
 
         input = self.embedding(input)
         input = self.drop(input)
+
+        word_input = self.embedding(word_batch)
+        word_input = self.drop(word_input)
+        # BiLSTM
+        bilstm_encoded_word_tokens, token_hidden = self.sentence_encoder.forward_packed(word_input, enc_word_lens)
+        mask = word_padding_mask.unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
+        bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
 
         # reshape to 3D tensor
         input = input.contiguous().view(input.size(0)*input.size(1), input.size(2), input.size(3))
@@ -164,7 +171,7 @@ class StructuredEncoder(nn.Module):
         encoded_sents = bilstm_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
                                                                                            bilstm_encoded_sents.size(2))
         encoded_tokens = encoded_tokens.contiguous().view(batch_size, sent_size*token_size, encoded_tokens.size(3))
-        encoded_tokens = torch.cat([encoded_tokens, encoded_sents], dim=2)
+        encoded_tokens = torch.cat([bilstm_encoded_word_tokens, encoded_sents], dim=2)
         max_pooled_doc = encoded_tokens.max(dim=1)[0]
 
         encoder_output = {"encoded_tokens": encoded_tokens,

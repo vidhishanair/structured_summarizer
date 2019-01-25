@@ -30,20 +30,26 @@ class Example(object):
             article_sents = abstract_sentences
             article_sents = article_sents[:10]
             article_words = [sent.split()[:20] for sent in article_sents]
+            all_article_words = ' '.join(abstract_sentences).split()
         else:
             article_sents = article.decode().split('<split1>')
             article_sents = article_sents[:10]
             article_words = [sent.split()[:20] for sent in article_sents]
+            all_article_words = (' '.join([' '.join(s) for s in article_sents])).split()
             #article_sents = article_sents
             #article_words = [sent.split() for sent in article_sents]
         # if len(article_words) > config.max_enc_steps:
         #   article_words = article_words[:config.max_enc_steps]
         self.enc_tok_len = [len(sent) for sent in article_words]  # store the length after truncation but before padding
         self.enc_doc_len = len(article_words)
+        self.enc_word_len = len(all_article_words)
         # self.enc_input = [vocab.word2id(w) for sent in article_words for w in sent] # list of word ids; OOVs are represented by the id for UNK token
         self.enc_input = []
         for sent in article_words:
             self.enc_input.append([vocab.word2id(w) for w in sent])
+        self.word_input = []
+        for w in all_article_words:
+            self.word_input.append(vocab.word2id(w))
         # Process the abstract
         abstract = ' '.join(abstract_sentences)  # string
         abstract_words = abstract.split()  # list of strings
@@ -106,6 +112,13 @@ class Example(object):
             while len(self.enc_input_extend_vocab) < max_len:
                 self.enc_input_extend_vocab.append([pad_id] * max_tok_len)
 
+    def pad_encoder_words(self, max_len, pad_id):
+        while len(self.word_input) < max_len:
+            self.word_input.append(pad_id)
+        # if self.pointer_gen:
+        #     while len(self.enc_input_extend_vocab[i]) < max_len:
+        #         self.enc_input_extend_vocab[i].append(pad_id)
+
 
 class Batch(object):
     def __init__(self, example_list, vocab, batch_size, args):
@@ -120,10 +133,13 @@ class Batch(object):
         # Determine the maximum length of the encoder input sequence in this batch
         max_enc_tok_len = max([max(ex.enc_tok_len) for ex in example_list])
         max_enc_doc_len = max([ex.enc_doc_len for ex in example_list])
+        max_enc_word_len = max([ex.enc_word_len for ex in example_list])
 
         # Pad the encoder input sequences up to the length of the longest sequence
         for ex in example_list:
             ex.pad_encoder_tokens(max_enc_tok_len, self.pad_id)
+        for ex in example_list:
+            ex.pad_encoder_words(max_enc_word_len, self.pad_id)
         for ex in example_list:
             ex.pad_encoder_docs(max_enc_doc_len, self.pad_id, max_enc_tok_len)
 
@@ -132,23 +148,30 @@ class Batch(object):
         # self.enc_batch = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.int32)
 
         self.enc_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
+        self.enc_word_batch = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
+        self.enc_word_lens = np.zeros((self.batch_size), dtype=np.int32)
         self.enc_doc_lens = np.zeros((self.batch_size), dtype=np.int32)
         self.enc_sent_lens = np.ones((self.batch_size, max_enc_doc_len), dtype=np.int32)
         self.enc_padding_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
 
         self.enc_padding_token_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
         self.enc_padding_sent_mask = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.float32)
+        self.enc_padding_word_mask = np.zeros((self.batch_size, max_enc_word_len), dtype=np.float32)
 
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
             self.enc_batch[i, :] = np.array(ex.enc_input[:])
+            self.enc_word_batch[:] = np.array(ex.word_input)
             self.enc_doc_lens[i] = ex.enc_doc_len
+            self.enc_word_lens[i] = ex.enc_word_len
             for j in range(len(ex.enc_tok_len)):
                 self.enc_sent_lens[i][j] = ex.enc_tok_len[j]
                 for k in range(ex.enc_tok_len[j]):
                     self.enc_padding_mask[i][j][k] = 1
                     self.enc_padding_token_mask[i][j][k] = 1
                 self.enc_padding_sent_mask[i][j] = 1
+            for j in range(ex.enc_word_len):
+                self.enc_padding_word_mask[i][j] = 1
 
         # For pointer-generator mode, need to store some extra info
         if self.pointer_gen:
