@@ -4,6 +4,7 @@ import queue
 import time
 from random import shuffle
 from threading import Thread
+import itertools
 
 import numpy as np
 # import tensorflow as tf
@@ -35,7 +36,7 @@ class Example(object):
             article_sents = article.decode().split('<split1>')
             article_sents = article_sents[:10]
             article_words = [sent.split()[:20] for sent in article_sents]
-            all_article_words = (' '.join([' '.join(s) for s in article_sents])).split()
+            all_article_words = list(itertools.chain.from_iterable(article_words))
             #article_sents = article_sents
             #article_words = [sent.split() for sent in article_sents]
         # if len(article_words) > config.max_enc_steps:

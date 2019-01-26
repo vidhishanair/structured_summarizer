@@ -145,7 +145,7 @@ class StructuredEncoder(nn.Module):
         word_input = self.embedding(word_batch)
         word_input = self.drop(word_input)
         # BiLSTM
-        bilstm_encoded_word_tokens, token_hidden = self.sentence_encoder.forward_packed(word_input, enc_word_lens)
+        bilstm_encoded_word_tokens, word_token_hidden = self.sentence_encoder.forward_packed(word_input, enc_word_lens)
         mask = word_padding_mask.unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
         bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
 
@@ -163,7 +163,7 @@ class StructuredEncoder(nn.Module):
         bilstm_encoded_tokens = bilstm_encoded_tokens.contiguous().view(batch_size, sent_size, token_size, self.sent_hidden_size)
         masked_bilstm_encoded_tokens = bilstm_encoded_tokens + ((tokens_mask-1)*999).unsqueeze(3).repeat(1, 1, 1, self.sent_hidden_size)
         max_pooled_bilstm_sents = masked_bilstm_encoded_tokens.max(dim=2)[0]  # Batch * sent * dim
-        encoded_tokens =  bilstm_encoded_tokens
+        encoded_tokens = bilstm_encoded_tokens
 
         bilstm_encoded_sents, sent_hidden = self.document_encoder.forward_packed(max_pooled_bilstm_sents, doc_l)
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.doc_hidden_size)
