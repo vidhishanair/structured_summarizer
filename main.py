@@ -24,7 +24,6 @@ from utils.train_util import get_input_from_batch, get_output_from_batch
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 print('Devices available: '+str(torch.cuda.current_device()))
-exit(0)
 
 class Train(object):
     def __init__(self, args, model_name=None):
