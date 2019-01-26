@@ -8,7 +8,7 @@ def get_input_from_batch(batch, use_cuda, args):
     batch_size = len(batch.enc_doc_lens)
 
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
-    word_batch = Variable(torch.from_numpy(batch.word_batch).long())
+    word_batch = Variable(torch.from_numpy(batch.enc_word_batch).long())
     word_padding_mask = Variable(torch.from_numpy(batch.enc_padding_word_mask)).float()
     enc_padding_mask = Variable(torch.from_numpy(batch.enc_padding_mask)).float()
     enc_padding_token_mask = Variable(torch.from_numpy(batch.enc_padding_token_mask)).float()
