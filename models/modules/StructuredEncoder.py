@@ -156,7 +156,7 @@ class StructuredEncoder(nn.Module):
             start_count2 = 0
             max_l = max(list(itertools.chain.from_iterable(sent_l)))
             for l in sent_l[i]:
-                print(i, start_count, l, start_count2, max_l)
+                #print(i, start_count, l, start_count2, max_l)
                 if l > 0:
                     tk[i, start_count:start_count+l,:] = bilstm_encoded_word_tokens[i,start_count2:start_count2+l,:]
                 start_count = start_count+max_l
