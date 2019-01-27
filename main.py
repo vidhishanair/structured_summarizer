@@ -24,6 +24,7 @@ from utils.train_util import get_input_from_batch, get_output_from_batch
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 print('Devices available: '+str(torch.cuda.current_device()))
+device = torch.device("cuda" if config.use_gpu else "cpu")
 
 class Train(object):
     def __init__(self, args, model_name=None):
@@ -60,8 +61,8 @@ class Train(object):
         torch.save(state, model_save_path)
 
     def setup_train(self, args):
-        gpu_ids = [0,1]
-        self.model = nn.DataParallel(Model(args), device_ids=gpu_ids)
+        gpu_ids = [1,2]
+        self.model = nn.DataParallel(Model(args), device_ids=gpu_ids).to(device)
 
         params = list(self.model.module.encoder.parameters()) + list(self.model.module.decoder.parameters()) + \
                  list(self.model.module.reduce_state.parameters())
@@ -82,7 +83,7 @@ class Train(object):
                     for state in self.optimizer.state.values():
                         for k, v in state.items():
                             if torch.is_tensor(v):
-                                state[k] = v.cuda()
+                                state[k] = v.to(device)
 
         return start_iter, start_loss
 

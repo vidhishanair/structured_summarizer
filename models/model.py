@@ -17,6 +17,7 @@ from numpy import random
 import itertools
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
+device = torch.device("cuda" if config.use_gpu else "cpu")
 
 random.seed(123)
 torch.manual_seed(123)
@@ -37,9 +38,9 @@ class Model(object):
         decoder.embedding.weight = encoder.embedding.weight
 
         if use_cuda:
-            encoder = encoder.cuda()
-            decoder = decoder.cuda()
-            reduce_state = reduce_state.cuda()
+            encoder = encoder.to(device)
+            decoder = decoder.to(device)
+            reduce_state = reduce_state.to(device)
 
         self.encoder = encoder
         self.decoder = decoder

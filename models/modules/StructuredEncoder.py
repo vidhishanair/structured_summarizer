@@ -29,7 +29,7 @@ class StructuredEncoder(nn.Module):
         self.drop = nn.Dropout(0.3)
         init_wt_normal(self.embedding.weight)
         bidirectional = True
-        device = torch.device("cuda" if config.use_gpu else "cpu")
+        self.device = torch.device("cuda" if config.use_gpu else "cpu")
         self.no_sent_sa = args.no_sent_sa
 
         #self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
@@ -42,17 +42,17 @@ class StructuredEncoder(nn.Module):
             self.sent_hidden_size = config.hidden_dim
             self.doc_hidden_size = config.hidden_dim
 
-        self.sentence_encoder = BiLSTMEncoder(device, self.sent_hidden_size, config.emb_dim, 1, dropout=0.3,
+        self.sentence_encoder = BiLSTMEncoder(self.device, self.sent_hidden_size, config.emb_dim, 1, dropout=0.3,
                                               bidirectional=bidirectional)
         if args.no_sent_sa:
-            self.document_encoder = BiLSTMEncoder(device, self.doc_hidden_size, self.sent_hidden_size, 1, dropout=0.3,
+            self.document_encoder = BiLSTMEncoder(self.device, self.doc_hidden_size, self.sent_hidden_size, 1, dropout=0.3,
                                               bidirectional=bidirectional)
         else:
-            self.document_encoder = BiLSTMEncoder(device, self.doc_hidden_size, self.sem_dim_size, 1, dropout=0.3,
+            self.document_encoder = BiLSTMEncoder(self.device, self.doc_hidden_size, self.sem_dim_size, 1, dropout=0.3,
                                                   bidirectional=bidirectional)
 
-        self.sentence_structure_att = StructuredAttention(device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "nightly")
-        self.document_structure_att = StructuredAttention(device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "nightly")
+        self.sentence_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "nightly")
+        self.document_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "nightly")
 
         #init_lstm_wt(self.sentence_encoder)
         #init_lstm_wt()
@@ -149,7 +149,7 @@ class StructuredEncoder(nn.Module):
         mask = word_padding_mask.unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
         bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
 
-        tk = torch.zeros(batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2)).cuda()
+        tk = torch.zeros(batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2)).to(self.device)
         #print(bilstm_encoded_word_tokens.size())
         #print(tk.size())
         for i in range(len(sent_l)):

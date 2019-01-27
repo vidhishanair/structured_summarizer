@@ -6,6 +6,7 @@ import utils.config as config
 
 def get_input_from_batch(batch, use_cuda, args):
     batch_size = len(batch.enc_doc_lens)
+    device = torch.device("cuda" if config.use_gpu else "cpu")
 
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
     word_batch = Variable(torch.from_numpy(batch.enc_word_batch).long())
@@ -34,26 +35,28 @@ def get_input_from_batch(batch, use_cuda, args):
         coverage = Variable(torch.zeros(enc_batch.size()))
 
     if use_cuda:
-        enc_batch = enc_batch.cuda()
-        enc_padding_mask = enc_padding_mask.cuda()
-        enc_padding_sent_mask = enc_padding_sent_mask.cuda()
-        enc_padding_token_mask = enc_padding_token_mask.cuda()
-        word_batch = word_batch.cuda()
-        word_padding_mask = word_padding_mask.cuda()
+        enc_batch = enc_batch.to(device)
+        enc_padding_mask = enc_padding_mask.to(device)
+        enc_padding_sent_mask = enc_padding_sent_mask.to(device)
+        enc_padding_token_mask = enc_padding_token_mask.to(device)
+        word_batch = word_batch.to(device)
+        word_padding_mask = word_padding_mask.to(device)
 
         if enc_batch_extend_vocab is not None:
-            enc_batch_extend_vocab = enc_batch_extend_vocab.cuda()
+            enc_batch_extend_vocab = enc_batch_extend_vocab.to(device)
         if extra_zeros is not None:
-            extra_zeros = extra_zeros.cuda()
-        c_t_1 = c_t_1.cuda()
+            extra_zeros = extra_zeros.to(device)
+        c_t_1 = c_t_1.to(device)
 
         if coverage is not None:
-            coverage = coverage.cuda()
+            coverage = coverage.to(device)
 
     return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
 
 
 def get_output_from_batch(batch, use_cuda):
+    device = torch.device("cuda" if config.use_gpu else "cpu")
+
     dec_batch = Variable(torch.from_numpy(batch.dec_batch).long())
     dec_padding_mask = Variable(torch.from_numpy(batch.dec_padding_mask)).float()
     dec_lens = batch.dec_lens
@@ -63,9 +66,9 @@ def get_output_from_batch(batch, use_cuda):
     target_batch = Variable(torch.from_numpy(batch.target_batch)).long()
 
     if use_cuda:
-        dec_batch = dec_batch.cuda()
-        dec_padding_mask = dec_padding_mask.cuda()
-        dec_lens_var = dec_lens_var.cuda()
-        target_batch = target_batch.cuda()
+        dec_batch = dec_batch.to(device)
+        dec_padding_mask = dec_padding_mask.to(device)
+        dec_lens_var = dec_lens_var.to(device)
+        target_batch = target_batch.to(device)
 
     return dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch
