@@ -150,14 +150,18 @@ class StructuredEncoder(nn.Module):
         bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
 
         tk = torch.zeros(batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2)).cuda()
-
+        #print(bilstm_encoded_word_tokens.size())
+        #print(tk.size())
         for i in range(len(sent_l)):
             start_count = 0
             start_count2 = 0
             max_l = max(list(itertools.chain.from_iterable(sent_l)))
+            size2 = bilstm_encoded_word_tokens.size(1)
             for l in sent_l[i]:
                 #print(i, start_count, l, start_count2, max_l)
-                if l > 0:
+                #print(tk[i, start_count:start_count+l,:].size())
+                #print(bilstm_encoded_word_tokens[i,start_count2:start_count2+l,:].size())
+                if l > 0 and start_count2 < size2:
                     tk[i, start_count:start_count+l,:] = bilstm_encoded_word_tokens[i,start_count2:start_count2+l,:]
                 start_count = start_count+max_l
                 start_count2 = start_count2+l
