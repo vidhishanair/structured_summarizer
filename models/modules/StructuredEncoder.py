@@ -162,11 +162,6 @@ class StructuredEncoder(nn.Module):
                 start_count = start_count+max_l
                 start_count2 = start_count2+l
 
-        print(tk.size())
-        exit(0)
-
-
-
         # reshape to 3D tensor
         input = input.contiguous().view(input.size(0)*input.size(1), input.size(2), input.size(3))
         sent_l = list(itertools.chain.from_iterable(sent_l))
@@ -189,7 +184,7 @@ class StructuredEncoder(nn.Module):
         encoded_sents = bilstm_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
                                                                                            bilstm_encoded_sents.size(2))
         encoded_tokens = encoded_tokens.contiguous().view(batch_size, sent_size*token_size, encoded_tokens.size(3))
-        encoded_tokens = torch.cat([bilstm_encoded_word_tokens, encoded_sents], dim=2)
+        encoded_tokens = torch.cat([tk, encoded_sents], dim=2)
         max_pooled_doc = encoded_tokens.max(dim=1)[0]
 
         encoder_output = {"encoded_tokens": encoded_tokens,
