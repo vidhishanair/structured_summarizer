@@ -61,7 +61,7 @@ class Train(object):
         torch.save(state, model_save_path)
 
     def setup_train(self, args):
-        gpu_ids = [1,2]
+        gpu_ids = [0,1]
         self.model = nn.DataParallel(Model(args), device_ids=gpu_ids).to(device)
 
         params = list(self.model.module.encoder.parameters()) + list(self.model.module.decoder.parameters()) + \
