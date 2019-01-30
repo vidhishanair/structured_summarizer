@@ -34,8 +34,8 @@ class Example(object):
             all_article_words = ' '.join(abstract_sentences).split()
         else:
             article_sents = article.decode().split('<split1>')
-            article_sents = article_sents[:10]
-            article_words = [sent.split()[:20] for sent in article_sents]
+            article_sents = article_sents[:5]
+            article_words = [sent.split() for sent in article_sents]
             all_article_words = list(itertools.chain.from_iterable(article_words))
             #article_sents = article_sents
             #article_words = [sent.split() for sent in article_sents]
@@ -161,8 +161,8 @@ class Batch(object):
 
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
-            self.enc_batch[i, :] = np.array(ex.enc_input[:])
-            self.enc_word_batch[:] = np.array(ex.word_input)
+            self.enc_batch[i, :] = np.array(ex.enc_input)
+            self.enc_word_batch[i,:] = np.array(ex.word_input)
             self.enc_doc_lens[i] = ex.enc_doc_len
             self.enc_word_lens[i] = ex.enc_word_len
             for j in range(len(ex.enc_tok_len)):
