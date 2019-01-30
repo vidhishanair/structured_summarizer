@@ -102,6 +102,8 @@ class Train(object):
 
         self.optimizer.zero_grad()
         loss = self.get_loss(batch, args)
+        if loss is None:
+            return None
         loss.backward()
 
         clip_grad_norm(self.model.module.encoder.parameters(), config.max_grad_norm)
@@ -124,9 +126,9 @@ class Train(object):
             self.model.module.train()
             batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch, args)
-
-            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-            iter += 1
+            if loss is not None:
+                running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
+                #iter += 1
 
             print_interval = 1000
             if iter % print_interval == 0:
@@ -164,6 +166,8 @@ class Train(object):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
             enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens\
             = get_input_from_batch(batch, use_cuda, args)
+        if word_batch.size(1)>800:
+            return None
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
@@ -209,8 +213,9 @@ class Train(object):
         batch = self.eval_batcher.next_batch()
         while batch is not None:
             loss = self.get_loss(batch, args).item()
-            running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-            iter += 1
+            if loss is not None:
+                running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
+                iter += 1
             batch = self.eval_batcher.next_batch()
         msg = 'Eval: loss: %f' % running_avg_loss
         print(msg)

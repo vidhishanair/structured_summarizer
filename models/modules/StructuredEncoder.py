@@ -150,8 +150,7 @@ class StructuredEncoder(nn.Module):
         bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
 
         tk = torch.zeros(batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2)).to(self.device)
-        #print(bilstm_encoded_word_tokens.size())
-        #print(tk.size())
+
         for i in range(len(sent_l)):
             start_count = 0
             start_count2 = 0
