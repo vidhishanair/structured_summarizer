@@ -191,7 +191,7 @@ class StructuredEncoder(nn.Module):
         sa_encoded_sents = sa_encoded_sents * mask
 
         encoded_sents = sa_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
-                                                                                           bilstm_encoded_sents.size(2))
+                                                                                       sa_encoded_sents.size(2))
         encoded_tokens = encoded_tokens.contiguous().view(batch_size, sent_size*token_size, encoded_tokens.size(3))
         encoded_tokens = torch.cat([tk, encoded_sents], dim=2)
         max_pooled_doc = encoded_tokens.max(dim=1)[0]
