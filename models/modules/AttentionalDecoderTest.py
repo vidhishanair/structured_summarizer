@@ -45,7 +45,8 @@ class Attention(nn.Module):
         self.concat_rep = args.concat_rep
         self.is_coverage = args.is_coverage
         self.no_sent_sa = args.no_sent_sa
-        self.W_h = nn.Linear(config.hidden_dim * 2 + config.hidden_dim * 2, config.hidden_dim * 2, bias=False)
+        self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
+        self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
 
         if self.is_coverage:
             self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
@@ -81,7 +82,7 @@ class Attention(nn.Module):
         attn_dist = attn_dist.unsqueeze(1)  # B x 1 x t_k
         h = h.view(-1, t_k, n1)  # B x t_k x 2*hidden_dim
         c_t = torch.bmm(attn_dist, h)  # B x 1 x n
-        c_t = c_t.view(-1, config.hidden_dim * 2 + config.hidden_dim*2)
+        c_t = c_t.view(-1, self.encoder_op_size)
 
         attn_dist = attn_dist.view(-1, t_k)  # B x t_k
 
@@ -97,16 +98,17 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.attention_network = Attention(args)
         self.pointer_gen = args.pointer_gen
+        self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         # decoder
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
-        self.x_context = nn.Linear(config.hidden_dim * 2 + config.hidden_dim *2 + config.emb_dim, config.emb_dim)
+        self.x_context = nn.Linear(self.encoder_op_size + config.emb_dim, config.emb_dim)
 
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
         init_lstm_wt(self.lstm)
 
-        self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + 2 * config.hidden_dim + 2 * config.hidden_dim + config.emb_dim, 1)
-        self.out1 = nn.Linear(config.hidden_dim + 2*config.hidden_dim + 2*config.hidden_dim, config.hidden_dim)
+        self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + self.encoder_op_size + config.emb_dim, 1)
+        self.out1 = nn.Linear(config.hidden_dim + self.encoder_op_size, config.hidden_dim)
         self.out2 = nn.Linear(config.hidden_dim, config.vocab_size)
 
         init_linear_wt(self.out2)
