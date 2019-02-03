@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
 from models.modules.StructuredAttention import StructuredAttention
 from models.modules.StructuredEncoder import StructuredEncoder
-from models.utils import init_wt_normal, init_lstm_wt, init_linear_wt, init_wt_unif
+from models.model_utils import init_wt_normal, init_lstm_wt, init_linear_wt, init_wt_unif
 from utils import config
 from numpy import random
 import itertools

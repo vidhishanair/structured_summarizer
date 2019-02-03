@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
 from models.modules.StructuredAttention import StructuredAttention
-from models.utils import init_wt_normal
+from models.model_utils import init_wt_normal
 from utils import config
 from numpy import random
 import itertools
