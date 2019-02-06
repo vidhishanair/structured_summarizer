@@ -126,9 +126,10 @@ class Train(object):
             self.model.module.train()
             batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch, args)
+            #print(loss)
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-                #iter += 1
+                iter += 1
 
             print_interval = 1000
             if iter % print_interval == 0:
@@ -166,6 +167,7 @@ class Train(object):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
             enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens\
             = get_input_from_batch(batch, use_cuda, args)
+        #print(enc_batch.size())
         # if word_batch.size(1)>800:
         #     return None
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
@@ -196,11 +198,13 @@ class Train(object):
                 step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
+            #print(step_loss)
             step_losses.append(step_loss)
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
         batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
-        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage
+        #print(loss)
+        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
         gc.collect()
         torch.cuda.empty_cache()
         return loss

@@ -33,9 +33,21 @@ class Example(object):
             article_words = [sent.split()[:20] for sent in article_sents]
             all_article_words = ' '.join(abstract_sentences).split()
         else:
-            article_sents = article.decode().split('<split1>')
-            article_sents = article_sents[:10]
-            article_words = [sent.split() for sent in article_sents]
+            article_sents_tmp = article.decode().split('<split1>')
+            size = 0
+            article_sents = []
+            for sent in article_sents_tmp:
+                sent = sent.split()
+                if len(sent) + size <= config.max_enc_steps:
+                    article_sents.append(sent)
+                    size += len(sent)
+                elif size >= config.max_enc_steps:
+                    break
+                else:
+                    article_sents.append(sent[:config.max_enc_steps-size])
+            article_sents = article_sents_tmp[:20]
+            #article_words = article_sents
+            article_words = [sent.split()[:140] for sent in article_sents]
             all_article_words = list(itertools.chain.from_iterable(article_words))
             #article_sents = article_sents
             #article_words = [sent.split() for sent in article_sents]
