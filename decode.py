@@ -81,33 +81,33 @@ class BeamSearch(object):
         fileName = os.path.join(self._structures_dir, str(count)+".txt")
         fp = open(fileName, "w")
         fp.write("Doc: "+str(count)+"\n")
-
+        doc_attention_matrix = doc_attention_matrix[0,:,1:] #this change yet to be tested!
         l = batch.enc_doc_lens[0].item()
         doc_sent_no = 0
-        for i in range(l):
-            printstr = ''
-            sent = batch.enc_batch[0][i]
-            #scores = str_scores_sent[sent_no][0:l, 0:l]
-            token_count = 0
-            for j in range(batch.enc_sent_lens[0][i].item()):
-                token = sent[j].item()
-                printstr += self.vocab.id2word(token)+" "
-                token_count = token_count + 1
-            #print(printstr)
-            fp.write(printstr+"\n")
-
-            scores = sent_attention_matrix[doc_sent_no][0:token_count, 0:token_count]
-            shape2 = sent_attention_matrix[doc_sent_no][0:token_count,0:token_count].size()
-            row = torch.ones([1, shape2[1]+1]).cuda()
-            column = torch.zeros([shape2[0], 1]).cuda()
-            new_scores = torch.cat([column, scores], dim=1)
-            new_scores = torch.cat([row, new_scores], dim=0)
-
-            heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
-            #print(heads, tree_score)
-            fp.write(str(heads)+" ")
-            fp.write(str(tree_score)+"\n")
-            doc_sent_no+=1
+        # for i in range(l):
+        #     printstr = ''
+        #     sent = batch.enc_batch[0][i]
+        #     #scores = str_scores_sent[sent_no][0:l, 0:l]
+        #     token_count = 0
+        #     for j in range(batch.enc_sent_lens[0][i].item()):
+        #         token = sent[j].item()
+        #         printstr += self.vocab.id2word(token)+" "
+        #         token_count = token_count + 1
+        #     #print(printstr)
+        #     fp.write(printstr+"\n")
+        #
+        #     scores = sent_attention_matrix[doc_sent_no][0:token_count, 0:token_count]
+        #     shape2 = sent_attention_matrix[doc_sent_no][0:token_count,0:token_count].size()
+        #     row = torch.ones([1, shape2[1]+1]).cuda()
+        #     column = torch.zeros([shape2[0], 1]).cuda()
+        #     new_scores = torch.cat([column, scores], dim=1)
+        #     new_scores = torch.cat([row, new_scores], dim=0)
+        #
+        #     heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
+        #     #print(heads, tree_score)
+        #     fp.write(str(heads)+" ")
+        #     fp.write(str(tree_score)+"\n")
+        #     doc_sent_no+=1
 
         shape2 = doc_attention_matrix[0][0:l,0:l].size()
         row = torch.ones([1, shape2[1]+1]).cuda()
@@ -215,7 +215,8 @@ class BeamSearch(object):
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
-#        self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
+        self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
+        print(encoder_output['sent_importance_vector'])
 
         s_t_0 = self.model.reduce_state(encoder_last_hidden)
 

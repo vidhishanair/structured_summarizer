@@ -196,12 +196,17 @@ class StructuredEncoder(nn.Module):
         encoded_tokens = torch.cat([tk, encoded_sents], dim=2)
         max_pooled_doc = encoded_tokens.max(dim=1)[0]
 
+        sentence_importance_vector = sent_attention_matrix[:,:,1:].sum(dim=1) * sent_mask
+        sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1)
+
+
         encoder_output = {"encoded_tokens": encoded_tokens,
                           "token_hidden": token_hidden,
-                          "encoded_sents": bilstm_encoded_sents,
+                          "encoded_sents": encoded_sents,
                           "sent_hidden": sent_hidden,
                           "document_rep" : max_pooled_doc,
                           "token_attention_matrix" : None,
-                          "sent_attention_matrix" : None}
+                          "sent_attention_matrix" : sent_attention_matrix,
+                          "sent_importance_vector" : sentence_importance_vector}
 
         return encoder_output
