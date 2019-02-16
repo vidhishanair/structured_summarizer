@@ -160,21 +160,19 @@ class Train(object):
             enc_padding_mask = enc_padding_sent_mask
         encoder_hidden = encoder_output["sent_hidden"]
         max_encoder_output = encoder_output["document_rep"]
+        token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
 
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
             enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens\
             = get_input_from_batch(batch, use_cuda, args)
-        #print(enc_batch.size())
-        # if word_batch.size(1)>800:
-        #     return None
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
         encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
@@ -184,12 +182,12 @@ class Train(object):
         step_losses = []
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
-            final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.module.decoder(y_t_1, s_t_1,
+            final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.module.decoder.forward(y_t_1, s_t_1,
                                                                                       encoder_outputs,
                                                                                       enc_padding_mask, c_t_1,
                                                                                       extra_zeros,
                                                                                       enc_batch_extend_vocab,
-                                                                                      coverage)
+                                                                                      coverage, token_level_sentence_scores)
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps)
@@ -238,7 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('--concat_rep', action='store_true', default=False, help='concatenate representation')
     parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
     parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
-
+    parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 
     args = parser.parse_args()
