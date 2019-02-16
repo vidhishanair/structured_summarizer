@@ -186,8 +186,9 @@ class BeamSearch(object):
             enc_padding_mask = enc_padding_sent_mask
         encoder_hidden = encoder_output["sent_hidden"]
         max_encoder_output = encoder_output["document_rep"]
+        token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
 
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
@@ -198,7 +199,7 @@ class BeamSearch(object):
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
 
@@ -213,7 +214,7 @@ class BeamSearch(object):
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
@@ -268,7 +269,7 @@ class BeamSearch(object):
 
             final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
                                                                                     encoder_outputs, enc_padding_mask, c_t_1,
-                                                                                    extra_zeros, enc_batch_extend_vocab, coverage_t_1)
+                                                                                    extra_zeros, enc_batch_extend_vocab, coverage_t_1, token_level_sentence_scores)
 
             topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
 
