@@ -197,7 +197,7 @@ class StructuredEncoder(nn.Module):
         max_pooled_doc = encoded_tokens.max(dim=1)[0]
 
         sentence_importance_vector = sent_attention_matrix[:,:,1:].sum(dim=1) * sent_mask
-        sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1)
+        sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
 
 
         encoder_output = {"encoded_tokens": encoded_tokens,

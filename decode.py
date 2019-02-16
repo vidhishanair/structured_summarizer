@@ -81,7 +81,8 @@ class BeamSearch(object):
         fileName = os.path.join(self._structures_dir, str(count)+".txt")
         fp = open(fileName, "w")
         fp.write("Doc: "+str(count)+"\n")
-        doc_attention_matrix = doc_attention_matrix[0,:,1:] #this change yet to be tested!
+        #exit(0)
+        doc_attention_matrix = doc_attention_matrix[:,:,1:] #this change yet to be tested!
         l = batch.enc_doc_lens[0].item()
         doc_sent_no = 0
         # for i in range(l):
