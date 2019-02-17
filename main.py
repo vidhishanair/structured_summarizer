@@ -101,6 +101,7 @@ class Train(object):
     def train_one_batch(self, batch, args):
 
         self.optimizer.zero_grad()
+        self.model.module.encoder.document_structure_att.output = None
         loss = self.get_loss(batch, args)
         if loss is None:
             return None
@@ -201,6 +202,12 @@ class Train(object):
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
         batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
+        if args.L2_structure_penalty:
+            all_linear1_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
+            all_linear2_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
+            l1_regularization = 0.001 * torch.norm(all_linear1_params, 1)
+            l2_regularization = 0.001 * torch.norm(all_linear2_params, 2)
+            loss += l2_regularization
         #print(loss)
         del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
         gc.collect()
@@ -237,6 +244,7 @@ if __name__ == '__main__':
     parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
     parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
     parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
+    parser.add_argument('--L2_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 
     args = parser.parse_args()
