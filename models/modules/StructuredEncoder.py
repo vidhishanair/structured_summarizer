@@ -131,7 +131,7 @@ class StructuredEncoder(nn.Module):
         return encoder_output
 
     #seq_lens should be in descending order
-    def forward_test(self, input, sent_l, doc_l, mask_tokens, mask_sents, word_batch, word_padding_mask, enc_word_lens):
+    def forward_test(self, input, sent_l, doc_l, mask_tokens, mask_sents, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch):
 
         
         batch_size, sent_size, token_size = input.size()
@@ -199,6 +199,7 @@ class StructuredEncoder(nn.Module):
         sentence_importance_vector = sent_attention_matrix[:,:,1:].sum(dim=1) * sent_mask
         sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
         token_level_sentence_scores = sentence_importance_vector.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size)
+        sent_scores = enc_tags_batch.sum(dim=-1, keepdim=True).repeat(1, 1, token_size).view(batch_size, sent_size*token_size)
 
         encoder_output = {"encoded_tokens": encoded_tokens,
                           "token_hidden": token_hidden,
@@ -208,6 +209,6 @@ class StructuredEncoder(nn.Module):
                           "token_attention_matrix" : None,
                           "sent_attention_matrix" : sent_attention_matrix,
                           "sent_importance_vector" : sentence_importance_vector,
-                          "token_level_sentence_scores" : token_level_sentence_scores}
+                          "token_level_sentence_scores" : sent_scores}
 
         return encoder_output

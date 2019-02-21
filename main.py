@@ -167,12 +167,12 @@ class Train(object):
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens\
+            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch\
             = get_input_from_batch(batch, use_cuda, args)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
-        encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
+        encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 

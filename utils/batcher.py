@@ -19,7 +19,7 @@ random.seed(1234)
 
 class Example(object):
 
-    def __init__(self, article, abstract_sentences, vocab, args):
+    def __init__(self, article, abstract_sentences, tags, vocab, args):
         # Get ids of special tokens
         start_decoding = vocab.word2id(data.START_DECODING)
         stop_decoding = vocab.word2id(data.STOP_DECODING)
@@ -32,22 +32,30 @@ class Example(object):
             article_sents = article_sents[:10]
             article_words = [sent.split()[:20] for sent in article_sents]
             all_article_words = ' '.join(abstract_sentences).split()
+            article_word_tags = []
         else:
             article_sents_tmp = article.decode().split('<split1>')
+            sent_tags = tags.decoder().split('<split1>')
             size = 0
             article_sents = []
-            for sent in article_sents_tmp:
-                sent = sent.split()
-                if len(sent) + size <= config.max_enc_steps:
-                    article_sents.append(sent)
-                    size += len(sent)
-                elif size >= config.max_enc_steps:
-                    break
-                else:
-                    article_sents.append(sent[:config.max_enc_steps-size])
+            article_sent_tags = []
+            # for sent, tags in zip(article_sents_tmp, sent_tags):
+            #     sent = sent.split()
+            #     tags = tags.split()
+            #     if len(sent) + size <= config.max_enc_steps:
+            #         article_sents.append(sent)
+            #         article_sent_tags.append([int(x) for x in tags])
+            #         size += len(sent)
+            #     elif size >= config.max_enc_steps:
+            #         break
+            #     else:
+            #         article_sents.append(sent[:config.max_enc_steps-size])
+            #         article_sent_tags.append([int(x) for x in tags[:config.max_enc_steps-size]])
             article_sents = article_sents_tmp[:20]
-            #article_words = article_sents
+            article_sent_tags = sent_tags[:20]
             article_words = [sent.split()[:140] for sent in article_sents]
+            article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
+
             all_article_words = list(itertools.chain.from_iterable(article_words))
             #article_sents = article_sents
             #article_words = [sent.split() for sent in article_sents]
@@ -69,6 +77,7 @@ class Example(object):
         abs_ids = [vocab.word2id(w) for w in
                    abstract_words]  # list of word ids; OOVs are represented by the id for UNK token
 
+
         # Get the decoder input sequence and target sequence
         self.dec_input, self.target = self.get_dec_inp_targ_seqs(abs_ids, config.max_dec_steps, start_decoding,
                                                                  stop_decoding)
@@ -87,6 +96,7 @@ class Example(object):
                                                         stop_decoding)
 
         # Store the original strings
+        self.enc_tags = article_word_tags
         self.original_article = article
         self.article_words = article_words
         self.original_abstract = abstract
@@ -113,6 +123,7 @@ class Example(object):
         for i in range(0, len(self.enc_input)):
             while len(self.enc_input[i]) < max_len:
                 self.enc_input[i].append(pad_id)
+                self.enc_tags[i].append(0)
         if self.pointer_gen:
             for i in range(0, len(self.enc_input_extend_vocab)):
                 while len(self.enc_input_extend_vocab[i]) < max_len:
@@ -161,6 +172,8 @@ class Batch(object):
         # self.enc_batch = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.int32)
 
         self.enc_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
+        self.enc_tags_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
+
         self.enc_word_batch = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
         self.enc_word_lens = np.zeros((self.batch_size), dtype=np.int32)
         self.enc_doc_lens = np.zeros((self.batch_size), dtype=np.int32)
@@ -174,6 +187,7 @@ class Batch(object):
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
             self.enc_batch[i, :] = np.array(ex.enc_input)
+            self.enc_tags_batch[i, :] = np.array(ex.enc_tags)
             self.enc_word_batch[i,:] = np.array(ex.word_input)
             self.enc_doc_lens[i] = ex.enc_doc_len
             self.enc_word_lens[i] = ex.enc_word_len
@@ -285,7 +299,7 @@ class Batcher(object):
 
         while True:
             try:
-                (article, abstract) = next(input_gen)  # read the next example from file. article and abstract are both strings.
+                (article, abstract, tags) = next(input_gen)  # read the next example from file. article and abstract are both strings.
             except StopIteration:  # if there are no more examples:
                 print("The example generator for this example queue filling thread has exhausted data.")
                 if self._single_pass:
@@ -297,7 +311,7 @@ class Batcher(object):
 
             abstract_sentences = [sent.strip() for sent in data.abstract2sents(
                 abstract)]  # Use the <s> and </s> tags in abstract to get a list of sentences.
-            example = Example(article, abstract_sentences, self._vocab, self.args)  # Process into an Example.
+            example = Example(article, abstract_sentences, tags, self._vocab, self.args)  # Process into an Example.
             self._example_queue.put(example)  # place the Example in the example queue.
 
     def fill_batch_queue(self):
@@ -352,6 +366,8 @@ class Batcher(object):
             try:
                 article_text = e.features.feature['article'].bytes_list.value[
                     0]  # the article text was saved under the key 'article' in the data files
+                tags = e.features.feature['labels'].bytes_list.value[
+                    0]  # the article text was saved under the key 'article' in the data files
                 abstract_text = e.features.feature['abstract'].bytes_list.value[
                     0]  # the abstract text was saved under the key 'abstract' in the data files
             except ValueError:
@@ -362,4 +378,4 @@ class Batcher(object):
                 #print('Found an example with empty article text. Skipping it.')
                 continue
             else:
-                yield (article_text, abstract_text)
+                yield (article_text, abstract_text, tags)
