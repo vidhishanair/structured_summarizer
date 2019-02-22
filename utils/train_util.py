@@ -9,7 +9,7 @@ def get_input_from_batch(batch, use_cuda, args):
     device = torch.device("cuda" if config.use_gpu else "cpu")
 
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
-    enc_tags_batch = Variable(torch.from_numpy(batch.enc_tags_batch).long())
+    enc_tags_batch = Variable(torch.from_numpy(batch.enc_tags_batch).float())
     word_batch = Variable(torch.from_numpy(batch.enc_word_batch).long())
     word_padding_mask = Variable(torch.from_numpy(batch.enc_padding_word_mask)).float()
     enc_padding_mask = Variable(torch.from_numpy(batch.enc_padding_mask)).float()
