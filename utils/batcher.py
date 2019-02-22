@@ -56,14 +56,6 @@ class Example(object):
             article_words = [sent.split()[:140] for sent in article_sents]
             article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
             all_article_words = list(itertools.chain.from_iterable(article_words))
-            
-            for sent, sent_tag in zip(article_words, article_word_tags):
-                if len(sent) != len(sent_tag):
-                    print(article_word_tags)
-                    print(article_words)
-                    print(sent)
-                    print(sent_tag)
-                    #exit()
 
             #article_sents = article_sents
             #article_words = [sent.split() for sent in article_sents]
@@ -195,14 +187,8 @@ class Batch(object):
 
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
-            #print(np.array(ex.enc_tags).shape)
-            #print(np.array(ex.enc_input).shape)
-            try:
-                self.enc_batch[i, :] = np.array(ex.enc_input)
-                self.enc_tags_batch[i, :] = np.array(ex.enc_tags)
-            except:
-                print("problem here") 
-                exit()
+            self.enc_batch[i, :] = np.array(ex.enc_input)
+            self.enc_tags_batch[i, :] = np.array(ex.enc_tags)
             self.enc_word_batch[i,:] = np.array(ex.word_input)
             self.enc_doc_lens[i] = ex.enc_doc_len
             self.enc_word_lens[i] = ex.enc_word_len
