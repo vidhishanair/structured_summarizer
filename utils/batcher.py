@@ -35,7 +35,7 @@ class Example(object):
             article_word_tags = []
         else:
             article_sents_tmp = article.decode().split('<split1>')
-            sent_tags = tags.decoder().split('<split1>')
+            sent_tags = tags.decode().split('<split1>')
             size = 0
             article_sents = []
             article_sent_tags = []
@@ -55,8 +55,16 @@ class Example(object):
             article_sent_tags = sent_tags[:20]
             article_words = [sent.split()[:140] for sent in article_sents]
             article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
-
             all_article_words = list(itertools.chain.from_iterable(article_words))
+            
+            for sent, sent_tag in zip(article_words, article_word_tags):
+                if len(sent) != len(sent_tag):
+                    print(article_word_tags)
+                    print(article_words)
+                    print(sent)
+                    print(sent_tag)
+                    #exit()
+
             #article_sents = article_sents
             #article_words = [sent.split() for sent in article_sents]
         # if len(article_words) > config.max_enc_steps:
@@ -132,6 +140,7 @@ class Example(object):
     def pad_encoder_docs(self, max_len, pad_id, max_tok_len):
         while len(self.enc_input) < max_len:
             self.enc_input.append([pad_id] * max_tok_len)
+            self.enc_tags.append([0] * max_tok_len)
         if self.pointer_gen:
             while len(self.enc_input_extend_vocab) < max_len:
                 self.enc_input_extend_vocab.append([pad_id] * max_tok_len)
@@ -186,8 +195,14 @@ class Batch(object):
 
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
-            self.enc_batch[i, :] = np.array(ex.enc_input)
-            self.enc_tags_batch[i, :] = np.array(ex.enc_tags)
+            #print(np.array(ex.enc_tags).shape)
+            #print(np.array(ex.enc_input).shape)
+            try:
+                self.enc_batch[i, :] = np.array(ex.enc_input)
+                self.enc_tags_batch[i, :] = np.array(ex.enc_tags)
+            except:
+                print("problem here") 
+                exit()
             self.enc_word_batch[i,:] = np.array(ex.word_input)
             self.enc_doc_lens[i] = ex.enc_doc_len
             self.enc_word_lens[i] = ex.enc_word_len
@@ -370,12 +385,20 @@ class Batcher(object):
                     0]  # the article text was saved under the key 'article' in the data files
                 abstract_text = e.features.feature['abstract'].bytes_list.value[
                     0]  # the abstract text was saved under the key 'abstract' in the data files
-            except ValueError:
+            except:# ValueError:
                 # tf.logging.error('Failed to get article or abstract from example')
+                print(article_text)
+                print(e.features.feature['labels'].bytes_list.value)
+                exit()
                 print('Failed to get article or abstract from example')
                 continue
             if len(article_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
                 #print('Found an example with empty article text. Skipping it.')
                 continue
             else:
+                #print(article_text)
+                #print(e.features.feature['labels'].bytes_list.value)
+                #exit()
+                #tags = e.features.feature['labels'].bytes_list.value[
+                #    0]
                 yield (article_text, abstract_text, tags)
