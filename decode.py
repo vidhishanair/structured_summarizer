@@ -218,7 +218,7 @@ class BeamSearch(object):
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
-        print(encoder_output['sent_importance_vector'])
+        #print(encoder_output['sent_importance_vector'])
 
         s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
