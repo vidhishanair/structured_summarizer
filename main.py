@@ -207,8 +207,10 @@ class Train(object):
 
         if args.tag_loss:
             pred = sent_prediction.view(-1, 2)
-            gold = enc_tags_batch.view(-1)
-            loss_aux = self.sent_crossentropy.forward(pred, gold)
+            gold = enc_tags_batch.sum(dim=-1)
+            gold[gold < 3] = 0
+            gold[gold > 0] = 1
+            loss_aux = self.sent_crossentropy.forward(pred, gold.view(-1))
             print(loss_aux)
             loss += loss_aux
 
