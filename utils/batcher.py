@@ -123,7 +123,7 @@ class Example(object):
         for i in range(0, len(self.enc_input)):
             while len(self.enc_input[i]) < max_len:
                 self.enc_input[i].append(pad_id)
-                self.enc_tags[i].append(0)
+                self.enc_tags[i].append(-1)
         if self.pointer_gen:
             for i in range(0, len(self.enc_input_extend_vocab)):
                 while len(self.enc_input_extend_vocab[i]) < max_len:
@@ -132,7 +132,7 @@ class Example(object):
     def pad_encoder_docs(self, max_len, pad_id, max_tok_len):
         while len(self.enc_input) < max_len:
             self.enc_input.append([pad_id] * max_tok_len)
-            self.enc_tags.append([0] * max_tok_len)
+            self.enc_tags.append([-1] * max_tok_len)
         if self.pointer_gen:
             while len(self.enc_input_extend_vocab) < max_len:
                 self.enc_input_extend_vocab.append([pad_id] * max_tok_len)

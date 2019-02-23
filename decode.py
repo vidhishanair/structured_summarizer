@@ -323,7 +323,9 @@ if __name__ == '__main__':
     parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
     parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
     parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
-    # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
+    parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
+    parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
+
     args = parser.parse_args()
     model_filename = args.reload_path
     save_path = args.save_path
