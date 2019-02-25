@@ -210,7 +210,7 @@ class Train(object):
             gold = enc_tags_batch.sum(dim=-1)
             gold[gold < 3] = 0
             gold[gold > 0] = 1
-            loss_aux = self.sent_crossentropy.forward(pred, gold.view(-1))
+            loss_aux = self.sent_crossentropy.forward(pred, gold.view(-1).long())
             print(loss_aux)
             loss += loss_aux
 
