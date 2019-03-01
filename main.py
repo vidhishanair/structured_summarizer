@@ -224,7 +224,7 @@ class Train(object):
             gold = enc_tags_batch.sum(dim=-1)
             gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             gold = gold.view(-1)
-            loss_aux = self.attn_mse_loss(pred, gold.long())
+            loss_aux = self.attn_mse_loss(pred, gold)
             print(loss_aux)
             loss += loss_aux
 
