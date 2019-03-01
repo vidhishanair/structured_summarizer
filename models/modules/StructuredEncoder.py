@@ -205,7 +205,9 @@ class StructuredEncoder(nn.Module):
         sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
         if self.args.gold_tag_scores:
             enc_tags_batch[enc_tags_batch == -1] = 0
-            token_level_sentence_scores = enc_tags_batch.sum(dim=-1, keepdim=True).repeat(1, 1, token_size).view(batch_size, sent_size*token_size)
+            token_level_sentence_scores = enc_tags_batch.sum(dim=-1, keepdim=True)
+            token_level_sentence_scores = token_level_sentence_scores / token_level_sentence_scores.sum(dim=1, keepdim=True).repeat(1, token_level_sentence_scores.size(1), 1)
+            token_level_sentence_scores = token_level_sentence_scores.repeat(1, 1, token_size).view(batch_size, sent_size*token_size)
         else:
             token_level_sentence_scores = sentence_importance_vector.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size)
 
