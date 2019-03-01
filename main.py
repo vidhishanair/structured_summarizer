@@ -269,6 +269,7 @@ if __name__ == '__main__':
     parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
     parser.add_argument('--L1_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
     parser.add_argument('--tag_loss', action='store_true', default=False, help='use loss from tags')
+    parser.add_argument('--tag_norm_loss', action='store_true', default=False, help='use MSE norm loss from tags')
     parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
     parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
