@@ -218,10 +218,13 @@ class Train(object):
 
         if args.tag_norm_loss:
             sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
+            sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
             pred = sentence_importance_vector.view(-1)
             enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.sum(dim=-1)
-            loss_aux = self.attn_mse_loss(pred, gold.view(-1).long())
+            gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
+            gold = gold.view(-1)
+            loss_aux = self.attn_mse_loss(pred, gold.long())
             print(loss_aux)
             loss += loss_aux
 
