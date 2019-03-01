@@ -221,7 +221,7 @@ class Train(object):
             pred = sentence_importance_vector.view(-1)
             enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.sum(dim=-1)
-            loss_aux = self.attn_mse_loss(pred, gold.view(-1))
+            loss_aux = self.attn_mse_loss(pred, gold.view(-1).long())
             print(loss_aux)
             loss += loss_aux
 
