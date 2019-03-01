@@ -71,6 +71,7 @@ class Train(object):
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
 
         self.sent_crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
+        self.attn_mse_loss = nn.MSELoss()
 
         start_iter, start_loss = 0, 0
 
@@ -207,10 +208,20 @@ class Train(object):
 
         if args.tag_loss:
             pred = sent_prediction.view(-1, 2)
+            enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.sum(dim=-1)
             gold[gold < 3] = 0
             gold[gold > 0] = 1
             loss_aux = self.sent_crossentropy.forward(pred, gold.view(-1).long())
+            print(loss_aux)
+            loss += loss_aux
+
+        if args.tag_norm_loss:
+            sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
+            pred = sentence_importance_vector.view(-1)
+            enc_tags_batch[enc_tags_batch == -1] = 0
+            gold = enc_tags_batch.sum(dim=-1)
+            loss_aux = self.attn_mse_loss(pred, gold)
             print(loss_aux)
             loss += loss_aux
 
