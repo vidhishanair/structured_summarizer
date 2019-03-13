@@ -206,7 +206,7 @@ class Train(object):
         batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
 
-        if args.tag_loss:
+        if args.sp_tag_loss:
             pred = sent_prediction.view(-1, 2)
             enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.sum(dim=-1)
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
     parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
     parser.add_argument('--L1_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
-    parser.add_argument('--tag_loss', action='store_true', default=False, help='use loss from tags')
+    parser.add_argument('--sp_tag_loss', action='store_true', default=False, help='use loss from tags')
     parser.add_argument('--tag_norm_loss', action='store_true', default=False, help='use MSE norm loss from tags')
     parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
     parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')

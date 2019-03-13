@@ -55,7 +55,8 @@ class StructuredEncoder(nn.Module):
         self.sentence_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "nightly")
         self.document_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "nightly")
 
-        self.sent_pred_linear = nn.Linear(self.sem_dim_size, 2)
+        if self.args.sp_tag_loss:
+            self.sent_pred_linear = nn.Linear(self.sem_dim_size, 2)
 
         #init_lstm_wt(self.sentence_encoder)
         #init_lstm_wt()
@@ -116,8 +117,11 @@ class StructuredEncoder(nn.Module):
         sa_encoded_sents, sent_attention_matrix = self.document_structure_att.forward(bilstm_encoded_sents)
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
         sa_encoded_sents = sa_encoded_sents * mask
-        sent_prediction = self.sent_pred_linear(sa_encoded_sents)
-        sent_prediction = sent_prediction * sent_mask.unsqueeze(2).repeat(1,1, 2)
+        if self.args.sp_tag_loss:
+            sent_prediction = self.sent_pred_linear(sa_encoded_sents)
+            sent_prediction = sent_prediction * sent_mask.unsqueeze(2).repeat(1,1, 2)
+        else:
+            sent_prediction = None
 
         encoded_sents = sa_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
                                                                                        sa_encoded_sents.size(2))
