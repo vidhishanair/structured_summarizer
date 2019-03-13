@@ -206,14 +206,14 @@ class BeamSearch(object):
     def beam_search(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, \
-        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens = \
+        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch = \
             get_input_from_batch(batch, use_cuda, self.args)
 
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
             return False, None
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
-                                                         enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
+                                                         enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
@@ -323,7 +323,9 @@ if __name__ == '__main__':
     parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
     parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
     parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
-    # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
+    parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
+    parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
+
     args = parser.parse_args()
     model_filename = args.reload_path
     save_path = args.save_path

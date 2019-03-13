@@ -70,6 +70,9 @@ class Train(object):
         initial_lr = config.lr_coverage if args.is_coverage else config.lr
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
 
+        self.sent_crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
+        self.attn_mse_loss = nn.MSELoss()
+
         start_iter, start_loss = 0, 0
 
         if args.reload_path is not None:
@@ -162,18 +165,18 @@ class Train(object):
         encoder_hidden = encoder_output["sent_hidden"]
         max_encoder_output = encoder_output["document_rep"]
         token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
-
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores
+        sent_prediction = encoder_output["sent_prediction"]
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens\
+            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch\
             = get_input_from_batch(batch, use_cuda, args)
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
-        encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores = \
+        encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
@@ -202,12 +205,35 @@ class Train(object):
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
         batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
-        if args.L2_structure_penalty:
+
+        if args.tag_loss:
+            pred = sent_prediction.view(-1, 2)
+            enc_tags_batch[enc_tags_batch == -1] = 0
+            gold = enc_tags_batch.sum(dim=-1)
+            gold[gold < 3] = 0
+            gold[gold > 0] = 1
+            loss_aux = self.sent_crossentropy.forward(pred, gold.view(-1).long())
+            print(loss_aux)
+            loss += loss_aux
+
+        if args.tag_norm_loss:
+            sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
+            sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
+            pred = sentence_importance_vector.view(-1)
+            enc_tags_batch[enc_tags_batch == -1] = 0
+            gold = enc_tags_batch.sum(dim=-1)
+            gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
+            gold = gold.view(-1)
+            loss_aux = self.attn_mse_loss(pred, gold)
+            print(loss_aux)
+            loss += 10*loss_aux
+
+        if args.L1_structure_penalty:
             all_linear1_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
             all_linear2_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
             l1_regularization = 0.001 * torch.norm(all_linear1_params, 1)
             l2_regularization = 0.001 * torch.norm(all_linear2_params, 2)
-            loss += l2_regularization
+            loss += l1_regularization
         #print(loss)
         del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
         gc.collect()
@@ -244,7 +270,11 @@ if __name__ == '__main__':
     parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
     parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
     parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
-    parser.add_argument('--L2_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
+    parser.add_argument('--L1_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
+    parser.add_argument('--tag_loss', action='store_true', default=False, help='use loss from tags')
+    parser.add_argument('--tag_norm_loss', action='store_true', default=False, help='use MSE norm loss from tags')
+    parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
+    parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 
     args = parser.parse_args()

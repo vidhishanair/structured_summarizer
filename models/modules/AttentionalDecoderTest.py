@@ -75,8 +75,12 @@ class Attention(nn.Module):
         e = F.tanh(att_features) # B * t_k x 2*hidden_dim
         scores = self.v(e)  # B * t_k x 1
         scores = scores.view(-1, t_k)  # B x t_k
-        if self.args.sent_score_decoder:
+        if (self.args.gold_tag_scores and self.training) or self.args.decode_setting:
             scores = scores * token_level_sentence_scores
+        elif self.args.sent_score_decoder:
+            scores = scores * token_level_sentence_scores
+        else:
+            scores = scores
 
         attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
         normalization_factor = attn_dist_.sum(1, keepdim=True)
