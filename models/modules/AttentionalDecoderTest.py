@@ -47,6 +47,7 @@ class Attention(nn.Module):
         self.no_sent_sa = args.no_sent_sa
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
+        self.W_s = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
         self.args = args
 
         if self.is_coverage:
@@ -55,7 +56,7 @@ class Attention(nn.Module):
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
 
-    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_level_sentence_scores):
+    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_level_sentence_scores, s):
         b, t_k, n1 = list(h.size())
         h = h.view(-1, n1)  # B * t_k x 2*hidden_dim
         encoder_feature = self.W_h(h)
@@ -66,6 +67,11 @@ class Attention(nn.Module):
         dec_fea_expanded = dec_fea_expanded.view(-1, n)  # B * t_k x 2*hidden_dim
 
         att_features = encoder_feature + dec_fea_expanded # B * t_k x 2*hidden_dim
+
+        if self.args.sep_sent_features:
+            s = s.view(-1, n1)
+            sent_features = self.W_s(s)
+            att_features = att_features + sent_features
 
         if self.is_coverage:
             coverage_input = coverage.view(-1, 1)  # B * t_k x 1
@@ -121,7 +127,7 @@ class Decoder(nn.Module):
         init_linear_wt(self.out2)
 
     def forward(self, y_t_1, s_t_1, encoder_outputs, enc_padding_mask,
-                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_level_sentence_scores):
+                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_level_sentence_scores, sent_features):
 
         y_t_1_embd = self.embedding(y_t_1)
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
@@ -131,7 +137,7 @@ class Decoder(nn.Module):
         s_t_hat = torch.cat((h_decoder.view(-1, config.hidden_dim),
                              c_decoder.view(-1, config.hidden_dim)), 1)  # B x 2*hidden_dim
         c_t, attn_dist, coverage = self.attention_network(s_t_hat, encoder_outputs,
-                                                          enc_padding_mask, coverage, token_level_sentence_scores)
+                                                          enc_padding_mask, coverage, token_level_sentence_scores, sent_features)
 
         p_gen = None
         if self.pointer_gen:

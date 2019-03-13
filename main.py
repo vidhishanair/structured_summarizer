@@ -151,22 +151,22 @@ class Train(object):
                     logger.debug("Saving best model")
 
     def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
-        if args.concat_rep or args.no_sa:
-            encoder_outputs = encoder_output["encoded_tokens"]
-            enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
+        encoder_outputs = encoder_output["encoded_tokens"]
+        enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
                                                                         enc_padding_token_mask.size(
                                                                             1) * enc_padding_token_mask.size(2))
-            enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
+        enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
                                                                               enc_batch_extend_vocab.size(
                                                                                   1) * enc_batch_extend_vocab.size(2))
-        else:
-            encoder_outputs = encoder_output["encoded_sents"]
-            enc_padding_mask = enc_padding_sent_mask
+        # else:
+        #     encoder_outputs = encoder_output["encoded_sents"]
+        #     enc_padding_mask = enc_padding_sent_mask
         encoder_hidden = encoder_output["sent_hidden"]
         max_encoder_output = encoder_output["document_rep"]
         token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
         sent_prediction = encoder_output["sent_prediction"]
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction
+        sent_output = encoder_output['encoded_sents']
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_output
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
@@ -176,7 +176,7 @@ class Train(object):
             get_output_from_batch(batch, use_cuda)
 
         encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_outputs = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
@@ -191,7 +191,7 @@ class Train(object):
                                                                                       enc_padding_mask, c_t_1,
                                                                                       extra_zeros,
                                                                                       enc_batch_extend_vocab,
-                                                                                      coverage, token_level_sentence_scores)
+                                                                                      coverage, token_level_sentence_scores, sent_outputs)
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps)
@@ -275,6 +275,8 @@ if __name__ == '__main__':
     parser.add_argument('--tag_norm_loss', action='store_true', default=False, help='use MSE norm loss from tags')
     parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
     parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
+    parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
+
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 
     args = parser.parse_args()
