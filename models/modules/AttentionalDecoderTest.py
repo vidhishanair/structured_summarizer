@@ -45,13 +45,14 @@ class Attention(nn.Module):
         self.concat_rep = args.concat_rep
         self.is_coverage = args.is_coverage
         self.no_sent_sa = args.no_sent_sa
+        self.args = args
         if self.args.concat_rep:
             self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         else:
             self.encoder_op_size = config.sem_dim_size * 2
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
         self.W_s = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
-        self.args = args
+
 
         if self.is_coverage:
             self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
