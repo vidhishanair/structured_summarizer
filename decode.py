@@ -326,6 +326,7 @@ if __name__ == '__main__':
     parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
     parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
+    parser.add_argument('--sp_tag_loss', action='store_true', default=False, help='use loss from tags')
 
     args = parser.parse_args()
     model_filename = args.reload_path
