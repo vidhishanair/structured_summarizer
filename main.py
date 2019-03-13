@@ -226,7 +226,7 @@ class Train(object):
             gold = gold.view(-1)
             loss_aux = self.attn_mse_loss(pred, gold)
             print(loss_aux)
-            loss += loss_aux
+            loss += 10*loss_aux
 
         if args.L1_structure_penalty:
             all_linear1_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
