@@ -213,7 +213,7 @@ class Train(object):
             gold[gold < 3] = 0
             gold[gold > 0] = 1
             loss_aux = self.sent_crossentropy.forward(pred, gold.view(-1).long())
-            print(loss_aux)
+            #print(loss_aux)
             loss += loss_aux
 
         if args.tag_norm_loss:
@@ -225,7 +225,7 @@ class Train(object):
             gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             gold = gold.view(-1)
             loss_aux = self.attn_mse_loss(pred, gold)
-            print(loss_aux)
+            #print(loss_aux)
             loss += 10*loss_aux
 
         if args.L1_structure_penalty:
