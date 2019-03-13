@@ -78,7 +78,7 @@ class Attention(nn.Module):
         if (self.args.gold_tag_scores and self.training) or self.args.decode_setting:
             scores = scores * token_level_sentence_scores
         elif self.args.sent_score_decoder:
-            scores = scores * token_level_sentence_scores
+            scores = scores + token_level_sentence_scores
         else:
             scores = scores
 
