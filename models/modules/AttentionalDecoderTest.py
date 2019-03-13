@@ -115,7 +115,11 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.attention_network = Attention(args)
         self.pointer_gen = args.pointer_gen
-        self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
+        self.args = args
+        if self.args.concat_rep:
+            self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
+        else:
+            self.encoder_op_size = config.sem_dim_size * 2
         # decoder
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
