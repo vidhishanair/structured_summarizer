@@ -49,7 +49,7 @@ class Attention(nn.Module):
         if self.args.concat_rep:
             self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         else:
-            self.encoder_op_size = config.sem_dim_size * 2
+            self.encoder_op_size = config.hidden_dim * 2
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
         self.W_s = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
 
@@ -119,7 +119,7 @@ class Decoder(nn.Module):
         if self.args.concat_rep:
             self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         else:
-            self.encoder_op_size = config.sem_dim_size * 2
+            self.encoder_op_size = config.hidden_dim * 2
         # decoder
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
