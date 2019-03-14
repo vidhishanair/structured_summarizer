@@ -24,6 +24,7 @@ from utils.utils import write_for_rouge, rouge_eval, rouge_log, write_to_json_fi
 from utils.train_util import get_input_from_batch, get_output_from_batch
 from pycocoevalcap.eval import COCOEvalCap
 from pycocoevalcap.coco import COCO
+import pickle
 
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
@@ -77,6 +78,7 @@ class BeamSearch(object):
             self.classifier_model.eval()
             self.classifier_model.sentence_encoder.bilstm.flatten_parameters()
             self.classifier_model.document_encoder.bilstm.flatten_parameters()
+            train, dev, test, embeddings, self.class_vocab = pickle.load(open(config.data_file, 'rb'))
         self.model.eval()
 
     def sort_beams(self, beams):
@@ -207,6 +209,22 @@ class BeamSearch(object):
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_outputs = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
+    def get_class_batch(self, enc_batch, ):
+        b = np.zeros((enc_batch.size(0), enc_batch.size(1), enc_batch.size(2)), dtype=np.int32)
+        for i in range(enc_batch.size(0)):
+            for j in range(enc_batch.size(1)):
+                for k in range(enc_batch.size(2)):
+                    if enc_batch[i][j][k] == self.batcher.pad_id:
+                        b[i][j][k] = 0
+                    else:
+                        word = self.vocab.id2word(enc_batch[i][j][k])
+                        if word in self.class_vocab.keys():
+                            new_idx = self.class_vocab[word]
+                        else:
+                            new_idx = self.class_vocab['UNK']
+                        b[i][j][k] = new_idx
+        b = Variable(torch.from_numpy(b).long())
+        return b.cuda()
 
     def beam_search(self, batch, count):
         #batch should have only one example
@@ -234,7 +252,7 @@ class BeamSearch(object):
         dec_h = dec_h.squeeze()
         dec_c = dec_c.squeeze()
 
-        feed_dict = {'token_idxs': enc_batch,
+        feed_dict = {'token_idxs': self.get_class_batch(enc_batch),
                      'gold_labels': None,
                      'mask_tokens': enc_padding_token_mask,
                      'mask_sents': enc_padding_sent_mask,
