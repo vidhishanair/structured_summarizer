@@ -5,8 +5,8 @@ import time
 import torch
 import torch.nn as nn
 
-from models.modules.BiLSTMEncoder import BiLSTMEncoder
-from models.modules.StructuredAttention import StructuredAttention
+from models.modules.BiLSTMEncoderSumm import BiLSTMEncoder
+from models.modules.StructuredAttentionSumm import StructuredAttention
 from models.model_utils import init_wt_normal
 from utils import config
 from numpy import random
