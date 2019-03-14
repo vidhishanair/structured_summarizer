@@ -51,7 +51,8 @@ class Attention(nn.Module):
         else:
             self.encoder_op_size = config.hidden_dim * 2
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
-        self.W_s = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
+        if self.args.sep_sent_features:
+            self.W_s = nn.Linear(2*config.sem_dim_size, config.hidden_dim * 2, bias=False)
 
 
         if self.is_coverage:
@@ -73,8 +74,9 @@ class Attention(nn.Module):
         att_features = encoder_feature + dec_fea_expanded # B * t_k x 2*hidden_dim
 
         if self.args.sep_sent_features:
-            s = s.view(-1, n1)
+            #s = s.view(-1, n1)
             sent_features = self.W_s(s)
+            sent_features = sent_features.view(-1,n)
             att_features = att_features + sent_features
 
         if self.is_coverage:
@@ -146,7 +148,6 @@ class Decoder(nn.Module):
                              c_decoder.view(-1, config.hidden_dim)), 1)  # B x 2*hidden_dim
         c_t, attn_dist, coverage = self.attention_network(s_t_hat, encoder_outputs,
                                                           enc_padding_mask, coverage, token_level_sentence_scores, sent_features)
-
         p_gen = None
         if self.pointer_gen:
             p_gen_input = torch.cat((c_t, s_t_hat, x), 1)  # B x (2*2*hidden_dim + emb_dim)
