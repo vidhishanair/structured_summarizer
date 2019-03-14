@@ -78,7 +78,7 @@ class BeamSearch(object):
             self.classifier_model.eval()
             self.classifier_model.sentence_encoder.bilstm.flatten_parameters()
             self.classifier_model.document_encoder.bilstm.flatten_parameters()
-            train, dev, test, embeddings, self.class_vocab = pickle.load(open(config.data_file, 'rb'))
+            train, dev, test, embeddings, self.class_vocab = pickle.load(open('../structured-text-representations/data/yelp-2013/yelp-2013-all.pkl', 'rb'))
         self.model.eval()
 
     def sort_beams(self, beams):
@@ -241,7 +241,7 @@ class BeamSearch(object):
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
-        print(encoder_output['sent_importance_vector'])
+        #print(encoder_output['sent_importance_vector'])
 
         s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
@@ -265,6 +265,7 @@ class BeamSearch(object):
         token_size = sent_attention_matrix.size(1)
         sentence_importance_vector = doc_attention_matrix[:,:,1:].sum(dim=1) * feed_dict['mask_sents']
         sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
+        print(sentence_importance_vector)
         token_level_sentence_scores = sentence_importance_vector.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size)
 
         #decoder batch preparation, it has beam_size example initially everything is repeated
