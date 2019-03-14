@@ -209,12 +209,12 @@ class BeamSearch(object):
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_outputs = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
-    def get_class_batch(self, enc_batch, ):
+    def get_class_batch(self, enc_batch, batch):
         b = np.zeros((enc_batch.size(0), enc_batch.size(1), enc_batch.size(2)), dtype=np.int32)
         for i in range(enc_batch.size(0)):
             for j in range(enc_batch.size(1)):
                 for k in range(enc_batch.size(2)):
-                    if enc_batch[i][j][k] == self.batcher.pad_id:
+                    if enc_batch[i][j][k] == batch.pad_id:
                         b[i][j][k] = 0
                     else:
                         word = self.vocab.id2word(enc_batch[i][j][k])
