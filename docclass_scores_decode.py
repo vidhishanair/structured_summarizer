@@ -252,7 +252,7 @@ class BeamSearch(object):
         dec_h = dec_h.squeeze()
         dec_c = dec_c.squeeze()
 
-        feed_dict = {'token_idxs': self.get_class_batch(enc_batch),
+        feed_dict = {'token_idxs': self.get_class_batch(enc_batch, batch),
                      'gold_labels': None,
                      'mask_tokens': enc_padding_token_mask,
                      'mask_sents': enc_padding_sent_mask,

@@ -57,7 +57,7 @@ class StructuredEncoder(nn.Module):
 
         if self.args.sp_tag_loss:
             self.sent_pred_linear = nn.Linear(self.sem_dim_size, 2)
-        self.sent_pred_linear = nn.Linear(self.sem_dim_size, 2)
+        #self.sent_pred_linear = nn.Linear(self.sem_dim_size, 2)
         #init_lstm_wt(self.sentence_encoder)
         #init_lstm_wt()
 
