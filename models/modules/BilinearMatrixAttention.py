@@ -35,7 +35,7 @@ class BilinearMatrixAttention(nn.Module):
                  matrix_2_dim: int,
                  use_input_biases: bool = False,
                  label_dim: int = 1) -> None:
-        super(BilinearMatrixAttention).__init__()
+        super(BilinearMatrixAttention, self).__init__()
         if use_input_biases:
             matrix_1_dim += 1
             matrix_2_dim += 1
