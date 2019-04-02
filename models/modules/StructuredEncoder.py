@@ -132,8 +132,15 @@ class StructuredEncoder(nn.Module):
             encoded_tokens = tk
         max_pooled_doc = encoded_tokens.max(dim=1)[0]
 
-        sentence_importance_vector = sent_attention_matrix[:,:,1:].sum(dim=1) * sent_mask
+        mask = sent_mask.unsqueeze(1).repeat(1, sent_mask.size(1), 1) * sent_mask.unsqueeze(2) #.transpose(1,0)
+
+        mask = torch.cat((sent_mask.unsqueeze(2), mask), dim=2)
+        mat = sent_attention_matrix * mask
+
+        sentence_importance_vector = mat[:,:,1:].sum(dim=0) * sent_mask
         sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
+
+
         if self.args.gold_tag_scores:
             enc_tags_batch[enc_tags_batch == -1] = 0
             token_level_sentence_scores = enc_tags_batch.sum(dim=-1, keepdim=True)

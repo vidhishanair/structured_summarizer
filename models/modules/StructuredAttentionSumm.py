@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 
+from models.modules.BilinearMatrixAttention import BilinearMatrixAttention
 
 
 class StructuredAttention(nn.Module):
@@ -25,8 +26,9 @@ class StructuredAttention(nn.Module):
         self.fi_linear = nn.Linear(self.str_dim_size, 1, bias=False)
         torch.nn.init.xavier_uniform_(self.fi_linear.weight)
 
-        self.bilinear = nn.Bilinear(self.str_dim_size, self.str_dim_size, 1, bias=False)
-        torch.nn.init.xavier_uniform_(self.bilinear.weight)
+        # self.bilinear = nn.Bilinear(self.str_dim_size, self.str_dim_size, 1, bias=False)
+        # torch.nn.init.xavier_uniform_(self.bilinear.weight)
+        self.bilinear = BilinearMatrixAttention(self.str_dim_size, self.str_dim_size, False, 1)
 
         self.exparam = nn.Parameter(torch.Tensor(1,1,self.sem_dim_size))
         torch.nn.init.xavier_uniform_(self.exparam)
@@ -48,12 +50,12 @@ class StructuredAttention(nn.Module):
 
         tp = F.tanh(self.tp_linear(str_v)) # b*s, token, h1
         tc = F.tanh(self.tc_linear(str_v)) # b*s, token, h1
-        tp = tp.unsqueeze(2).expand(tp.size(0), tp.size(1), tp.size(1), tp.size(2)).contiguous()
-        tc = tc.unsqueeze(2).expand(tc.size(0), tc.size(1), tc.size(1), tc.size(2)).contiguous()
+        # tp = tp.unsqueeze(2).expand(tp.size(0), tp.size(1), tp.size(1), tp.size(2)).contiguous()
+        # tc = tc.unsqueeze(2).expand(tc.size(0), tc.size(1), tc.size(1), tc.size(2)).contiguous()
         #print(tp)
         #print(tc)
-        f_ij = self.bilinear(tp, tc).squeeze() # b*s, token , token
-        #print(f_ij)
+        f_ij = self.bilinear(tp, tc) #.squeeze() # b*s, token , token
+        print(f_ij)
         #exit()
         f_i = torch.exp(self.fi_linear(str_v)).squeeze()  # b*s, token
 
