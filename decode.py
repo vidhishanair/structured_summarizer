@@ -82,7 +82,7 @@ class BeamSearch(object):
         fp = open(fileName, "w")
         fp.write("Doc: "+str(count)+"\n")
         #exit(0)
-        doc_attention_matrix = doc_attention_matrix[:,:,1:] #this change yet to be tested!
+        doc_attention_matrix = doc_attention_matrix[:,:] #this change yet to be tested!
         l = batch.enc_doc_lens[0].item()
         doc_sent_no = 0
         # for i in range(l):
@@ -110,14 +110,22 @@ class BeamSearch(object):
         #     fp.write(str(tree_score)+"\n")
         #     doc_sent_no+=1
 
-        shape2 = doc_attention_matrix[0][0:l,0:l].size()
-        row = torch.ones([1, shape2[1]+1]).cuda()
-        column = torch.zeros([shape2[0], 1]).cuda()
-        scores = doc_attention_matrix[0][0:l, 0:l]
-        new_scores = torch.cat([column, scores], dim=1)
-        new_scores = torch.cat([row, new_scores], dim=0)
+        shape2 = doc_attention_matrix[0:l,0:l+1].size()
+        row = torch.zeros([1, shape2[1]]).cuda()
+        #column = torch.zeros([shape2[0], 1]).cuda()
+        scores = doc_attention_matrix[0:l, 0:l+1]
+        #new_scores = torch.cat([column, scores], dim=1)
+        new_scores = torch.cat([row, scores], dim=0)
+        val, root_edge = torch.max(new_scores[:,0], dim=0)
+        root_score = torch.zeros([shape2[0]+1,1]).cuda()
+        root_score[root_edge] = 1
+        new_scores[:,0] = root_score.squeeze()
+        print(new_scores)
+        print(new_scores.sum(dim=0))
+        print(new_scores.sum(dim=1))
+        #print(new_scores.size())
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
-        #print(heads, tree_score)
+        print(heads, tree_score)
         fp.write("\n")
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
@@ -159,6 +167,8 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
+            if counter == 5:
+                exit()
 
         print("Decoder has finished reading dataset for single_pass.")
         print("Now starting PYCOCO - ROUGE eval...")
@@ -217,9 +227,15 @@ class BeamSearch(object):
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_outputs = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
-        self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
-        #print(encoder_output['sent_importance_vector'])
+        mask = enc_padding_sent_mask[0].unsqueeze(0).repeat(enc_padding_sent_mask.size(1),1) * enc_padding_sent_mask[0].unsqueeze(1).transpose(1,0)
 
+        mask = torch.cat((enc_padding_sent_mask[0].unsqueeze(1), mask), dim=1)
+        mat = encoder_output['sent_attention_matrix'][0][:,:] * mask
+        self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda)
+        #print(mat)
+        #print(encoder_output['sent_importance_vector'][0])
+        #print(mat.size())
+        
         s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
         if config.use_maxpool_init_ctx:

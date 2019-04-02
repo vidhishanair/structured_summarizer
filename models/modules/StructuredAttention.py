@@ -52,6 +52,7 @@ class StructuredAttention(nn.Module):
         tc = tc.unsqueeze(2).expand(tc.size(0), tc.size(1), tc.size(1), tc.size(2)).contiguous()
 
         f_ij = self.bilinear(tp, tc).squeeze() # b*s, token , token
+        print(f_ij)
         f_i = torch.exp(self.fi_linear(str_v)).squeeze()  # b*s, token
 
         mask = torch.ones(f_ij.size(1), f_ij.size(1)) - torch.eye(f_ij.size(1), f_ij.size(1))
