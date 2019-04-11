@@ -51,8 +51,8 @@ class Example(object):
             #     else:
             #         article_sents.append(sent[:config.max_enc_steps-size])
             #         article_sent_tags.append([int(x) for x in tags[:config.max_enc_steps-size]])
-            article_sents = article_sents_tmp[:5]
-            article_sent_tags = sent_tags[:5]
+            article_sents = article_sents_tmp[:20]
+            article_sent_tags = sent_tags[:20]
             article_words = [sent.split()[:140] for sent in article_sents]
             article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
             all_article_words = list(itertools.chain.from_iterable(article_words))

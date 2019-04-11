@@ -120,12 +120,12 @@ class BeamSearch(object):
         root_score = torch.zeros([shape2[0]+1,1]).cuda()
         root_score[root_edge] = 1
         new_scores[:,0] = root_score.squeeze()
-        print(new_scores)
-        print(new_scores.sum(dim=0))
-        print(new_scores.sum(dim=1))
+        #print(new_scores)
+        #print(new_scores.sum(dim=0))
+        #print(new_scores.sum(dim=1))
         #print(new_scores.size())
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
-        print(heads, tree_score)
+        #print(heads, tree_score)
         fp.write("\n")
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
@@ -167,8 +167,8 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
-            if counter == 5:
-                exit()
+            #if counter == 5:
+            #    exit()
 
         print("Decoder has finished reading dataset for single_pass.")
         print("Now starting PYCOCO - ROUGE eval...")

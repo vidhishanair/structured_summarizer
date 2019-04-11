@@ -5,6 +5,7 @@ import time
 import gc
 import argparse
 import logging
+import math
 
 # from tensorboardX import SummaryWriter
 
@@ -131,6 +132,8 @@ class Train(object):
             batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch, args)
             #print(loss)
+            if math.isnan(loss):
+                exit()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 iter += 1
@@ -142,6 +145,7 @@ class Train(object):
                 print(msg)
                 logger.debug(msg)
                 start = time.time()
+                #exit()
             if iter % config.eval_interval == 0:
                 loss = self.run_eval(logger, args)
                 if best_val_loss is None or loss < best_val_loss:
@@ -184,6 +188,7 @@ class Train(object):
             c_t_1 = max_encoder_output
 
         step_losses = []
+        #print(encoder_outputs)
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.module.decoder.forward(y_t_1, s_t_1,
@@ -194,6 +199,9 @@ class Train(object):
                                                                                       coverage, token_level_sentence_scores, sent_outputs)
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
+            #print(final_dist[-1,:])
+            #print(target[-1])
+            #print(gold_probs)
             step_loss = -torch.log(gold_probs + config.eps)
             if args.is_coverage:
                 step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
@@ -203,9 +211,10 @@ class Train(object):
             #print(step_loss)
             step_losses.append(step_loss)
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+        #print(sum_losses)
         batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
-
+        #print('Loss: ', loss.item())
         if args.sp_tag_loss:
             pred = sent_prediction.view(-1, 2)
             enc_tags_batch[enc_tags_batch == -1] = 0
@@ -217,17 +226,19 @@ class Train(object):
             loss += loss_aux
 
         if args.tag_norm_loss:
-            sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
-            sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
-            pred = sentence_importance_vector.view(-1)
+            #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
+            #sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
+            pred = encoder_output['sent_importance_vector'].view(-1)
             enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.sum(dim=-1)
             gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             gold = gold.view(-1)
             loss_aux = self.attn_mse_loss(pred, gold)
             #print(loss_aux)
+            #print('Aux loss ', (10*loss_aux).item())
             loss += 10*loss_aux
-
+        #if math.isnan(loss.item()):
+            #print(encoder_outputs)
         if args.L1_structure_penalty:
             all_linear1_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
             all_linear2_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])

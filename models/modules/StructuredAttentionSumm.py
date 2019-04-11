@@ -55,7 +55,7 @@ class StructuredAttention(nn.Module):
         #print(tp)
         #print(tc)
         f_ij = self.bilinear(tp, tc) #.squeeze() # b*s, token , token
-        print(f_ij)
+        #print(f_ij)
         #exit()
         f_i = torch.exp(self.fi_linear(str_v)).squeeze()  # b*s, token
 
@@ -109,9 +109,9 @@ class StructuredAttention(nn.Module):
 
         finp = torch.cat([sem_v, pinp, cinp],dim = 2)
         
-        #output = F.relu(self.fzlinear(finp))
+        output = F.relu(self.fzlinear(finp))
         #output = self.fzlinear(finp)
-        output = F.tanh(self.fzlinear(finp))
+        #output = F.tanh(self.fzlinear(finp))
         self.output = output
 
         return output, df

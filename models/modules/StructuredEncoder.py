@@ -136,10 +136,8 @@ class StructuredEncoder(nn.Module):
 
         mask = torch.cat((sent_mask.unsqueeze(2), mask), dim=2)
         mat = sent_attention_matrix * mask
-
-        sentence_importance_vector = mat[:,:,1:].sum(dim=0) * sent_mask
+        sentence_importance_vector = mat[:,:,1:].sum(dim=1) #* sent_mask
         sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
-
 
         if self.args.gold_tag_scores:
             enc_tags_batch[enc_tags_batch == -1] = 0
