@@ -114,13 +114,7 @@ class Train(object):
         clip_grad_norm(self.model.module.encoder.parameters(), config.max_grad_norm)
         clip_grad_norm(self.model.module.decoder.parameters(), config.max_grad_norm)
         clip_grad_norm(self.model.module.reduce_state.parameters(), config.max_grad_norm)
-        for n,p in self.model.module.encoder.named_parameters():
-            #if n[:6] == 'weight':
-            print('===========\ngradient:{}\n----------\n{}'.format(n,p.grad))
-        for n,p in self.model.module.decoder.named_parameters():
-            #if n[:6] == 'weight':
-            print('===========\ngradient:{}\n----------\n{}'.format(n,p.grad))
-        exit()
+
         self.optimizer.step()
         return loss.item()
 
