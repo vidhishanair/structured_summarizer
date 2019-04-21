@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from models.modules.BiLSTMEncoderSumm import BiLSTMEncoder
-from models.modules.StructuredAttentionSumm import StructuredAttention
+from models.modules.BiLSTMEncoder import BiLSTMEncoder
+from models.modules.StructuredAttention import StructuredAttention
 from utils import config
 from numpy import random
 import itertools
