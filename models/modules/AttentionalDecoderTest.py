@@ -42,9 +42,7 @@ class Attention(nn.Module):
     def __init__(self, args):
         super(Attention, self).__init__()
         # attention
-        self.concat_rep = args.concat_rep
         self.is_coverage = args.is_coverage
-        self.no_sent_sa = args.no_sent_sa
         self.args = args
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
