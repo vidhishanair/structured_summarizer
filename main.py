@@ -132,6 +132,9 @@ class Train(object):
             batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch, args)
             #print(loss)
+            for n,p in self.model.module.encoder.named_parameters():
+                print('===========\ngradient:{}\n----------\n{}'.format(n,p.grad))
+            exit()
             if math.isnan(loss):
                 exit()
             if loss is not None:

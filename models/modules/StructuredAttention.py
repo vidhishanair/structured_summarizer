@@ -70,7 +70,7 @@ class StructuredAttention(nn.Module):
         res.as_strided(tmp.size(), [res.stride(0), res.size(2) + 1]).copy_(tmp)
         L_ij = -A_ij + res   #A_ij has 0s as diagonals
 
-        L_ij_bar = L_ij
+        L_ij_bar = L_ij.clone()
         L_ij_bar[:,0,:] = f_i
 
         #No batch inverse
