@@ -25,7 +25,6 @@ class StructuredEncoder(nn.Module):
         super(StructuredEncoder, self).__init__()
         print("Using Structured Encoder")
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
-        self.concat_rep = args.concat_rep
         self.drop = nn.Dropout(0.3)
         init_wt_normal(self.embedding.weight)
         bidirectional = True
