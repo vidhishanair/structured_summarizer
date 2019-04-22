@@ -27,10 +27,7 @@ if torch.cuda.is_available():
 
 class Model(object):
     def __init__(self, args):
-        if args.no_sa:
-            encoder = Encoder(args)
-        else:
-            encoder = StructuredEncoder(args)
+        encoder = StructuredEncoder(args)
         decoder = Decoder(args)
         reduce_state = ReduceState()
 
