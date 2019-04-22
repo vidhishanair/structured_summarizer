@@ -172,8 +172,8 @@ class Train(object):
         max_encoder_output = encoder_output["document_rep"]
         token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
         sent_output = encoder_output['encoded_sents']
-        token_scores = encoder_output['token_scores']
-        sent_scores = encoder_output['sent_scores'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+        token_scores = encoder_output['token_score']
+        sent_scores = encoder_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
         return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
 
     def get_loss(self, batch, args):
