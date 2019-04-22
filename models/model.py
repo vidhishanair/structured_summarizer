@@ -46,6 +46,10 @@ class Model(object):
         self.decoder = decoder
         self.reduce_state = reduce_state
 
+        if args.reload_pretrained_clf_path is not None:
+            state = torch.load(args.reload_pretrained_clf_path, map_location= lambda storage, location: storage)
+            self.encoder.load_state_dict(state['encoder_state_dict'])
+
         if args.reload_path is not None:
             state = torch.load(args.reload_path, map_location= lambda storage, location: storage)
             self.encoder.load_state_dict(state['encoder_state_dict'])
