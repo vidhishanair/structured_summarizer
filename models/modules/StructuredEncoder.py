@@ -41,8 +41,8 @@ class StructuredEncoder(nn.Module):
             self.sent_hidden_size = config.hidden_dim
             self.doc_hidden_size = config.hidden_dim
 
-        #self.sentence_encoder = BiLSTMEncoder(self.device, self.sent_hidden_size, config.emb_dim, 1, dropout=0.3,
-        #                                      bidirectional=bidirectional)
+        self.sentence_encoder = BiLSTMEncoder(self.device, self.sent_hidden_size, config.emb_dim, 1, dropout=0.3,
+                                             bidirectional=bidirectional)
         self.document_encoder = BiLSTMEncoder(self.device, self.doc_hidden_size, self.sent_hidden_size, 1, dropout=0.3,
                                               bidirectional=bidirectional)
         self.sentence_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "nightly")
