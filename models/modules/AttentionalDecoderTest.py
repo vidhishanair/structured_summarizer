@@ -83,7 +83,9 @@ class Attention(nn.Module):
         scores = self.v(e)  # B * t_k x 1
         scores = scores.view(-1, t_k)  # B x t_k
         if self.args.token_scores:
-            scores = scores * token_scores
+            #print(scores.size())
+            #print(token_scores.size())
+            scores = scores * token_scores[:,:,1]
         if self.args.sent_scores:
             scores = scores * sent_scores
 

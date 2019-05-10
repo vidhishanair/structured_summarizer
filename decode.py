@@ -197,8 +197,8 @@ class BeamSearch(object):
         max_encoder_output = encoder_output["document_rep"]
         token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
         sent_output = encoder_output['encoded_sents']
-        token_scores = encoder_output['token_scores']
-        sent_scores = encoder_output['sent_scores'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+        token_scores = encoder_output['token_score']
+        sent_scores = encoder_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
         return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
 
     def get_loss(self, batch, args):
@@ -210,7 +210,7 @@ class BeamSearch(object):
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, token_scores, sent_scores, sent_outputs = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
 
@@ -225,7 +225,7 @@ class BeamSearch(object):
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, token_scores, sent_scores, sent_outputs = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         mask = enc_padding_sent_mask[0].unsqueeze(0).repeat(enc_padding_sent_mask.size(1),1) * enc_padding_sent_mask[0].unsqueeze(1).transpose(1,0)
@@ -336,6 +336,7 @@ if __name__ == '__main__':
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
     parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
+    parser.add_argument('--reload_pretrained_clf_path', type=str, default=None, help='location of the older saved path')
 
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
     parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
