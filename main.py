@@ -186,6 +186,11 @@ class Train(object):
         encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+        if(args.fixed_scorer):
+            scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
+            token_scores = scorer_output['token_score']
+            sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+
 
         s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
         if config.use_maxpool_init_ctx:
@@ -272,6 +277,7 @@ if __name__ == '__main__':
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
     parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
+    parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
 
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 

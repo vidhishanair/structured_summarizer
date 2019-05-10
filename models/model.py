@@ -27,6 +27,9 @@ if torch.cuda.is_available():
 
 class Model(object):
     def __init__(self, args):
+        self.args = args
+        if(args.fixed_scorer):
+            pretrained_scorer = StructuredEncoder(args)
         encoder = StructuredEncoder(args)
         decoder = Decoder(args)
         reduce_state = ReduceState()
@@ -35,15 +38,22 @@ class Model(object):
         decoder.embedding.weight = encoder.embedding.weight
 
         if use_cuda:
+            if(args.fixed_scorer):
+                pretrained_scorer = pretrained_scorer.to(device)
             encoder = encoder.to(device)
             decoder = decoder.to(device)
             reduce_state = reduce_state.to(device)
 
+        if(args.fixed_scorer):
+            self.pretrained_scorer = pretrained_scorer
         self.encoder = encoder
         self.decoder = decoder
         self.reduce_state = reduce_state
 
-        if args.reload_pretrained_clf_path is not None:
+        if args.reload_pretrained_clf_path is not None and args.fixed_scorer:
+            state = torch.load(args.reload_pretrained_clf_path, map_location= lambda storage, location: storage)
+            self.pretrained_scorer.load_state_dict(state['encoder_state_dict'])
+        elif args.reload_pretrained_clf_path is not None:
             state = torch.load(args.reload_pretrained_clf_path, map_location= lambda storage, location: storage)
             self.encoder.load_state_dict(state['encoder_state_dict'])
 
@@ -54,11 +64,15 @@ class Model(object):
             self.reduce_state.load_state_dict(state['reduce_state_dict'])
 
     def eval(self):
+        if(self.args.fixed_scorer):
+            self.pretrained_scorer = self.pretrained_scorer.eval()
         self.encoder = self.encoder.eval()
         self.decoder = self.decoder.eval()
         self.reduce_state = self.reduce_state.eval()
 
     def train(self):
+        if(self.args.fixed_scorer):
+            self.pretrained_scorer = self.pretrained_scorer.train()
         self.encoder = self.encoder.train()
         self.decoder = self.decoder.train()
         self.reduce_state = self.reduce_state.train()
