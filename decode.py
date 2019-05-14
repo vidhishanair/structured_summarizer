@@ -127,6 +127,7 @@ class BeamSearch(object):
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
         #print(heads, tree_score)
         fp.write("\n")
+        fp.write(str(batch.original_articles[0]))
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
         fp.close()
