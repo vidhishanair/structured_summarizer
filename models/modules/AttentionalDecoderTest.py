@@ -42,14 +42,9 @@ class Attention(nn.Module):
     def __init__(self, args):
         super(Attention, self).__init__()
         # attention
-        self.concat_rep = args.concat_rep
         self.is_coverage = args.is_coverage
-        self.no_sent_sa = args.no_sent_sa
         self.args = args
-        if self.args.concat_rep:
-            self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
-        else:
-            self.encoder_op_size = config.hidden_dim * 2
+        self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
         if self.args.sep_sent_features:
             self.W_s = nn.Linear(2*config.sem_dim_size, config.hidden_dim * 2, bias=False)
@@ -61,7 +56,7 @@ class Attention(nn.Module):
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
 
-    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_level_sentence_scores, s):
+    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s):
         b, t_k, n1 = list(h.size())
         h = h.view(-1, n1)  # B * t_k x 2*hidden_dim
         encoder_feature = self.W_h(h)
@@ -87,12 +82,12 @@ class Attention(nn.Module):
         e = F.tanh(att_features) # B * t_k x 2*hidden_dim
         scores = self.v(e)  # B * t_k x 1
         scores = scores.view(-1, t_k)  # B x t_k
-        if (self.args.gold_tag_scores and self.training) or self.args.decode_setting:
-            scores = scores * token_level_sentence_scores
-        elif self.args.sent_score_decoder:
-            scores = scores + token_level_sentence_scores
-        else:
-            scores = scores
+        if self.args.token_scores:
+            #print(scores.size())
+            #print(token_scores.size())
+            scores = scores * token_scores[:,:,1]
+        if self.args.sent_scores:
+            scores = scores * sent_scores
 
         attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
         normalization_factor = attn_dist_.sum(1, keepdim=True)
@@ -118,10 +113,7 @@ class Decoder(nn.Module):
         self.attention_network = Attention(args)
         self.pointer_gen = args.pointer_gen
         self.args = args
-        if self.args.concat_rep:
-            self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
-        else:
-            self.encoder_op_size = config.hidden_dim * 2
+        self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         # decoder
         self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         init_wt_normal(self.embedding.weight)
@@ -137,7 +129,7 @@ class Decoder(nn.Module):
         init_linear_wt(self.out2)
 
     def forward(self, y_t_1, s_t_1, encoder_outputs, enc_padding_mask,
-                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_level_sentence_scores, sent_features):
+                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_scores, sent_scores, sent_features):
 
         y_t_1_embd = self.embedding(y_t_1)
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
@@ -147,7 +139,7 @@ class Decoder(nn.Module):
         s_t_hat = torch.cat((h_decoder.view(-1, config.hidden_dim),
                              c_decoder.view(-1, config.hidden_dim)), 1)  # B x 2*hidden_dim
         c_t, attn_dist, coverage = self.attention_network(s_t_hat, encoder_outputs,
-                                                          enc_padding_mask, coverage, token_level_sentence_scores, sent_features)
+                                                          enc_padding_mask, coverage, token_scores, sent_scores, sent_features)
         p_gen = None
         if self.pointer_gen:
             p_gen_input = torch.cat((c_t, s_t_hat, x), 1)  # B x (2*2*hidden_dim + emb_dim)

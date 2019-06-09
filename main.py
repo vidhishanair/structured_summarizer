@@ -5,6 +5,7 @@ import time
 import gc
 import argparse
 import logging
+import math
 
 # from tensorboardX import SummaryWriter
 
@@ -131,6 +132,11 @@ class Train(object):
             batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch, args)
             #print(loss)
+            # for n,p in self.model.module.encoder.named_parameters():
+            #     print('===========\ngradient:{}\n----------\n{}'.format(n,p.grad))
+            # exit()
+            if math.isnan(loss):
+                exit()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 iter += 1
@@ -142,6 +148,7 @@ class Train(object):
                 print(msg)
                 logger.debug(msg)
                 start = time.time()
+                #exit()
             if iter % config.eval_interval == 0:
                 loss = self.run_eval(logger, args)
                 if best_val_loss is None or loss < best_val_loss:
@@ -164,9 +171,10 @@ class Train(object):
         encoder_hidden = encoder_output["sent_hidden"]
         max_encoder_output = encoder_output["document_rep"]
         token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
-        sent_prediction = encoder_output["sent_prediction"]
         sent_output = encoder_output['encoded_sents']
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_output
+        token_scores = encoder_output['token_score']
+        sent_scores = encoder_output['sent_score'].unsqueeze(2).repeat(1,1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
@@ -176,8 +184,13 @@ class Train(object):
             get_output_from_batch(batch, use_cuda)
 
         encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_outputs = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+        if(args.fixed_scorer):
+            scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
+            token_scores = scorer_output['token_score']
+            sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+
 
         s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
         if config.use_maxpool_init_ctx:
@@ -191,7 +204,7 @@ class Train(object):
                                                                                       enc_padding_mask, c_t_1,
                                                                                       extra_zeros,
                                                                                       enc_batch_extend_vocab,
-                                                                                      coverage, token_level_sentence_scores, sent_outputs)
+                                                                                      coverage, token_scores, sent_scores, sent_outputs)
             target = target_batch[:, di]
             gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
             step_loss = -torch.log(gold_probs + config.eps)
@@ -200,34 +213,25 @@ class Train(object):
                 step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
-            #print(step_loss)
             step_losses.append(step_loss)
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
         batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
 
-        if args.sp_tag_loss:
-            pred = sent_prediction.view(-1, 2)
-            enc_tags_batch[enc_tags_batch == -1] = 0
-            gold = enc_tags_batch.sum(dim=-1)
-            gold[gold < 3] = 0
-            gold[gold > 0] = 1
-            loss_aux = self.sent_crossentropy.forward(pred, gold.view(-1).long())
-            #print(loss_aux)
-            loss += loss_aux
-
-        if args.tag_norm_loss:
-            sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
-            sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
-            pred = sentence_importance_vector.view(-1)
-            enc_tags_batch[enc_tags_batch == -1] = 0
-            gold = enc_tags_batch.sum(dim=-1)
-            gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
-            gold = gold.view(-1)
-            loss_aux = self.attn_mse_loss(pred, gold)
-            #print(loss_aux)
-            loss += 10*loss_aux
-
+        # if args.tag_norm_loss:
+        #     #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
+        #     #sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
+        #     pred = encoder_output['sent_importance_vector'].view(-1)
+        #     enc_tags_batch[enc_tags_batch == -1] = 0
+        #     gold = enc_tags_batch.sum(dim=-1)
+        #     gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
+        #     gold = gold.view(-1)
+        #     loss_aux = self.attn_mse_loss(pred, gold)
+        #     #print(loss_aux)
+        #     #print('Aux loss ', (10*loss_aux).item())
+        #     loss += 10*loss_aux
+        # #if math.isnan(loss.item()):
+        #     #print(encoder_outputs)
         if args.L1_structure_penalty:
             all_linear1_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
             all_linear2_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
@@ -262,20 +266,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
     parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
     parser.add_argument('--reload_path', type=str, default=None, help='location of the older saved path')
+    parser.add_argument('--reload_pretrained_clf_path', type=str, default=None, help='location of the older saved path')
 
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
     parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
-    parser.add_argument('--concat_rep', action='store_true', default=False, help='concatenate representation')
-    parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
-    parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
-    parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
+
+
     parser.add_argument('--L1_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
-    parser.add_argument('--sp_tag_loss', action='store_true', default=False, help='use loss from tags')
-    parser.add_argument('--tag_norm_loss', action='store_true', default=False, help='use MSE norm loss from tags')
-    parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
-    parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
+    parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
+    parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
+    parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
 
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 

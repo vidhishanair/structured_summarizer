@@ -77,12 +77,12 @@ class BeamSearch(object):
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
 
-    def extract_structures(self, batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda):
+    def extract_structures(self, batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda, sent_scores):
         fileName = os.path.join(self._structures_dir, str(count)+".txt")
         fp = open(fileName, "w")
         fp.write("Doc: "+str(count)+"\n")
         #exit(0)
-        doc_attention_matrix = doc_attention_matrix[:,:,1:] #this change yet to be tested!
+        doc_attention_matrix = doc_attention_matrix[:,:] #this change yet to be tested!
         l = batch.enc_doc_lens[0].item()
         doc_sent_no = 0
         # for i in range(l):
@@ -110,18 +110,31 @@ class BeamSearch(object):
         #     fp.write(str(tree_score)+"\n")
         #     doc_sent_no+=1
 
-        shape2 = doc_attention_matrix[0][0:l,0:l].size()
-        row = torch.ones([1, shape2[1]+1]).cuda()
-        column = torch.zeros([shape2[0], 1]).cuda()
-        scores = doc_attention_matrix[0][0:l, 0:l]
-        new_scores = torch.cat([column, scores], dim=1)
-        new_scores = torch.cat([row, new_scores], dim=0)
+        shape2 = doc_attention_matrix[0:l,0:l+1].size()
+        row = torch.zeros([1, shape2[1]]).cuda()
+        #column = torch.zeros([shape2[0], 1]).cuda()
+        scores = doc_attention_matrix[0:l, 0:l+1]
+        #new_scores = torch.cat([column, scores], dim=1)
+        new_scores = torch.cat([row, scores], dim=0)
+        val, root_edge = torch.max(new_scores[:,0], dim=0)
+        root_score = torch.zeros([shape2[0]+1,1]).cuda()
+        root_score[root_edge] = 1
+        new_scores[:,0] = root_score.squeeze()
+        #print(new_scores)
+        #print(new_scores.sum(dim=0))
+        #print(new_scores.sum(dim=1))
+        #print(new_scores.size())
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
         #print(heads, tree_score)
         fp.write("\n")
+        fp.write(str(batch.original_articles[0])+"\n")
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
+        s = sent_scores[0].data.cpu().numpy()
+        for val in s:
+            fp.write(str(val))
         fp.close()
+        #exit()
 
     def decode(self):
         start = time.time()
@@ -159,6 +172,8 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
+            #if counter == 5:
+            #    exit()
 
         print("Decoder has finished reading dataset for single_pass.")
         print("Now starting PYCOCO - ROUGE eval...")
@@ -186,9 +201,10 @@ class BeamSearch(object):
         encoder_hidden = encoder_output["sent_hidden"]
         max_encoder_output = encoder_output["document_rep"]
         token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
-        sent_prediction = encoder_output["sent_prediction"]
         sent_output = encoder_output['encoded_sents']
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_output
+        token_scores = encoder_output['token_score']
+        sent_scores = encoder_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
 
     def get_loss(self, batch, args):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
@@ -199,7 +215,7 @@ class BeamSearch(object):
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_outputs = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
 
@@ -214,11 +230,18 @@ class BeamSearch(object):
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_prediction, sent_outputs = \
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
-        self.extract_structures(batch, encoder_output['token_attention_matrix'], encoder_output['sent_attention_matrix'], count, use_cuda)
-        print(encoder_output['sent_importance_vector'])
+        mask = enc_padding_sent_mask[0].unsqueeze(0).repeat(enc_padding_sent_mask.size(1),1) * enc_padding_sent_mask[0].unsqueeze(1).transpose(1,0)
+
+        mask = torch.cat((enc_padding_sent_mask[0].unsqueeze(1), mask), dim=1)
+        mat = encoder_output['sent_attention_matrix'][0][:,:] * mask
+        self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
+        if(args.fixed_scorer):
+            scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
+            token_scores = scorer_output['token_score']
+            sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
 
         s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
@@ -269,7 +292,7 @@ class BeamSearch(object):
 
             final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
                                                                                     encoder_outputs, enc_padding_mask, c_t_1,
-                                                                                    extra_zeros, enc_batch_extend_vocab, coverage_t_1, token_level_sentence_scores, sent_outputs)
+                                                                                    extra_zeros, enc_batch_extend_vocab, coverage_t_1, token_scores, sent_scores, sent_outputs)
 
             topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
 
@@ -319,14 +342,12 @@ if __name__ == '__main__':
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
     parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
-    parser.add_argument('--concat_rep', action='store_true', default=False, help='concatenate representation')
-    parser.add_argument('--no_sent_sa', action='store_true', default=False, help='no sent SA')
-    parser.add_argument('--no_sa', action='store_true', default=False, help='no SA - default encoder')
-    parser.add_argument('--sent_score_decoder', action='store_true', default=False, help='add sentence scoring to decoder attentions')
-    parser.add_argument('--gold_tag_scores', action='store_true', default=False, help='use gold tags for scores')
-    parser.add_argument('--decode_setting', action='store_true', default=False, help='use gold tags for scores')
+    parser.add_argument('--reload_pretrained_clf_path', type=str, default=None, help='location of the older saved path')
+
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
-    parser.add_argument('--sp_tag_loss', action='store_true', default=False, help='use loss from tags')
+    parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
+    parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
+    parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
 
     args = parser.parse_args()
     model_filename = args.reload_path
