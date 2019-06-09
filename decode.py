@@ -77,7 +77,7 @@ class BeamSearch(object):
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
 
-    def extract_structures(self, batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda):
+    def extract_structures(self, batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda, sent_scores):
         fileName = os.path.join(self._structures_dir, str(count)+".txt")
         fp = open(fileName, "w")
         fp.write("Doc: "+str(count)+"\n")
@@ -127,10 +127,14 @@ class BeamSearch(object):
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
         #print(heads, tree_score)
         fp.write("\n")
-        fp.write(str(batch.original_articles[0]))
+        fp.write(str(batch.original_articles[0])+"\n")
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
+        s = sent_scores[0].data.cpu().numpy()
+        for val in s:
+            fp.write(str(val))
         fp.close()
+        #exit()
 
     def decode(self):
         start = time.time()
@@ -233,7 +237,7 @@ class BeamSearch(object):
 
         mask = torch.cat((enc_padding_sent_mask[0].unsqueeze(1), mask), dim=1)
         mat = encoder_output['sent_attention_matrix'][0][:,:] * mask
-        self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda)
+        self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
         if(args.fixed_scorer):
             scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
             token_scores = scorer_output['token_score']
