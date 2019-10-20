@@ -34,7 +34,7 @@ class BiLSTMEncoder(nn.Module):
         sent_len, idx_sort = np.sort(seq_len)[::-1], np.argsort(-seq_len)
         idx_unsort = np.argsort(idx_sort)
 
-        idx_sort = seq_len.new_tensor(torch.from_numpy(idx_sort)) #.to(self.device)
+        idx_sort = seq_len_tensor.new_tensor(torch.from_numpy(idx_sort)) #.to(self.device)
         sent_variable = input.index_select(0, idx_sort)
 
         # Handling padding in Recurrent Networks
