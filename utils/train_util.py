@@ -16,9 +16,9 @@ def get_input_from_batch(batch, use_cuda, args):
     enc_padding_token_mask = Variable(torch.from_numpy(batch.enc_padding_token_mask)).float()
     enc_padding_sent_mask = Variable(torch.from_numpy(batch.enc_padding_sent_mask)).float()
     # enc_lens = batch.enc_lens
-    enc_doc_lens = batch.enc_doc_lens
-    enc_sent_lens = batch.enc_sent_lens
-    enc_word_lens = batch.enc_word_lens
+    enc_doc_lens = Variable(torch.from_numpy(batch.enc_doc_lens).int())
+    enc_sent_lens = Variable(torch.from_numpy(batch.enc_sent_lens).int())
+    enc_word_lens = Variable(torch.from_numpy(batch.enc_word_lens).int())
 
     extra_zeros = None
     enc_batch_extend_vocab = None
@@ -43,6 +43,9 @@ def get_input_from_batch(batch, use_cuda, args):
         enc_padding_token_mask = enc_padding_token_mask.to(device)
         word_batch = word_batch.to(device)
         word_padding_mask = word_padding_mask.to(device)
+        enc_doc_lens = enc_doc_lens.to(device)
+        enc_sent_lens = enc_sent_lens.to(device)
+        enc_word_lens = enc_word_lens.to(device)
 
         if enc_batch_extend_vocab is not None:
             enc_batch_extend_vocab = enc_batch_extend_vocab.to(device)
