@@ -4,6 +4,7 @@ import time
 
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
 from models.modules.StructuredAttention import StructuredAttention
@@ -90,7 +91,7 @@ class StructuredEncoder(nn.Module):
 
         # reshape to 3D tensor
         input = input.contiguous().view(input.size(0)*input.size(1), input.size(2), input.size(3))
-        sent_l = list(itertools.chain.from_iterable(sent_l))
+        sent_l = Variable(torch.from_numpy(list(itertools.chain.from_iterable(sent_l))).int())
 
         # BiLSTM
         bilstm_encoded_tokens, token_hidden = self.sentence_encoder.forward_packed(input, sent_l)
