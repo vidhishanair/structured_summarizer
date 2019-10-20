@@ -6,8 +6,8 @@ import utils.config as config
 
 def get_input_from_batch(batch, use_cuda, args):
     batch_size = len(batch.enc_doc_lens)
-    device = torch.device("cuda" if config.use_gpu else "cpu")
-
+    # device = torch.device("cuda" if config.use_gpu else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
     enc_tags_batch = Variable(torch.from_numpy(batch.enc_tags_batch).float())
     word_batch = Variable(torch.from_numpy(batch.enc_word_batch).long())
