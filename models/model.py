@@ -143,7 +143,7 @@ class Model(nn.Module):
             p_gen_list.append(p_gen)
             coverage_list.append(coverage)
 
-        return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist, dim=1), \
+        return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), \
                torch.stack(p_gen_list, dim=1), torch.stack(coverage_list, dim=1)
 
 
