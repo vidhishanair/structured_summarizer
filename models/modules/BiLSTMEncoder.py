@@ -30,7 +30,7 @@ class BiLSTMEncoder(nn.Module):
 
     def forward_packed(self, input, seq_len):
         # Sort by length (keep idx)
-        seq_len = np.array(seq_len)
+        seq_len = np.array(seq_len.cpu())
         sent_len, idx_sort = np.sort(seq_len)[::-1], np.argsort(-seq_len)
         idx_unsort = np.argsort(idx_sort)
 
