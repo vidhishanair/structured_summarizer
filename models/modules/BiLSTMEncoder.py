@@ -28,13 +28,13 @@ class BiLSTMEncoder(nn.Module):
 
         return output, hidden
 
-    def forward_packed(self, input, seq_len):
+    def forward_packed(self, input, seq_len_tensor):
         # Sort by length (keep idx)
-        seq_len = np.array(seq_len.cpu())
+        seq_len = np.array(seq_len_tensor.cpu())
         sent_len, idx_sort = np.sort(seq_len)[::-1], np.argsort(-seq_len)
         idx_unsort = np.argsort(idx_sort)
 
-        idx_sort = input.new_tensor(torch.from_numpy(idx_sort)) #.to(self.device)
+        idx_sort = seq_len.new_tensor(torch.from_numpy(idx_sort)) #.to(self.device)
         sent_variable = input.index_select(0, idx_sort)
 
         # Handling padding in Recurrent Networks
