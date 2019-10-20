@@ -39,6 +39,7 @@ class Example(object):
             size = 0
             article_sents = []
             article_sent_tags = []
+
             # for sent, tags in zip(article_sents_tmp, sent_tags):
             #     sent = sent.split()
             #     tags = tags.split()
@@ -51,6 +52,7 @@ class Example(object):
             #     else:
             #         article_sents.append(sent[:config.max_enc_steps-size])
             #         article_sent_tags.append([int(x) for x in tags[:config.max_enc_steps-size]])
+
             article_sents = article_sents_tmp[:20]
             article_sent_tags = sent_tags[:20]
             article_words = [sent.split()[:140] for sent in article_sents]

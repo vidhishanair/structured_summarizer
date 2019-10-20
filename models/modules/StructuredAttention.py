@@ -50,17 +50,16 @@ class StructuredAttention(nn.Module):
 
         tp = F.tanh(self.tp_linear(str_v)) # b*s, token, h1
         tc = F.tanh(self.tc_linear(str_v)) # b*s, token, h1
+
         # tp = tp.unsqueeze(2).expand(tp.size(0), tp.size(1), tp.size(1), tp.size(2)).contiguous()
         # tc = tc.unsqueeze(2).expand(tc.size(0), tc.size(1), tc.size(1), tc.size(2)).contiguous()
-        #print(tp)
-        #print(tc)
-        f_ij = self.bilinear(tp, tc) #.squeeze() # b*s, token , token
-        #print(f_ij)
-        #exit()
+
+        f_ij = self.bilinear(tp, tc).view(batch_size, token_size, token_size) #.squeeze() # b*s, token , token
         f_i = torch.exp(self.fi_linear(str_v)).squeeze()  # b*s, token
 
         mask = torch.ones(f_ij.size(1), f_ij.size(1)) - torch.eye(f_ij.size(1), f_ij.size(1))
         mask = mask.unsqueeze(0).expand(f_ij.size(0), mask.size(0), mask.size(1)).to(self.device)
+
         A_ij = torch.exp(f_ij)*mask
 
 
@@ -68,6 +67,7 @@ class StructuredAttention(nn.Module):
         res = torch.zeros(batch_size, token_size, token_size).to(self.device)
         #tmp = torch.stack([torch.diag(t) for t in tmp])
         res.as_strided(tmp.size(), [res.stride(0), res.size(2) + 1]).copy_(tmp)
+
         L_ij = -A_ij + res   #A_ij has 0s as diagonals
 
         L_ij_bar = L_ij.clone()
@@ -112,6 +112,7 @@ class StructuredAttention(nn.Module):
         output = F.relu(self.fzlinear(finp))
         #output = self.fzlinear(finp)
         #output = F.tanh(self.fzlinear(finp))
+
         self.output = output
 
         return output, df

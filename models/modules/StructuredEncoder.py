@@ -28,7 +28,8 @@ class StructuredEncoder(nn.Module):
         self.drop = nn.Dropout(0.3)
         init_wt_normal(self.embedding.weight)
         bidirectional = True
-        self.device = torch.device("cuda" if config.use_gpu else "cpu")
+        # self.device = torch.device("cuda" if config.use_gpu else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.args = args
 
         #self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
