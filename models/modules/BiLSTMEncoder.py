@@ -45,7 +45,7 @@ class BiLSTMEncoder(nn.Module):
         sent_output = nn.utils.rnn.pad_packed_sequence(sent_output, batch_first=True)[0]
 
         # Un-sort by length
-        idx_unsort = input.new_tensor(torch.from_numpy(idx_unsort)) #.to(self.device)
+        idx_unsort = seq_len_tensor.new_tensor(torch.from_numpy(idx_unsort), dtype=torch.long) #.to(self.device)
         sent_output = sent_output.index_select(0, idx_unsort)
 
         del idx_sort, idx_unsort
