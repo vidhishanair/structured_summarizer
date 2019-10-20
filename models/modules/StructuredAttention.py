@@ -57,14 +57,14 @@ class StructuredAttention(nn.Module):
         f_ij = self.bilinear(tp, tc).view(batch_size, token_size, token_size) #.squeeze() # b*s, token , token
         f_i = torch.exp(self.fi_linear(str_v)).squeeze()  # b*s, token
 
-        mask = torch.ones(f_ij.size(1), f_ij.size(1)) - torch.eye(f_ij.size(1), f_ij.size(1))
-        mask = mask.unsqueeze(0).expand(f_ij.size(0), mask.size(0), mask.size(1)).to(self.device)
+        mask = f_ij.new_ones((f_ij.size(1), f_ij.size(1))) - f_ij.new_tensor(torch.eye(f_ij.size(1), f_ij.size(1)))
+        mask = mask.unsqueeze(0).expand(f_ij.size(0), mask.size(0), mask.size(1)) #.to(self.device)
 
         A_ij = torch.exp(f_ij)*mask
 
 
         tmp = torch.sum(A_ij, dim=1)
-        res = torch.zeros(batch_size, token_size, token_size).to(self.device)
+        res = A_ij.new_zeros((batch_size, token_size, token_size)) #.to(self.device)
         #tmp = torch.stack([torch.diag(t) for t in tmp])
         res.as_strided(tmp.size(), [res.stride(0), res.size(2) + 1]).copy_(tmp)
 
@@ -88,14 +88,14 @@ class StructuredAttention(nn.Module):
         tmp1 = (A_ij.transpose(1,2) * LLinv_diag ).transpose(1,2)
         tmp2 = A_ij * LLinv.transpose(1,2)
 
-        temp11 = torch.zeros(batch_size, token_size, 1)
-        temp21 = torch.zeros(batch_size, 1, token_size)
+        temp11 = A_ij.new_zeros((batch_size, token_size, 1))
+        temp21 = A_ij.new_zeros((batch_size, 1, token_size))
 
-        temp12 = torch.ones(batch_size, token_size, token_size-1)
-        temp22 = torch.ones(batch_size, token_size-1, token_size)
+        temp12 = A_ij.new_ones((batch_size, token_size, token_size-1))
+        temp22 = A_ij.new_ones((batch_size, token_size-1, token_size))
 
-        mask1 = torch.cat([temp11,temp12],2).to(self.device)
-        mask2 = torch.cat([temp21,temp22],1).to(self.device)
+        mask1 = torch.cat([temp11,temp12],2) #.to(self.device)
+        mask2 = torch.cat([temp21,temp22],1) #.to(self.device)
 
         dx = mask1 * tmp1 - mask2 * tmp2
 

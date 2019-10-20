@@ -74,7 +74,7 @@ class StructuredEncoder(nn.Module):
         mask = word_padding_mask.unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
         bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
 
-        tk1 = torch.zeros(batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2)).to(self.device)
+        tk1 = mask.new_zeros((batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2))) #.to(self.device)
         tk = tk1.clone()
 
         for i in range(len(sent_l)):
