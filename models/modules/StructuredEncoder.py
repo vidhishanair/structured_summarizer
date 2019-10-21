@@ -47,8 +47,8 @@ class StructuredEncoder(nn.Module):
                                              bidirectional=bidirectional)
         self.document_encoder = BiLSTMEncoder(self.device, self.doc_hidden_size, self.sent_hidden_size, 1, dropout=0.3,
                                               bidirectional=bidirectional)
-        self.sentence_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "nightly")
-        self.document_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "nightly")
+        self.sentence_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "1.3.0")
+        self.document_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "1.3.0")
 
         self.sent_pred_linear = nn.Linear(self.sem_dim_size, 1)
         self.token_pred_linear = nn.Linear(self.sent_hidden_size, 2)

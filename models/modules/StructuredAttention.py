@@ -76,7 +76,7 @@ class StructuredAttention(nn.Module):
         #No batch inverse
         #LLinv = torch.stack([torch.inverse(li) for li in L_ij_bar])
         LLinv = None
-        if self.pytorch_version == 'nightly':
+        if self.pytorch_version == 'nightly' or self.pytorch_version=='1.3.0':
             LLinv = torch.inverse(L_ij_bar)
         else:
             LLinv = torch.stack([torch.inverse(li) for li in L_ij_bar])
