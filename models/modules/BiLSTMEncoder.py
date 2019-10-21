@@ -40,13 +40,21 @@ class BiLSTMEncoder(nn.Module):
         # Handling padding in Recurrent Networks
         #print(seq_len)
         #print(sent_len)
+        batch_size, total_sequence_length, prev_dim = input.size()
         sent_packed = nn.utils.rnn.pack_padded_sequence(input, seq_len.copy(), batch_first=True, enforce_sorted=False)
         sent_output, hidden = self.bilstm(sent_packed)
-        sent_output = nn.utils.rnn.pad_packed_sequence(sent_output, batch_first=True)[0]
+        unpacked_sequence_tensor = nn.utils.rnn.pad_packed_sequence(sent_output, batch_first=True)[0]
+
+        sequence_length_difference = total_sequence_length - unpacked_sequence_tensor.size(1)
+        if sequence_length_difference > 0:
+            zeros = unpacked_sequence_tensor.new_zeros(
+                batch_size, sequence_length_difference, unpacked_sequence_tensor.size(-1)
+            )
+            unpacked_sequence_tensor = torch.cat([unpacked_sequence_tensor, zeros], 1)
 
         # Un-sort by length
         #idx_unsort = input.new_tensor(torch.from_numpy(idx_unsort), dtype=torch.long) #.to(self.device)
         #sent_output = sent_output.index_select(0, idx_unsort)
 
         #del idx_sort, idx_unsort
-        return sent_output, hidden
+        return unpacked_sequence_tensor, hidden
