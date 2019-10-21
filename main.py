@@ -207,8 +207,8 @@ class Train(object):
                 get_output_from_batch(batch, use_cuda)
 
             enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch \
-                = get_input_from_batch(batch, use_cuda, args)
+            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
+            enc_tags_batch, enc_sent_token_mat = get_input_from_batch(batch, use_cuda, args)
 
             final_dist_list, attn_dist_list, p_gen_list, coverage_list = self.model.forward(enc_batch,
                                                                                             enc_padding_token_mask,
@@ -222,6 +222,7 @@ class Train(object):
                                                                                             word_padding_mask,
                                                                                             enc_word_lens,
                                                                                             enc_tags_batch,
+                                                                                            enc_sent_token_mat,
                                                                                             max_dec_len,
                                                                                             dec_batch, args)
 
@@ -248,10 +249,10 @@ class Train(object):
                 get_output_from_batch(batch, use_cuda)
 
             enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-                enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch\
+                enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat \
                 = get_input_from_batch(batch, use_cuda, args)
 
-            encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
+            encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
 
             encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
                 self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)

@@ -88,7 +88,10 @@ class Example(object):
         # If using pointer-generator mode, we need to store some extra info
         if args.pointer_gen:
             # Store a version of the enc_input where in-article OOVs are represented by their temporary OOV id; also store the in-article OOVs words themselves
-            self.enc_input_extend_vocab, self.article_oovs = data.article2ids(article_words, vocab)
+            if args.test_sent_matrix:
+                self.enc_input_extend_vocab, self.article_oovs = data.article2ids(all_article_words, vocab)
+            else:
+                self.enc_input_extend_vocab, self.article_oovs = data.sent_sep_article2ids(article_words, vocab)
 
             # Get a verison of the reference summary where in-article OOVs are represented by their temporary article OOV id
             abs_ids_extend_vocab = data.abstract2ids(abstract_words, vocab, self.article_oovs)
@@ -151,6 +154,7 @@ class Batch(object):
     def __init__(self, example_list, vocab, batch_size, args):
         self.batch_size = batch_size
         self.pointer_gen = args.pointer_gen
+        self.test_sent_matrix = args.test_sent_matrix
         self.pad_id = vocab.word2id(data.PAD_TOKEN)  # id of the PAD token used to pad sequences
         self.init_encoder_seq(example_list)  # initialize the input to the encoder
         self.init_decoder_seq(example_list)  # initialize the input and targets for the decoder
@@ -161,6 +165,7 @@ class Batch(object):
         max_enc_tok_len = max([max(ex.enc_tok_len) for ex in example_list])
         max_enc_doc_len = max([ex.enc_doc_len for ex in example_list])
         max_enc_word_len = max([ex.enc_word_len for ex in example_list])
+        #total_tok_len = sum([ex.enc_word_len for ex in example_list])
 
         # Pad the encoder input sequences up to the length of the longest sequence
         for ex in example_list:
@@ -181,8 +186,8 @@ class Batch(object):
         self.enc_word_lens = np.zeros((self.batch_size), dtype=np.int32)
         self.enc_doc_lens = np.zeros((self.batch_size), dtype=np.int32)
         self.enc_sent_lens = np.ones((self.batch_size, max_enc_doc_len), dtype=np.int32)
+        self.enc_sent_token_marker = np.zeros((self.batch_size, max_enc_doc_len, max_enc_word_len), dtype=np.float32)
         self.enc_padding_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
-
         self.enc_padding_token_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
         self.enc_padding_sent_mask = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.float32)
         self.enc_padding_word_mask = np.zeros((self.batch_size, max_enc_word_len), dtype=np.float32)
@@ -194,11 +199,14 @@ class Batch(object):
             self.enc_word_batch[i,:] = np.array(ex.word_input)
             self.enc_doc_lens[i] = ex.enc_doc_len
             self.enc_word_lens[i] = ex.enc_word_len
+            word_counter = 0
             for j in range(len(ex.enc_tok_len)):
                 self.enc_sent_lens[i][j] = ex.enc_tok_len[j]
                 for k in range(ex.enc_tok_len[j]):
                     self.enc_padding_mask[i][j][k] = 1
                     self.enc_padding_token_mask[i][j][k] = 1
+                    self.enc_sent_token_marker[i][j][word_counter] = 1
+                    word_counter+=1
                 self.enc_padding_sent_mask[i][j] = 1
             for j in range(ex.enc_word_len):
                 self.enc_padding_word_mask[i][j] = 1
@@ -210,7 +218,10 @@ class Batch(object):
             # Store the in-article OOVs themselves
             self.art_oovs = [ex.article_oovs for ex in example_list]
             # Store the version of the enc_batch that uses the article OOV ids
-            self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
+            if self.test_sent_matrix:
+                self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
+            else:
+                self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
             for i, ex in enumerate(example_list):
                 self.enc_batch_extend_vocab[i, :] = np.array(ex.enc_input_extend_vocab[:])
 
