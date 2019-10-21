@@ -72,6 +72,7 @@ class StructuredEncoder(nn.Module):
         # BiLSTM
         bilstm_encoded_word_tokens, word_token_hidden = self.sentence_encoder.forward_packed(word_input, enc_word_lens)
         mask = word_padding_mask.unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
+        print(word_input.size(), bilstm_encoded_word_tokens.size(), mask.size())
         bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
 
         tk1 = mask.new_zeros((batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2))) #.to(self.device)

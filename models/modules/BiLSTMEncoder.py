@@ -31,22 +31,22 @@ class BiLSTMEncoder(nn.Module):
     def forward_packed(self, input, seq_len_tensor):
         # Sort by length (keep idx)
         seq_len = np.array(seq_len_tensor.cpu())
-        sent_len, idx_sort = np.sort(seq_len)[::-1], np.argsort(-seq_len)
-        idx_unsort = np.argsort(idx_sort)
+        #sent_len, idx_sort = np.sort(seq_len)[::-1], np.argsort(-seq_len)
+        #idx_unsort = np.argsort(idx_sort)
 
-        idx_sort = input.new_tensor(torch.from_numpy(idx_sort), dtype=torch.long) #.to(self.device)
-        sent_variable = input.index_select(0, idx_sort)
+        #idx_sort = input.new_tensor(torch.from_numpy(idx_sort), dtype=torch.long) #.to(self.device)
+        #sent_variable = input.index_select(0, idx_sort)
 
         # Handling padding in Recurrent Networks
         #print(seq_len)
         #print(sent_len)
-        sent_packed = nn.utils.rnn.pack_padded_sequence(sent_variable, sent_len.copy(), batch_first=True)
+        sent_packed = nn.utils.rnn.pack_padded_sequence(input, seq_len.copy(), batch_first=True, enforce_sorted=False)
         sent_output, hidden = self.bilstm(sent_packed)
         sent_output = nn.utils.rnn.pad_packed_sequence(sent_output, batch_first=True)[0]
 
         # Un-sort by length
-        idx_unsort = input.new_tensor(torch.from_numpy(idx_unsort), dtype=torch.long) #.to(self.device)
-        sent_output = sent_output.index_select(0, idx_unsort)
+        #idx_unsort = input.new_tensor(torch.from_numpy(idx_unsort), dtype=torch.long) #.to(self.device)
+        #sent_output = sent_output.index_select(0, idx_unsort)
 
-        del idx_sort, idx_unsort
+        #del idx_sort, idx_unsort
         return sent_output, hidden
