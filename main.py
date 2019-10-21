@@ -352,6 +352,7 @@ if __name__ == '__main__':
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
     parser.add_argument('--multi_gpu', action='store_true', default=False, help='use multi-gpu for training')
+    parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
 
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 
