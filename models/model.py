@@ -134,7 +134,7 @@ class Model(nn.Module):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.decoder.forward(y_t_1, s_t_1,
                                                                                         encoder_outputs,
-                                                                                        enc_padding_mask, c_t_1,
+                                                                                        word_padding_mask, c_t_1,
                                                                                         extra_zeros,
                                                                                         enc_batch_extend_vocab,
                                                                                         coverage, token_scores,
