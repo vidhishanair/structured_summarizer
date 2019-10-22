@@ -103,8 +103,8 @@ class Model(nn.Module):
     def forward(self, enc_batch, enc_padding_token_mask, enc_padding_sent_mask,
                       enc_doc_lens, enc_sent_lens,
                       enc_batch_extend_vocab, extra_zeros, c_t_1, coverage,
-                      word_batch, word_padding_mask, enc_word_lens, enc_tags_batch,
-                      max_dec_len, dec_batch, enc_sent_token_mat, args):
+                      word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat,
+                      max_dec_len, dec_batch, args):
         #
         # dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
         #     get_output_from_batch(batch, use_cuda)
