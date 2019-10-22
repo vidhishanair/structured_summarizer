@@ -114,7 +114,7 @@ class StructuredEncoder(nn.Module):
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
         sa_encoded_sents = sa_encoded_sents * mask
 
-        sa_encoded_sent_token_rep = torch.bmm(enc_sent_token_mat, sa_encoded_sents) # b * n_tokens * hid_dim
+        sa_encoded_sent_token_rep = torch.bmm(enc_sent_token_mat.permute(0,2,1).float(), sa_encoded_sents) # b * n_tokens * hid_dim
 
         # encoded_sents = sa_encoded_sents.unsqueeze(1).repeat(1, token_size, 1, 1).view(batch_size, sent_size*token_size,
         #                                                                                sa_encoded_sents.size(2))
@@ -130,7 +130,7 @@ class StructuredEncoder(nn.Module):
         sentence_importance_vector = mat[:,:,1:].sum(dim=1) #* sent_mask
         sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
         # token_level_sentence_scores = sentence_importance_vector.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size)
-        token_level_sentence_scores = torch.bmm(enc_sent_token_mat, sentence_importance_vector.unsqueeze(2)).view(batch_size, enc_sent_token_mat.size(2))
+        token_level_sentence_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1).float(), sentence_importance_vector.unsqueeze(2)).view(batch_size, enc_sent_token_mat.size(2))
 
 
         sent_score = self.sent_pred_linear(sa_encoded_sents)
