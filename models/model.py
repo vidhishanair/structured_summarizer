@@ -1,5 +1,6 @@
 from __future__ import unicode_literals, print_function, division
 
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -109,9 +110,9 @@ class Model(nn.Module):
         #
         # dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
         #     get_output_from_batch(batch, use_cuda)
-
+        start = time.process_time()
         encoder_output = self.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
-
+        #print('Time taken for encoder: ', time.process_time() - start)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat)
 
@@ -129,7 +130,7 @@ class Model(nn.Module):
         attn_dist_list = []
         p_gen_list = []
         coverage_list = []
-
+        start = time.process_time()
         for di in range(min(max_dec_len, config.max_dec_steps)):
             y_t_1 = dec_batch[:, di]  # Teacher forcing
             final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.decoder.forward(y_t_1, s_t_1,
@@ -143,7 +144,7 @@ class Model(nn.Module):
             attn_dist_list.append(attn_dist)
             p_gen_list.append(p_gen)
             coverage_list.append(coverage)
-
+        #print('Time taken for decoder: ', time.process_time() - start)
         return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), \
                torch.stack(p_gen_list, dim=1), torch.stack(coverage_list, dim=1)
 

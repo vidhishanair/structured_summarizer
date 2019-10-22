@@ -22,14 +22,16 @@ hidden_dim= 256
 sem_dim_size = 150
 
 emb_dim= 128
-batch_size=8
+batch_size=80
 max_enc_steps=400
-max_dec_steps=100
+#max_dec_steps=100
+max_dec_steps=20
 beam_size=4
 min_dec_steps=35
 vocab_size=50000
 
-lr=0.35
+#lr=0.35
+lr=0.5
 adagrad_init_acc=0.1
 rand_unif_init_mag=0.02
 trunc_norm_init_std=1e-4
