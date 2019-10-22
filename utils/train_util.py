@@ -34,7 +34,10 @@ def get_input_from_batch(batch, use_cuda, args):
     c_t_1 = Variable(torch.zeros((batch_size, 2 * config.sem_dim_size))) # add 4 * for pointergen
     coverage = None
     if args.is_coverage:
-        coverage = Variable(torch.zeros(enc_batch.size()))
+        if args.test_sent_matrix:
+            coverage = Variable(torch.zeros(word_batch.size()))
+        else:
+            coverage = Variable(torch.zeros(enc_batch.size()))
 
     if use_cuda:
         enc_batch = enc_batch.to(device)
