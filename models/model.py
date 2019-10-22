@@ -85,9 +85,9 @@ class Model(nn.Module):
         enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
                                                                     enc_padding_token_mask.size(
                                                                         1) * enc_padding_token_mask.size(2))
-        enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
-                                                                          enc_batch_extend_vocab.size(
-                                                                              1) * enc_batch_extend_vocab.size(2))
+        # enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
+        #                                                                   enc_batch_extend_vocab.size(
+        #                                                                       1) * enc_batch_extend_vocab.size(2))
         # else:
         #     encoder_outputs = encoder_output["encoded_sents"]
         #     enc_padding_mask = enc_padding_sent_mask
