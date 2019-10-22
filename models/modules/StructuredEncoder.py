@@ -138,7 +138,7 @@ class StructuredEncoder(nn.Module):
         sent_score = self.sm(sent_score)
 
         token_score = self.token_pred_linear(bilstm_encoded_word_tokens)
-        token_score = self.sm2(token_score)
+        # token_score = self.sm2(token_score)
         # mask = word_padding_mask.unsqueeze(2)
         # token_score = token_score * mask
 
