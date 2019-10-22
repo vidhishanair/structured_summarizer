@@ -80,7 +80,7 @@ class Model(nn.Module):
         self.decoder = self.decoder.train()
         self.reduce_state = self.reduce_state.train()
 
-    def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
+    def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat):
         encoder_outputs = encoder_output["encoded_tokens"]
         enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
                                                                     enc_padding_token_mask.size(
@@ -97,7 +97,8 @@ class Model(nn.Module):
         token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
         sent_output = encoder_output['encoded_sents']
         token_scores = encoder_output['token_score']
-        sent_scores = encoder_output['sent_score'].unsqueeze(2).repeat(1,1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+        sent_scores = encoder_output['sent_score'] #.unsqueeze(2).repeat(1,1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+        sent_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1).float(), sent_scores.unsqueeze(2)).view(sent_scores.size(0), enc_sent_token_mat.size(2))
         return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
 
     def forward(self, enc_batch, enc_padding_token_mask, enc_padding_sent_mask,
@@ -112,7 +113,7 @@ class Model(nn.Module):
         encoder_output = self.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
 
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
-            self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+            self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat)
 
         if(args.fixed_scorer):
             scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
