@@ -10,7 +10,8 @@ root_dir = os.path.expanduser("/remote/bones/user/public/vbalacha/structured_sum
 # decode_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files/test.bin")
 # vocab_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files/vocab")
 
-train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/chunked/train_*")
+#train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/chunked/train_*")
+train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/chunked/train_*")
 eval_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/val.bin")
 decode_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/test.bin")
 vocab_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/vocab")
