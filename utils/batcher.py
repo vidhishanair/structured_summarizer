@@ -354,6 +354,11 @@ class Batcher(object):
                     0]  # the article text was saved under the key 'article' in the data files
                 abstract_text = e.features.feature['abstract'].bytes_list.value[
                     0]  # the abstract text was saved under the key 'abstract' in the data files
+                if self.heuristic_ner:
+                    links = e.features.feature['links'].bytes_list.value[
+                        0]  #
+                    import ast
+                    print(links, ast.literal_eval(links))
             except:# ValueError:
                 print(article_text)
                 print(e.features.feature['labels'].bytes_list.value)
