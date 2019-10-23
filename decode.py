@@ -27,6 +27,7 @@ from pycocoevalcap.coco import COCO
 
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Beam(object):
     def __init__(self, tokens, log_probs, state, context, coverage):
@@ -71,7 +72,7 @@ class BeamSearch(object):
                                batch_size=config.beam_size, single_pass=True, args=args)
         time.sleep(15)
 
-        self.model = Model(args)
+        self.model = Model(args).to(device)
         self.model.eval()
 
     def sort_beams(self, beams):
@@ -219,7 +220,7 @@ class BeamSearch(object):
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
-            self.model.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+            self.model.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat)
 
         mask = enc_padding_sent_mask[0].unsqueeze(0).repeat(enc_padding_sent_mask.size(1),1) * enc_padding_sent_mask[0].unsqueeze(1).transpose(1,0)
 
@@ -280,7 +281,7 @@ class BeamSearch(object):
                 coverage_t_1 = torch.stack(all_coverage, 0)
 
             final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
-                                                                                    encoder_outputs, enc_padding_mask, c_t_1,
+                                                                                    encoder_outputs, word_padding_mask, c_t_1,
                                                                                     extra_zeros, enc_batch_extend_vocab, coverage_t_1, token_scores, sent_scores, sent_outputs)
 
             topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
@@ -337,6 +338,7 @@ if __name__ == '__main__':
     parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
+    parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
 
     args = parser.parse_args()
     model_filename = args.reload_path
