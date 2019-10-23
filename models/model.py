@@ -41,13 +41,6 @@ class Model(nn.Module):
         # shared the embedding between encoder and decoder
         decoder.embedding.weight = encoder.embedding.weight
 
-        # if use_cuda:
-        #     if(args.fixed_scorer):
-        #         pretrained_scorer = pretrained_scorer.to(device)
-        #     encoder = encoder.to(device)
-        #     decoder = decoder.to(device)
-        #     reduce_state = reduce_state.to(device)
-
         if(args.fixed_scorer):
             self.pretrained_scorer = pretrained_scorer
         self.encoder = encoder
@@ -89,9 +82,6 @@ class Model(nn.Module):
         # enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
         #                                                                   enc_batch_extend_vocab.size(
         #                                                                       1) * enc_batch_extend_vocab.size(2))
-        # else:
-        #     encoder_outputs = encoder_output["encoded_sents"]
-        #     enc_padding_mask = enc_padding_sent_mask
 
         encoder_hidden = encoder_output["sent_hidden"]
         max_encoder_output = encoder_output["document_rep"]
@@ -107,9 +97,7 @@ class Model(nn.Module):
                       enc_batch_extend_vocab, extra_zeros, c_t_1, coverage,
                       word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat,
                       max_dec_len, dec_batch, args):
-        #
-        # dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-        #     get_output_from_batch(batch, use_cuda)
+
         start = time.process_time()
         encoder_output = self.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
         #print('Time taken for encoder: ', time.process_time() - start)

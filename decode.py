@@ -187,57 +187,46 @@ class BeamSearch(object):
             print('%s: %.3f'%(metric, score))
 
 
-    def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
-        encoder_outputs = encoder_output["encoded_tokens"]
-        enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
-                                                                    enc_padding_token_mask.size(
-                                                                        1) * enc_padding_token_mask.size(2))
-        enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
-                                                                          enc_batch_extend_vocab.size(
-                                                                              1) * enc_batch_extend_vocab.size(2))
-        # else:
-        #     encoder_outputs = encoder_output["encoded_sents"]
-        #     enc_padding_mask = enc_padding_sent_mask
-        encoder_hidden = encoder_output["sent_hidden"]
-        max_encoder_output = encoder_output["document_rep"]
-        token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
-        sent_output = encoder_output['encoded_sents']
-        token_scores = encoder_output['token_score']
-        sent_scores = encoder_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
-
-    def get_loss(self, batch, args):
-        enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-        enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens \
-            = get_input_from_batch(batch, use_cuda, args)
-        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-            get_output_from_batch(batch, use_cuda)
-
-        encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
-                                                         enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
-            self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+    # def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
+    #     encoder_outputs = encoder_output["encoded_tokens"]
+    #     enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
+    #                                                                 enc_padding_token_mask.size(
+    #                                                                     1) * enc_padding_token_mask.size(2))
+    #     enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
+    #                                                                       enc_batch_extend_vocab.size(
+    #                                                                           1) * enc_batch_extend_vocab.size(2))
+    #     # else:
+    #     #     encoder_outputs = encoder_output["encoded_sents"]
+    #     #     enc_padding_mask = enc_padding_sent_mask
+    #     encoder_hidden = encoder_output["sent_hidden"]
+    #     max_encoder_output = encoder_output["document_rep"]
+    #     token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
+    #     sent_output = encoder_output['encoded_sents']
+    #     token_scores = encoder_output['token_score']
+    #     sent_scores = encoder_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+    #     return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
 
 
     def beam_search(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, \
-        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch = \
+        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat = \
             get_input_from_batch(batch, use_cuda, self.args)
 
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
             return False, None
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
-                                                         enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
+                                                         enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
-            self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
+            self.model.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
 
         mask = enc_padding_sent_mask[0].unsqueeze(0).repeat(enc_padding_sent_mask.size(1),1) * enc_padding_sent_mask[0].unsqueeze(1).transpose(1,0)
 
         mask = torch.cat((enc_padding_sent_mask[0].unsqueeze(1), mask), dim=1)
         mat = encoder_output['sent_attention_matrix'][0][:,:] * mask
         self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
+
         if(args.fixed_scorer):
             scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
             token_scores = scorer_output['token_score']

@@ -64,7 +64,6 @@ class Train(object):
         torch.save(state, model_save_path)
 
     def setup_train(self, args):
-        #gpu_ids = [0,1]
         self.model = nn.DataParallel(Model(args)).to(device)
 
         params = list(self.model.module.encoder.parameters()) + list(self.model.module.decoder.parameters()) + \
@@ -72,7 +71,6 @@ class Train(object):
 
         initial_lr = config.lr_coverage if args.is_coverage else config.lr
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
-
         self.sent_crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
         self.attn_mse_loss = nn.MSELoss()
 
@@ -138,6 +136,9 @@ class Train(object):
             #     print('===========\ngradient:{}\n----------\n{}'.format(n,p.grad))
             # exit()
             if math.isnan(loss):
+                msg = "Loss has reached NAN. Exiting"
+                logger.debug(msg)
+                print(msg)
                 exit()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
@@ -150,8 +151,8 @@ class Train(object):
                 print(msg)
                 logger.debug(msg)
                 start = time.time()
-                #exit()
             if iter % config.eval_interval == 0:
+                print("Starting Eval")
                 loss = self.run_eval(logger, args)
                 if best_val_loss is None or loss < best_val_loss:
                     best_val_loss = loss
@@ -159,135 +160,71 @@ class Train(object):
                     print("Saving best model")
                     logger.debug("Saving best model")
 
-    def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
-        """Duplicated in model.py"""
+    # def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
+    #     """Duplicated in model.py"""
+    #
+    #     encoder_outputs = encoder_output["encoded_tokens"]
+    #     enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
+    #                                                                     enc_padding_token_mask.size(
+    #                                                                         1) * enc_padding_token_mask.size(2))
+    #     enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
+    #                                                                           enc_batch_extend_vocab.size(
+    #                                                                               1) * enc_batch_extend_vocab.size(2))
+    #     # else:
+    #     #     encoder_outputs = encoder_output["encoded_sents"]
+    #     #     enc_padding_mask = enc_padding_sent_mask
+    #
+    #     encoder_hidden = encoder_output["sent_hidden"]
+    #     max_encoder_output = encoder_output["document_rep"]
+    #     token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
+    #     sent_output = encoder_output['encoded_sents']
+    #     token_scores = encoder_output['token_score']
+    #     sent_scores = encoder_output['sent_score'].unsqueeze(2).repeat(1,1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+    #     return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
 
-        encoder_outputs = encoder_output["encoded_tokens"]
-        enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
-                                                                        enc_padding_token_mask.size(
-                                                                            1) * enc_padding_token_mask.size(2))
-        enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
-                                                                              enc_batch_extend_vocab.size(
-                                                                                  1) * enc_batch_extend_vocab.size(2))
-        # else:
-        #     encoder_outputs = encoder_output["encoded_sents"]
-        #     enc_padding_mask = enc_padding_sent_mask
+    def get_loss(self, batch, args, mode='train'):
 
-        encoder_hidden = encoder_output["sent_hidden"]
-        max_encoder_output = encoder_output["document_rep"]
-        token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
-        sent_output = encoder_output['encoded_sents']
-        token_scores = encoder_output['token_score']
-        sent_scores = encoder_output['sent_score'].unsqueeze(2).repeat(1,1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
-        return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
+        dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
+            get_output_from_batch(batch, use_cuda)
 
-    def get_loss(self, batch, args):
+        enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
+        enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
+        enc_tags_batch, enc_sent_token_mat = get_input_from_batch(batch, use_cuda, args)
 
-        if args.multi_gpu:
-            # enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-            # enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch \
-            #     = get_input_from_batch(batch, use_cuda, args)
-            # #
-            # encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-            #
-            # encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
-            #     self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
-            #
-            # if(args.fixed_scorer):
-            #     scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-            #     token_scores = scorer_output['token_score']
-            #     sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
-            #
-            #
-            # s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
-            # if config.use_maxpool_init_ctx:
-            #     c_t_1 = max_encoder_output
+        final_dist_list, attn_dist_list, p_gen_list, coverage_list = self.model.forward(enc_batch,
+                                                                                        enc_padding_token_mask,
+                                                                                        enc_padding_sent_mask,
+                                                                                        enc_doc_lens,
+                                                                                        enc_sent_lens,
+                                                                                        enc_batch_extend_vocab,
+                                                                                        extra_zeros,
+                                                                                        c_t_1, coverage,
+                                                                                        word_batch,
+                                                                                        word_padding_mask,
+                                                                                        enc_word_lens,
+                                                                                        enc_tags_batch,
+                                                                                        enc_sent_token_mat,
+                                                                                        max_dec_len,
+                                                                                        dec_batch, args)
 
-            dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-                get_output_from_batch(batch, use_cuda)
+        step_losses = []
+        for di in range(min(max_dec_len, config.max_dec_steps)):
+            final_dist = final_dist_list[:, di, :]
+            attn_dist = attn_dist_list[:, di, :]
+            coverage = coverage_list[:, di, :]
 
-            enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
-            enc_tags_batch, enc_sent_token_mat = get_input_from_batch(batch, use_cuda, args)
-
-            final_dist_list, attn_dist_list, p_gen_list, coverage_list = self.model.forward(enc_batch,
-                                                                                            enc_padding_token_mask,
-                                                                                            enc_padding_sent_mask,
-                                                                                            enc_doc_lens,
-                                                                                            enc_sent_lens,
-                                                                                            enc_batch_extend_vocab,
-                                                                                            extra_zeros,
-                                                                                            c_t_1, coverage,
-                                                                                            word_batch,
-                                                                                            word_padding_mask,
-                                                                                            enc_word_lens,
-                                                                                            enc_tags_batch,
-                                                                                            enc_sent_token_mat,
-                                                                                            max_dec_len,
-                                                                                            dec_batch, args)
-
-            step_losses = []
-            for di in range(min(max_dec_len, config.max_dec_steps)):
-                final_dist = final_dist_list[:, di, :]
-                attn_dist = attn_dist_list[:, di, :]
-                coverage = coverage_list[:, di, :]
-
-                target = target_batch[:, di]
-                gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
-                step_loss = -torch.log(gold_probs + config.eps)
-                if args.is_coverage:
-                    step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
-                    step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
-                step_mask = dec_padding_mask[:, di]
-                step_loss = step_loss * step_mask
-                step_losses.append(step_loss)
-            sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-            batch_avg_loss = sum_losses / dec_lens_var
-            loss = torch.mean(batch_avg_loss)
-        else:
-            dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
-                get_output_from_batch(batch, use_cuda)
-
-            enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-                enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat \
-                = get_input_from_batch(batch, use_cuda, args)
-
-            encoder_output = self.model.module.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
-
-            encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores = \
-                self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab)
-
-            if(args.fixed_scorer):
-                scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-                token_scores = scorer_output['token_score']
-                sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
-
-
-            s_t_1 = self.model.module.reduce_state(encoder_last_hidden)
-            if config.use_maxpool_init_ctx:
-                c_t_1 = max_encoder_output
-
-            step_losses = []
-            for di in range(min(max_dec_len, config.max_dec_steps)):
-                y_t_1 = dec_batch[:, di]  # Teacher forcing
-                final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.model.module.decoder.forward(y_t_1, s_t_1,
-                                                                                          encoder_outputs,
-                                                                                          enc_padding_mask, c_t_1,
-                                                                                          extra_zeros,
-                                                                                          enc_batch_extend_vocab,
-                                                                                          coverage, token_scores, sent_scores, sent_outputs)
-                target = target_batch[:, di]
-                gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
-                step_loss = -torch.log(gold_probs + config.eps)
-                if args.is_coverage:
-                    step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
-                    step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
-                step_mask = dec_padding_mask[:, di]
-                step_loss = step_loss * step_mask
-                step_losses.append(step_loss)
-            sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-            batch_avg_loss = sum_losses / dec_lens_var
-            loss = torch.mean(batch_avg_loss)
+            target = target_batch[:, di]
+            gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
+            step_loss = -torch.log(gold_probs + config.eps)
+            if args.is_coverage:
+                step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
+                step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
+            step_mask = dec_padding_mask[:, di]
+            step_loss = step_loss * step_mask
+            step_losses.append(step_loss)
+        sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+        batch_avg_loss = sum_losses / dec_lens_var
+        loss = torch.mean(batch_avg_loss)
 
         # if args.tag_norm_loss:
         #     #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
@@ -311,8 +248,9 @@ class Train(object):
         #     l2_regularization = 0.001 * torch.norm(all_linear2_params, 2)
         #     loss += l1_regularization
 
-
-        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
+        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, \
+            enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, \
+            c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
         gc.collect()
         torch.cuda.empty_cache()
         return loss
@@ -324,7 +262,7 @@ class Train(object):
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
         while batch is not None:
-            loss = self.get_loss(batch, args).item()
+            loss = self.get_loss(batch, args, mode='eval').item()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 iter += 1
@@ -343,15 +281,12 @@ if __name__ == '__main__':
 
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
-    parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
-
 
     parser.add_argument('--L1_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
     parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
-    parser.add_argument('--multi_gpu', action='store_true', default=False, help='use multi-gpu for training')
     parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
 
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge

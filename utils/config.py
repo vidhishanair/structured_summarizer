@@ -50,6 +50,7 @@ eval_interval = 5000
 
 use_gpu=True
 
-lr_coverage=0.15
+#lr_coverage=0.15
+lr_coverage=0.35
 
 use_maxpool_init_ctx = True

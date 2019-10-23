@@ -7,8 +7,6 @@ from threading import Thread
 import itertools
 
 import numpy as np
-# import tensorflow as tf
-
 import utils.config as config
 import utils.data as data
 
@@ -26,53 +24,27 @@ class Example(object):
         self.pointer_gen = args.pointer_gen
 
         # Process the article
-        # article_words = article.split()
-        if args.autoencode == True:
-            article_sents = abstract_sentences
-            article_sents = article_sents[:10]
-            article_words = [sent.split()[:20] for sent in article_sents]
-            all_article_words = ' '.join(abstract_sentences).split()
-            article_word_tags = []
-        else:
-            article_sents_tmp = article.decode().split('<split1>')
-            sent_tags = tags.decode().split('<split1>')
-            size = 0
-            article_sents = []
-            article_sent_tags = []
+        article_sents_tmp = article.decode().split('<split1>')
+        sent_tags = tags.decode().split('<split1>')
 
-            # for sent, tags in zip(article_sents_tmp, sent_tags):
-            #     sent = sent.split()
-            #     tags = tags.split()
-            #     if len(sent) + size <= config.max_enc_steps:
-            #         article_sents.append(sent)
-            #         article_sent_tags.append([int(x) for x in tags])
-            #         size += len(sent)
-            #     elif size >= config.max_enc_steps:
-            #         break
-            #     else:
-            #         article_sents.append(sent[:config.max_enc_steps-size])
-            #         article_sent_tags.append([int(x) for x in tags[:config.max_enc_steps-size]])
+        article_sents = article_sents_tmp[:20]
+        article_sent_tags = sent_tags[:20]
+        article_words = [sent.split()[:140] for sent in article_sents]
+        article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
+        all_article_words = list(itertools.chain.from_iterable(article_words))
 
-            article_sents = article_sents_tmp[:20]
-            article_sent_tags = sent_tags[:20]
-            article_words = [sent.split()[:140] for sent in article_sents]
-            article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
-            all_article_words = list(itertools.chain.from_iterable(article_words))
-
-            #article_sents = article_sents
-            #article_words = [sent.split() for sent in article_sents]
-        # if len(article_words) > config.max_enc_steps:
-        #   article_words = article_words[:config.max_enc_steps]
         self.enc_tok_len = [len(sent) for sent in article_words]  # store the length after truncation but before padding
         self.enc_doc_len = len(article_words)
         self.enc_word_len = len(all_article_words)
-        # self.enc_input = [vocab.word2id(w) for sent in article_words for w in sent] # list of word ids; OOVs are represented by the id for UNK token
+
+        # list of word ids; OOVs are represented by the id for UNK token
         self.enc_input = []
         for sent in article_words:
             self.enc_input.append([vocab.word2id(w) for w in sent])
         self.word_input = []
         for w in all_article_words:
             self.word_input.append(vocab.word2id(w))
+
         # Process the abstract
         abstract = ' '.join(abstract_sentences)  # string
         abstract_words = abstract.split()  # list of strings
@@ -165,7 +137,6 @@ class Batch(object):
         max_enc_tok_len = max([max(ex.enc_tok_len) for ex in example_list])
         max_enc_doc_len = max([ex.enc_doc_len for ex in example_list])
         max_enc_word_len = max([ex.enc_word_len for ex in example_list])
-        #total_tok_len = sum([ex.enc_word_len for ex in example_list])
 
         # Pad the encoder input sequences up to the length of the longest sequence
         for ex in example_list:
@@ -177,14 +148,13 @@ class Batch(object):
 
         # Initialize the numpy arrays
         # Note: our enc_batch can have different length (second dimension) for each batch because we use dynamic_rnn for the encoder.
-        # self.enc_batch = np.zeros((self.batch_size, max_enc_seq_len), dtype=np.int32)
 
         self.enc_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
         self.enc_tags_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
 
         self.enc_word_batch = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
-        self.enc_word_lens = np.zeros((self.batch_size), dtype=np.int32)
-        self.enc_doc_lens = np.zeros((self.batch_size), dtype=np.int32)
+        self.enc_word_lens = np.zeros(self.batch_size, dtype=np.int32)
+        self.enc_doc_lens = np.zeros(self.batch_size, dtype=np.int32)
         self.enc_sent_lens = np.ones((self.batch_size, max_enc_doc_len), dtype=np.int32)
         self.enc_sent_token_marker = np.zeros((self.batch_size, max_enc_doc_len, max_enc_word_len), dtype=np.float32)
         self.enc_padding_mask = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.float32)
@@ -271,9 +241,9 @@ class Batcher(object):
             self._bucketing_cache_size = 1  # only load one batch's worth of examples before bucketing; this essentially means no bucketing
             self._finished_reading = False  # this will tell us when we're finished reading the dataset
         else:
-            self._num_example_q_threads = 1  # 16 # num threads to fill example queue
-            self._num_batch_q_threads = 1  # 4  # num threads to fill batch queue
-            self._bucketing_cache_size = 1  # 100 # how many batches-worth of examples to load into cache before bucketing
+            self._num_example_q_threads = 16  # 16 # num threads to fill example queue
+            self._num_batch_q_threads = 4  # 4  # num threads to fill batch queue
+            self._bucketing_cache_size = 100  # 100 # how many batches-worth of examples to load into cache before bucketing
 
         # Start the threads that load the queues
         self.setup_queues()
@@ -314,7 +284,7 @@ class Batcher(object):
         while True:
             try:
                 (article, abstract, tags) = next(input_gen)  # read the next example from file. article and abstract are both strings.
-            except StopIteration:  # if there are no more examples:
+            except:  # if there are no more examples: #In python 3.7 StopIteration is a RuntimeError
                 print("The example generator for this example queue filling thread has exhausted data.")
                 if self._single_pass:
                     print("single_pass mode is on, so we've finished reading dataset. This thread is stopping.")
@@ -385,7 +355,6 @@ class Batcher(object):
                 abstract_text = e.features.feature['abstract'].bytes_list.value[
                     0]  # the abstract text was saved under the key 'abstract' in the data files
             except:# ValueError:
-                # tf.logging.error('Failed to get article or abstract from example')
                 print(article_text)
                 print(e.features.feature['labels'].bytes_list.value)
                 exit()
@@ -395,9 +364,4 @@ class Batcher(object):
                 #print('Found an example with empty article text. Skipping it.')
                 continue
             else:
-                #print(article_text)
-                #print(e.features.feature['labels'].bytes_list.value)
-                #exit()
-                #tags = e.features.feature['labels'].bytes_list.value[
-                #    0]
                 yield (article_text, abstract_text, tags)
