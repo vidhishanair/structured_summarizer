@@ -10,8 +10,8 @@ root_dir = os.path.expanduser("/remote/bones/user/public/vbalacha/structured_sum
 # decode_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files/test.bin")
 # vocab_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files/vocab")
 
-#train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/chunked/train_*")
-train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/chunked/train_*")
+train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/chunked/train_*")
+#train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/chunked/train_*")
 eval_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/val.bin")
 decode_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/test.bin")
 vocab_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/vocab")
@@ -23,10 +23,10 @@ hidden_dim= 256
 sem_dim_size = 150
 
 emb_dim= 128
-batch_size=80
+batch_size=40
 max_enc_steps=400
 #max_dec_steps=100
-max_dec_steps=20
+max_dec_steps=50
 beam_size=4
 min_dec_steps=35
 vocab_size=50000
@@ -52,6 +52,6 @@ eval_interval = 5000
 use_gpu=True
 
 #lr_coverage=0.15
-lr_coverage=0.35
+lr_coverage=0.25
 
 use_maxpool_init_ctx = True

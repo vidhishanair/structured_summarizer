@@ -339,6 +339,7 @@ if __name__ == '__main__':
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
     parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
+    parser.add_argument('--heuristic_ner', action='store_true', default=False, help='heuristic ner for training')
 
     args = parser.parse_args()
     model_filename = args.reload_path

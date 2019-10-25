@@ -226,6 +226,7 @@ class Batcher(object):
     def __init__(self, data_path, vocab, mode, batch_size, single_pass, args):
         self._data_path = data_path
         self._vocab = vocab
+        self.heuristic_ner = args.heuristic_ner
         self._single_pass = single_pass
         self.mode = mode
         self.batch_size = batch_size
@@ -358,7 +359,11 @@ class Batcher(object):
                     links = e.features.feature['links'].bytes_list.value[
                         0]  #
                     import ast
-                    print(links, ast.literal_eval(links))
+                    print(links)
+                    #print(links.decode('utf-8'))
+                    links = ast.literal_eval(links.decode('utf-8'))
+                    print(links[0])
+                    print(links[1])
             except:# ValueError:
                 print(article_text)
                 print(e.features.feature['labels'].bytes_list.value)

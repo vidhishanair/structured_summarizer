@@ -119,7 +119,7 @@ class Train(object):
         return loss.item()
 
     def train_iters(self, n_iters, args):
-        iter, running_avg_loss = self.setup_train(args)
+        start_iter, running_avg_loss = self.setup_train(args)
         logger = self.setup_logging()
         logger.debug(str(args))
         logger.debug(str(config))
@@ -127,7 +127,8 @@ class Train(object):
         start = time.time()
         best_val_loss = None
 
-        for iter in tqdm(range(n_iters)):
+        for it in tqdm(range(n_iters)):
+            iter = start_iter + it
             self.model.module.train()
             batch = self.train_batcher.next_batch()
             loss = self.train_one_batch(batch, args)
