@@ -10,6 +10,8 @@ import numpy as np
 import utils.config as config
 import utils.data as data
 
+import ast
+
 import random
 
 random.seed(1234)
@@ -17,7 +19,8 @@ random.seed(1234)
 
 class Example(object):
 
-    def __init__(self, article, abstract_sentences, tags, vocab, args):
+    def __init__(self, article, abstract_sentences, tags, links, vocab, args):
+        self.args = args
         # Get ids of special tokens
         start_decoding = vocab.word2id(data.START_DECODING)
         stop_decoding = vocab.word2id(data.STOP_DECODING)
@@ -53,7 +56,7 @@ class Example(object):
 
 
         # Get the decoder input sequence and target sequence
-        self.dec_input, self.target = self.get_dec_inp_targ_seqs(abs_ids, config.max_dec_steps, start_decoding,
+        self.dec_input, self.target = self.get_dec_inp_targ_seqs(abs_ids, self.args.max_dec_steps, start_decoding,
                                                                  stop_decoding)
         self.dec_len = len(self.dec_input)
 
@@ -69,8 +72,12 @@ class Example(object):
             abs_ids_extend_vocab = data.abstract2ids(abstract_words, vocab, self.article_oovs)
 
             # Overwrite decoder target sequence so it uses the temp article OOV ids
-            _, self.target = self.get_dec_inp_targ_seqs(abs_ids_extend_vocab, config.max_dec_steps, start_decoding,
+            _, self.target = self.get_dec_inp_targ_seqs(abs_ids_extend_vocab, self.args.max_dec_steps, start_decoding,
                                                         stop_decoding)
+
+        # Create adj_mat for supervision
+        if self.args.heuristic_chains:
+            self.sup_adj_mat = self.generate_adj_mat_sup(len(article_words), links)
 
         # Store the original strings
         self.enc_tags = article_word_tags
@@ -78,6 +85,27 @@ class Example(object):
         self.article_words = article_words
         self.original_abstract = abstract
         self.original_abstract_sents = abstract_sentences
+
+
+    def generate_adj_mat_sup(self, no_sents, links):
+        adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
+        for link in links:
+            if self.args.link_id_typed:
+                type = link[3]
+                if type == 'ner':
+                    weight = 1
+                else:
+                    weight = 0.5
+            else:
+                weight = 1
+            parent = link[1]
+            child = link[0]
+            adj_mat[parent][child] += weight
+
+        adj_mat = adj_mat + 1e-5
+        row_sums = adj_mat.sum(axis=1)
+        adj_mat = adj_mat / row_sums[:, np.newaxis]
+        return adj_mat
 
     def get_dec_inp_targ_seqs(self, sequence, max_len, start_id, stop_id):
         inp = [start_id] + sequence[:]
@@ -110,6 +138,9 @@ class Example(object):
         while len(self.enc_input) < max_len:
             self.enc_input.append([pad_id] * max_tok_len)
             self.enc_tags.append([-1] * max_tok_len)
+        # if self.args.heuristic_chains:
+        #     self.sup_adj_mat.append([0]*)
+
         # if self.pointer_gen:
         #     while len(self.enc_input_extend_vocab) < max_len:
         #         self.enc_input_extend_vocab.append([pad_id] * max_tok_len)
@@ -124,9 +155,11 @@ class Example(object):
 
 class Batch(object):
     def __init__(self, example_list, vocab, batch_size, args):
+        self.args = args
         self.batch_size = batch_size
         self.pointer_gen = args.pointer_gen
         self.test_sent_matrix = args.test_sent_matrix
+        self.heuristic_chains = args.heuristic_chains
         self.pad_id = vocab.word2id(data.PAD_TOKEN)  # id of the PAD token used to pad sequences
         self.init_encoder_seq(example_list)  # initialize the input to the encoder
         self.init_decoder_seq(example_list)  # initialize the input and targets for the decoder
@@ -162,6 +195,9 @@ class Batch(object):
         self.enc_padding_sent_mask = np.zeros((self.batch_size, max_enc_doc_len), dtype=np.float32)
         self.enc_padding_word_mask = np.zeros((self.batch_size, max_enc_word_len), dtype=np.float32)
 
+        if self.heuristic_chains:
+            self.sup_adj_map = np.zeros((self.batch_size, max_enc_doc_len, max_enc_doc_len), dtype=np.float32)
+
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
             self.enc_batch[i, :] = np.array(ex.enc_input)
@@ -170,8 +206,9 @@ class Batch(object):
             self.enc_doc_lens[i] = ex.enc_doc_len
             self.enc_word_lens[i] = ex.enc_word_len
             word_counter = 0
+
             for j in range(len(ex.enc_tok_len)):
-                self.enc_sent_lens[i][j] = ex.enc_tok_len[j]
+                # self.enc_sent_lens[i][j] = ex.enc_tok_len[j]
                 for k in range(ex.enc_tok_len[j]):
                     self.enc_padding_mask[i][j][k] = 1
                     self.enc_padding_token_mask[i][j][k] = 1
@@ -180,6 +217,9 @@ class Batch(object):
                 self.enc_padding_sent_mask[i][j] = 1
             for j in range(ex.enc_word_len):
                 self.enc_padding_word_mask[i][j] = 1
+
+            if self.heuristic_chains:
+                self.sup_adj_map[i, :ex.sup_adj_mat.shape[0], :ex.sup_adj_mat.shape[1]] = ex.sup_adj_mat
 
         # For pointer-generator mode, need to store some extra info
         if self.pointer_gen:
@@ -198,12 +238,12 @@ class Batch(object):
     def init_decoder_seq(self, example_list):
         # Pad the inputs and targets
         for ex in example_list:
-            ex.pad_decoder_inp_targ(config.max_dec_steps, self.pad_id)
+            ex.pad_decoder_inp_targ(self.args.max_dec_steps, self.pad_id)
 
         # Initialize the numpy arrays.
-        self.dec_batch = np.zeros((self.batch_size, config.max_dec_steps), dtype=np.int32)
-        self.target_batch = np.zeros((self.batch_size, config.max_dec_steps), dtype=np.int32)
-        self.dec_padding_mask = np.zeros((self.batch_size, config.max_dec_steps), dtype=np.float32)
+        self.dec_batch = np.zeros((self.batch_size, self.args.max_dec_steps), dtype=np.int32)
+        self.target_batch = np.zeros((self.batch_size, self.args.max_dec_steps), dtype=np.int32)
+        self.dec_padding_mask = np.zeros((self.batch_size, self.args.max_dec_steps), dtype=np.float32)
         self.dec_lens = np.zeros((self.batch_size), dtype=np.int32)
 
         # Fill in the numpy arrays
@@ -226,7 +266,7 @@ class Batcher(object):
     def __init__(self, data_path, vocab, mode, batch_size, single_pass, args):
         self._data_path = data_path
         self._vocab = vocab
-        self.heuristic_ner = args.heuristic_ner
+        self.heuristic_chains = args.heuristic_chains
         self._single_pass = single_pass
         self.mode = mode
         self.batch_size = batch_size
@@ -284,7 +324,7 @@ class Batcher(object):
 
         while True:
             try:
-                (article, abstract, tags) = next(input_gen)  # read the next example from file. article and abstract are both strings.
+                (article, abstract, tags, links) = next(input_gen)  # read the next example from file. article and abstract are both strings.
             except:  # if there are no more examples: #In python 3.7 StopIteration is a RuntimeError
                 print("The example generator for this example queue filling thread has exhausted data.")
                 if self._single_pass:
@@ -296,7 +336,7 @@ class Batcher(object):
 
             abstract_sentences = [sent.strip() for sent in data.abstract2sents(
                 abstract)]  # Use the <s> and </s> tags in abstract to get a list of sentences.
-            example = Example(article, abstract_sentences, tags, self._vocab, self.args)  # Process into an Example.
+            example = Example(article, abstract_sentences, tags, links, self._vocab, self.args)  # Process into an Example.
             self._example_queue.put(example)  # place the Example in the example queue.
 
     def fill_batch_queue(self):
@@ -355,15 +395,11 @@ class Batcher(object):
                     0]  # the article text was saved under the key 'article' in the data files
                 abstract_text = e.features.feature['abstract'].bytes_list.value[
                     0]  # the abstract text was saved under the key 'abstract' in the data files
-                if self.heuristic_ner:
+                links = []
+                if self.heuristic_chains:
                     links = e.features.feature['links'].bytes_list.value[
                         0]  #
-                    import ast
-                    print(links)
-                    #print(links.decode('utf-8'))
                     links = ast.literal_eval(links.decode('utf-8'))
-                    print(links[0])
-                    print(links[1])
             except:# ValueError:
                 print(article_text)
                 print(e.features.feature['labels'].bytes_list.value)
@@ -374,4 +410,4 @@ class Batcher(object):
                 #print('Found an example with empty article text. Skipping it.')
                 continue
             else:
-                yield (article_text, abstract_text, tags)
+                yield (article_text, abstract_text, tags, links)

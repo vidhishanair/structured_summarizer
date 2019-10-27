@@ -32,10 +32,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Train(object):
     def __init__(self, args, model_name=None):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
-        self.train_batcher = Batcher(config.train_data_path, self.vocab, mode='train',
-                                     batch_size=config.batch_size, single_pass=False, args=args)
-        self.eval_batcher = Batcher(config.eval_data_path, self.vocab, mode='eval',
-                                    batch_size=config.batch_size, single_pass=True, args = args)
+        self.train_batcher = Batcher(args.train_data_path, self.vocab, mode='train',
+                                     batch_size=args.batch_size, single_pass=False, args=args)
+        self.eval_batcher = Batcher(args.eval_data_path, self.vocab, mode='eval',
+                                    batch_size=args.batch_size, single_pass=True, args = args)
         time.sleep(15)
 
         if model_name is None:
@@ -69,7 +69,7 @@ class Train(object):
         params = list(self.model.module.encoder.parameters()) + list(self.model.module.decoder.parameters()) + \
                  list(self.model.module.reduce_state.parameters())
 
-        initial_lr = config.lr_coverage if args.is_coverage else config.lr
+        initial_lr = args.lr_coverage if args.is_coverage else args.lr
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
         self.sent_crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
         self.attn_mse_loss = nn.MSELoss()
@@ -190,9 +190,10 @@ class Train(object):
 
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
         enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
-        enc_tags_batch, enc_sent_token_mat = get_input_from_batch(batch, use_cuda, args)
+        enc_tags_batch, enc_sent_token_mat, sup_adj_mat = get_input_from_batch(batch, use_cuda, args)
 
-        final_dist_list, attn_dist_list, p_gen_list, coverage_list = self.model.forward(enc_batch,
+        final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix\
+                                                                                        = self.model.forward(enc_batch,
                                                                                         enc_padding_token_mask,
                                                                                         enc_padding_sent_mask,
                                                                                         enc_doc_lens,
@@ -209,7 +210,7 @@ class Train(object):
                                                                                         dec_batch, args)
 
         step_losses = []
-        for di in range(min(max_dec_len, config.max_dec_steps)):
+        for di in range(min(max_dec_len, args.max_dec_steps)):
             final_dist = final_dist_list[:, di, :]
             attn_dist = attn_dist_list[:, di, :]
             coverage = coverage_list[:, di, :]
@@ -226,6 +227,20 @@ class Train(object):
         sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
         batch_avg_loss = sum_losses / dec_lens_var
         loss = torch.mean(batch_avg_loss)
+
+        if args.heuristic_chains:
+            #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
+            #sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
+            pred = sent_attention_matrix.view(-1)
+            gold = sup_adj_mat.view(-1)
+            # enc_tags_batch[enc_tags_batch == -1] = 0
+            # gold = enc_tags_batch.sum(dim=-1)
+            # gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
+            # gold = gold.view(-1)
+            loss_aux = self.attn_mse_loss(pred, gold)
+            print(loss_aux)
+            #print('Aux loss ', (10*loss_aux).item())
+            loss += loss_aux
 
         # if args.tag_norm_loss:
         #     #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
@@ -279,6 +294,10 @@ if __name__ == '__main__':
     parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
     parser.add_argument('--reload_path', type=str, default=None, help='location of the older saved path')
     parser.add_argument('--reload_pretrained_clf_path', type=str, default=None, help='location of the older saved path')
+    parser.add_argument('--train_data_path', type=str, default='/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/chunked/train_*', help='location of the train data path')
+    parser.add_argument('--eval_data_path', type=str, default='/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/val.bin', help='location of the eval data path')
+    # parser.add_argument('--train_data_path', type=str, default=None, help='location of the train data path')
+
 
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
@@ -289,7 +308,14 @@ if __name__ == '__main__':
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
     parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
-    parser.add_argument('--heuristic_ner', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
+
+    parser.add_argument('--lr', type=int, default=0.15, help='Learning Rate')
+    parser.add_argument('--lr_coverage', type=int, default=0.15, help='Learning Rate for Coverage')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch Size')
+    parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
+
 
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 

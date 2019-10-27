@@ -21,6 +21,10 @@ def get_input_from_batch(batch, use_cuda, args):
     enc_sent_lens = Variable(torch.from_numpy(batch.enc_sent_lens).int())
     enc_word_lens = Variable(torch.from_numpy(batch.enc_word_lens).int())
 
+    sup_adj_map = None
+    if args.heuristic_chains:
+        sup_adj_map = Variable(torch.from_numpy(batch.sup_adj_map).float())
+
     extra_zeros = None
     enc_batch_extend_vocab = None
 
@@ -51,6 +55,8 @@ def get_input_from_batch(batch, use_cuda, args):
         enc_sent_lens = enc_sent_lens.to(device)
         enc_word_lens = enc_word_lens.to(device)
         enc_sent_token_mat = enc_sent_token_mat.to(device)
+        if sup_adj_map is not None:
+            sup_adj_map = sup_adj_map.to(device)
 
         if enc_batch_extend_vocab is not None:
             enc_batch_extend_vocab = enc_batch_extend_vocab.to(device)
@@ -61,7 +67,7 @@ def get_input_from_batch(batch, use_cuda, args):
         if coverage is not None:
             coverage = coverage.to(device)
 
-    return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat
+    return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat, sup_adj_map
 
 
 def get_output_from_batch(batch, use_cuda):
