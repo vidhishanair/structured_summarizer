@@ -311,8 +311,8 @@ if __name__ == '__main__':
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
 
-    parser.add_argument('--lr', type=int, default=0.15, help='Learning Rate')
-    parser.add_argument('--lr_coverage', type=int, default=0.15, help='Learning Rate for Coverage')
+    parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')
+    parser.add_argument('--lr_coverage', type=float, default=0.15, help='Learning Rate for Coverage')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch Size')
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
 

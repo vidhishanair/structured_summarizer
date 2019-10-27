@@ -23,7 +23,7 @@ hidden_dim= 256
 sem_dim_size = 150
 
 emb_dim= 128
-batch_size=40
+batch_size=60
 max_enc_steps=400
 #max_dec_steps=100
 max_dec_steps=50
@@ -52,6 +52,6 @@ eval_interval = 5000
 use_gpu=True
 
 #lr_coverage=0.15
-lr_coverage=0.25
+lr_coverage=0.75
 
 use_maxpool_init_ctx = True
