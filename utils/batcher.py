@@ -100,6 +100,8 @@ class Example(object):
                 weight = 1
             parent = link[1]
             child = link[0]
+            if parent >= no_sents or child >= no_sents:
+                continue
             adj_mat[parent][child] += weight
 
         adj_mat = adj_mat + 1e-5
