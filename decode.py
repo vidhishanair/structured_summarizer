@@ -341,6 +341,7 @@ if __name__ == '__main__':
     parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
 
 
     args = parser.parse_args()
