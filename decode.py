@@ -211,7 +211,7 @@ class BeamSearch(object):
     def beam_search(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, \
-        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat = \
+        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat, sup_adj_mat = \
             get_input_from_batch(batch, use_cuda, self.args)
 
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
