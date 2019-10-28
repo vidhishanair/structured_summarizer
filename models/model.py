@@ -123,22 +123,26 @@ class Model(nn.Module):
         p_gen_list = []
         coverage_list = []
         start = time.process_time()
-        for di in range(min(max_dec_len, self.args.max_dec_steps)):
-            y_t_1 = dec_batch[:, di]  # Teacher forcing
-            final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.decoder.forward(y_t_1, s_t_1,
-                                                                                        encoder_outputs,
-                                                                                        word_padding_mask, c_t_1,
-                                                                                        extra_zeros,
-                                                                                        enc_batch_extend_vocab,
-                                                                                        coverage, token_scores,
-                                                                                        sent_scores, sent_outputs)
-            final_dist_list.append(final_dist)
-            attn_dist_list.append(attn_dist)
-            p_gen_list.append(p_gen)
-            coverage_list.append(coverage)
+        if args.use_summ_loss:
+            for di in range(min(max_dec_len, self.args.max_dec_steps)):
+                y_t_1 = dec_batch[:, di]  # Teacher forcing
+                final_dist, s_t_1, c_t_1, attn_dist, p_gen, coverage = self.decoder.forward(y_t_1, s_t_1,
+                                                                                            encoder_outputs,
+                                                                                            word_padding_mask, c_t_1,
+                                                                                            extra_zeros,
+                                                                                            enc_batch_extend_vocab,
+                                                                                            coverage, token_scores,
+                                                                                            sent_scores, sent_outputs)
+                final_dist_list.append(final_dist)
+                attn_dist_list.append(attn_dist)
+                p_gen_list.append(p_gen)
+                coverage_list.append(coverage)
+            final_dist_list = torch.stack(final_dist_list, dim=1)
+            attn_dist_list = torch.stack(attn_dist_list, dim=1)
+            p_gen_list = torch.stack(p_gen_list, dim=1)
+            coverage_list = torch.stack(coverage_list, dim=1),
         #print('Time taken for decoder: ', time.process_time() - start)
-        return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), \
-               torch.stack(p_gen_list, dim=1), torch.stack(coverage_list, dim=1), sent_attention_matrix
+        return  final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix
 
 
 

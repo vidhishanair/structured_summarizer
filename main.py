@@ -210,23 +210,25 @@ class Train(object):
                                                                                         dec_batch, args)
 
         step_losses = []
-        for di in range(min(max_dec_len, args.max_dec_steps)):
-            final_dist = final_dist_list[:, di, :]
-            attn_dist = attn_dist_list[:, di, :]
-            coverage = coverage_list[:, di, :]
+        loss = 0
+        if args.use_summ_loss:
+            for di in range(min(max_dec_len, args.max_dec_steps)):
+                final_dist = final_dist_list[:, di, :]
+                attn_dist = attn_dist_list[:, di, :]
+                coverage = coverage_list[:, di, :]
 
-            target = target_batch[:, di]
-            gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
-            step_loss = -torch.log(gold_probs + config.eps)
-            if args.is_coverage:
-                step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
-                step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
-            step_mask = dec_padding_mask[:, di]
-            step_loss = step_loss * step_mask
-            step_losses.append(step_loss)
-        sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
-        batch_avg_loss = sum_losses / dec_lens_var
-        loss = torch.mean(batch_avg_loss)
+                target = target_batch[:, di]
+                gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()
+                step_loss = -torch.log(gold_probs + config.eps)
+                if args.is_coverage:
+                    step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
+                    step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
+                step_mask = dec_padding_mask[:, di]
+                step_loss = step_loss * step_mask
+                step_losses.append(step_loss)
+            sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
+            batch_avg_loss = sum_losses / dec_lens_var
+            loss += torch.mean(batch_avg_loss)
 
         if args.heuristic_chains:
             #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
@@ -309,6 +311,7 @@ if __name__ == '__main__':
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
     parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
+    parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
 
