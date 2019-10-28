@@ -401,7 +401,8 @@ class Batcher(object):
                 if self.heuristic_chains:
                     links = e.features.feature['links'].bytes_list.value[
                         0]  #
-                    links = ast.literal_eval(links.decode('utf-8'))
+                    if links != b"":
+                        links = ast.literal_eval(links.decode('utf-8'))
             except:# ValueError:
                 print(article_text)
                 print(e.features.feature['labels'].bytes_list.value)

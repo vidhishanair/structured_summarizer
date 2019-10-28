@@ -231,16 +231,17 @@ class Train(object):
         if args.heuristic_chains:
             #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
             #sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
-            pred = sent_attention_matrix.view(-1)
+            #print(sent_attention_matrix[:,:,1:].size(), sup_adj_mat.size())
+            pred = sent_attention_matrix[:,:,1:].contiguous().view(-1)
             gold = sup_adj_mat.view(-1)
             # enc_tags_batch[enc_tags_batch == -1] = 0
             # gold = enc_tags_batch.sum(dim=-1)
             # gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             # gold = gold.view(-1)
             loss_aux = self.attn_mse_loss(pred, gold)
-            print(loss_aux)
+            print(100*loss_aux)
             #print('Aux loss ', (10*loss_aux).item())
-            loss += loss_aux
+            loss += 100*loss_aux
 
         # if args.tag_norm_loss:
         #     #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
