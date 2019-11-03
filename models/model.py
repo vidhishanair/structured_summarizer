@@ -140,8 +140,10 @@ class Model(nn.Module):
             final_dist_list = torch.stack(final_dist_list, dim=1)
             attn_dist_list = torch.stack(attn_dist_list, dim=1)
             p_gen_list = torch.stack(p_gen_list, dim=1)
-            coverage_list = torch.stack(coverage_list, dim=1),
+            coverage_list = torch.stack(coverage_list, dim=1)
         #print('Time taken for decoder: ', time.process_time() - start)
+        #print(coverage_list)
+        #return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), torch.stack(p_gen_list, dim=1), 
         return  final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix
 
 

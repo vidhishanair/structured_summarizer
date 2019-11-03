@@ -77,6 +77,7 @@ class Train(object):
         start_iter, start_loss = 0, 0
 
         if args.reload_path is not None:
+            print('Loading from checkpoint: '+str(args.reload_path))
             state = torch.load(args.reload_path, map_location=lambda storage, location: storage)
             start_iter = state['iter']
             start_loss = state['current_loss']
@@ -191,7 +192,6 @@ class Train(object):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
         enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
         enc_tags_batch, enc_sent_token_mat, sup_adj_mat = get_input_from_batch(batch, use_cuda, args)
-
         final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix\
                                                                                         = self.model.forward(enc_batch,
                                                                                         enc_padding_token_mask,
@@ -241,7 +241,7 @@ class Train(object):
             # gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             # gold = gold.view(-1)
             loss_aux = self.attn_mse_loss(pred, gold)
-            print(100*loss_aux)
+            #print(100*loss_aux)
             #print('Aux loss ', (10*loss_aux).item())
             loss += 100*loss_aux
 
@@ -267,11 +267,12 @@ class Train(object):
         #     l2_regularization = 0.001 * torch.norm(all_linear2_params, 2)
         #     loss += l1_regularization
 
-        del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, \
-            enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, \
-            c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
-        gc.collect()
-        torch.cuda.empty_cache()
+        #del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, \
+        #    enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, \
+        #    c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
+        #gc.collect()
+        #torch.cuda.empty_cache()
+        
         return loss
 
     def run_eval(self, logger, args):
