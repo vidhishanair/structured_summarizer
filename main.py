@@ -31,7 +31,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Train(object):
     def __init__(self, args, model_name=None):
-        self.vocab = Vocab(config.vocab_path, config.vocab_size)
+        self.vocab = Vocab(config.vocab_path, config.vocab_size, config.embeddings_file, args)
         self.train_batcher = Batcher(args.train_data_path, self.vocab, mode='train',
                                      batch_size=args.batch_size, single_pass=False, args=args)
         self.eval_batcher = Batcher(args.eval_data_path, self.vocab, mode='eval',
@@ -64,7 +64,7 @@ class Train(object):
         torch.save(state, model_save_path)
 
     def setup_train(self, args):
-        self.model = nn.DataParallel(Model(args)).to(device)
+        self.model = nn.DataParallel(Model(args, self.vocab)).to(device)
 
         params = list(self.model.module.encoder.parameters()) + list(self.model.module.decoder.parameters()) + \
                  list(self.model.module.reduce_state.parameters())
@@ -302,10 +302,11 @@ if __name__ == '__main__':
     parser.add_argument('--eval_data_path', type=str, default='/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/val.bin', help='location of the eval data path')
     # parser.add_argument('--train_data_path', type=str, default=None, help='location of the train data path')
 
-
+    #Summ Decoding args
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
 
+    #SA encoder args
     parser.add_argument('--L1_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
     parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
@@ -316,6 +317,8 @@ if __name__ == '__main__':
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--test_len', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
+
 
     parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')
     parser.add_argument('--lr_coverage', type=float, default=0.15, help='Learning Rate for Coverage')

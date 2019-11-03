@@ -22,10 +22,19 @@ if torch.cuda.is_available():
 
 
 class StructuredEncoder(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, vocab):
         super(StructuredEncoder, self).__init__()
         print("Using Structured Encoder")
-        self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+        # self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+
+        if args.use_glove:
+            print("Using Random normal initialization for embeddings")
+            self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+            init_wt_normal(self.embedding.weight)
+        else:
+            print("Using Pre-trained embeddings")
+            self.embedding = nn.Embedding.from_pretrained(vocab.embedding_matrix)
+
         self.drop = nn.Dropout(0.3)
         init_wt_normal(self.embedding.weight)
         bidirectional = True

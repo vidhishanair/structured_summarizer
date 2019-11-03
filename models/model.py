@@ -29,12 +29,12 @@ if torch.cuda.is_available():
 
 
 class Model(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, vocab):
         super(Model, self).__init__()
         self.args = args
         if(args.fixed_scorer):
             pretrained_scorer = StructuredEncoder(args)
-        encoder = StructuredEncoder(args)
+        encoder = StructuredEncoder(args, vocab)
         decoder = Decoder(args)
         reduce_state = ReduceState()
 

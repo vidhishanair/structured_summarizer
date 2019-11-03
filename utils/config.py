@@ -16,6 +16,8 @@ eval_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/data
 decode_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/test.bin")
 vocab_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/vocab")
 
+embeddings_file = os.path.join(root_dir, 'glove/glove.6B.300d.txt')
+
 log_root = os.path.join(root_dir, "log")
 
 # Hyperparameters
