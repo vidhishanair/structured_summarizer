@@ -315,6 +315,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--test_len', action='store_true', default=False, help='heuristic ner for training')
 
     parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')
     parser.add_argument('--lr_coverage', type=float, default=0.15, help='Learning Rate for Coverage')

@@ -27,14 +27,30 @@ class Example(object):
         self.pointer_gen = args.pointer_gen
 
         # Process the article
-        article_sents_tmp = article.decode().split('<split1>')
-        sent_tags = tags.decode().split('<split1>')
+        if args.test_len:
+            words = article.decode().split(" ")[:1000]
+            tags = tags.decode().split(" ")[:1000]
+            sent = [[]]
+            sent_tags = [[]]
+            for word, tag in list(zip(words, tags)):
+                if word == "<split1>":
+                    sent.append([])
+                    sent_tags.append([])
+                else:
+                    sent[-1].append(word)
+                    sent_tags[-1].append(tag)
+            article_words = sent[:20]
+            article_word_tags = sent_tags[:20]
+            all_article_words = list(itertools.chain.from_iterable(article_words))
+        else:
+            article_sents_tmp = article.decode().split('<split1>')
+            sent_tags = tags.decode().split('<split1>')
 
-        article_sents = article_sents_tmp[:20]
-        article_sent_tags = sent_tags[:20]
-        article_words = [sent.split()[:140] for sent in article_sents]
-        article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
-        all_article_words = list(itertools.chain.from_iterable(article_words))
+            article_sents = article_sents_tmp[:20]
+            article_sent_tags = sent_tags[:20]
+            article_words = [sent.split()[:140] for sent in article_sents]
+            article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
+            all_article_words = list(itertools.chain.from_iterable(article_words))
 
         self.enc_tok_len = [len(sent) for sent in article_words]  # store the length after truncation but before padding
         self.enc_doc_len = len(article_words)
