@@ -71,6 +71,7 @@ class Train(object):
 
         initial_lr = args.lr_coverage if args.is_coverage else args.lr
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
+
         self.sent_crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
         self.attn_mse_loss = nn.MSELoss()
 
@@ -192,7 +193,8 @@ class Train(object):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
         enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
         enc_tags_batch, enc_sent_token_mat, sup_adj_mat = get_input_from_batch(batch, use_cuda, args)
-        final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix\
+
+        final_dist_list, attn_dist_list, p_gen_list, coverage_list, encoder_output\
                                                                                         = self.model.forward(enc_batch,
                                                                                         enc_padding_token_mask,
                                                                                         enc_padding_sent_mask,
@@ -234,7 +236,7 @@ class Train(object):
             #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
             #sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
             #print(sent_attention_matrix[:,:,1:].size(), sup_adj_mat.size())
-            pred = sent_attention_matrix[:,:,1:].contiguous().view(-1)
+            pred = encoder_output['sent_attention_matrix'][:,:,1:].contiguous().view(-1)
             gold = sup_adj_mat.view(-1)
             # enc_tags_batch[enc_tags_batch == -1] = 0
             # gold = enc_tags_batch.sum(dim=-1)
@@ -244,6 +246,37 @@ class Train(object):
             #print(100*loss_aux)
             #print('Aux loss ', (10*loss_aux).item())
             loss += 100*loss_aux
+
+        if args.token_level_tags:
+            pred = encoder_output['token_score'].view(-1, 2)
+            #enc_tags_batch[enc_tags_batch == -1] = 0
+            gold = enc_tags_batch.view(-1)
+            loss1 = self.sent_crossentropy(pred, gold.long())
+            #print('token loss ', loss1.item())
+            loss += loss1
+        if args.sent_level_tags:
+            pred = encoder_output['sent_score'].view(-1)
+            enc_tags_batch[enc_tags_batch == -1] = 0
+            gold = enc_tags_batch.sum(dim=-1)
+            gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
+            gold = gold.view(-1)
+            loss2 = self.attn_mse_loss(pred, gold)
+            #print('sent loss ', loss2.item())
+            loss += loss2
+        if args.doc_level_tags:
+            pred = encoder_output['doc_score'].view(-1)
+            count_tags = enc_tags_batch.clone().detach()
+            count_tags[count_tags == 0] = 1
+            count_tags[count_tags == -1] = 0
+            token_count = count_tags.sum(dim=-1).sum(dim=-1)
+            enc_tags_batch[enc_tags_batch == -1] = 0
+            gold = enc_tags_batch.sum(dim=-1)
+            gold = gold.sum(dim=-1)
+            gold = gold / token_count
+            # gold = gold.view(-1)
+            loss3 = self.attn_mse_loss(pred, gold)
+            #print('doc loss ', loss3.item())
+            loss += loss3
 
         # if args.tag_norm_loss:
         #     #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
@@ -272,7 +305,7 @@ class Train(object):
         #    c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
         #gc.collect()
         #torch.cuda.empty_cache()
-        
+
         return loss
 
     def run_eval(self, logger, args):
@@ -318,6 +351,11 @@ if __name__ == '__main__':
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--test_len', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
+
+    #Pretraining args
+    parser.add_argument('--token_level_tags', action='store_true', default=False, help='use token_level content selection for pre-training')
+    parser.add_argument('--sent_level_tags', action='store_true', default=False, help='use sent_level content selection for pre-training')
+    parser.add_argument('--doc_level_tags', action='store_true', default=False, help='use doc_level content selection for pre-training')
 
 
     parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')

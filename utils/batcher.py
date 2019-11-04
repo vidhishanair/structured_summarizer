@@ -28,8 +28,8 @@ class Example(object):
 
         # Process the article
         if args.test_len:
-            words = article.decode().split(" ")[:1000]
-            tags = tags.decode().split(" ")[:1000]
+            words = article.decode().split(" ")[:700]
+            tags = tags.decode().split(" ")[:700]
             sent = [[]]
             sent_tags = [[]]
             for word, tag in list(zip(words, tags)):

@@ -144,7 +144,7 @@ class Model(nn.Module):
         #print('Time taken for decoder: ', time.process_time() - start)
         #print(coverage_list)
         #return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), torch.stack(p_gen_list, dim=1), 
-        return  final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix
+        return  final_dist_list, attn_dist_list, p_gen_list, coverage_list, encoder_output
 
 
 
