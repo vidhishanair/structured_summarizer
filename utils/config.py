@@ -3,7 +3,8 @@
 import os
 
 #root_dir = os.path.expanduser("~")
-root_dir = os.path.expanduser("/remote/bones/user/public/vbalacha/structured_summarizer")
+# root_dir = os.path.expanduser("/remote/bones/user/public/vbalacha/structured_summarizer")
+root_dir = os.getcwd()
 #train_data_path = os.path.join(root_dir, "ptr_nw/cnn-dailymail-master/finished_files/train.bin")
 # train_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files/chunked/train_*")
 # eval_data_path = os.path.join(root_dir, "/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files/val.bin")

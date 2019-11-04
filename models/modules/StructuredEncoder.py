@@ -5,8 +5,10 @@ import time
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
+from models.modules.BilinearMatrixAttention import BilinearMatrixAttention
 from models.modules.StructuredAttention import StructuredAttention
 from models.model_utils import init_wt_normal
 from utils import config
@@ -63,7 +65,13 @@ class StructuredEncoder(nn.Module):
         self.token_pred_linear = nn.Linear(self.sent_hidden_size, 2)
         self.doc_pred_linear = nn.Linear(self.sent_hidden_size+self.sem_dim_size, 1)
         self.sm = nn.Softmax(dim=1)
-        #self.sm2 = nn.Softmax(dim=2)
+
+        if args.heuristic_chains:
+            self.bilinear = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, False, 1)
+            self.sent_p_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
+            self.sent_c_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
+            self.sm2 = nn.Softmax(dim=2)
+
         #init_lstm_wt(self.sentence_encoder)
         #init_lstm_wt()
 
@@ -82,21 +90,6 @@ class StructuredEncoder(nn.Module):
         bilstm_encoded_word_tokens, word_token_hidden = self.sentence_encoder.forward_packed(word_input, enc_word_lens)
         mask = word_padding_mask.unsqueeze(2).repeat(1, 1, self.sent_hidden_size)
         bilstm_encoded_word_tokens = bilstm_encoded_word_tokens * mask
-
-        # tk1 = mask.new_zeros((batch_size, sent_size*token_size, bilstm_encoded_word_tokens.size(2))) #.to(self.device)
-        # tk = tk1.clone()
-        #
-        # for i in range(len(sent_l)):
-        #     start_count = 0
-        #     start_count2 = 0
-        #     max_l = max(list(itertools.chain.from_iterable(sent_l)))
-        #     size2 = bilstm_encoded_word_tokens.size(1)
-        #     for l in sent_l[i]:
-        #         if l > 0 and start_count2 < size2:
-        #             tk[i, start_count:start_count+l,:] = bilstm_encoded_word_tokens[i,start_count2:start_count2+l,:]
-        #         start_count = start_count+max_l
-        #         start_count2 = start_count2+l
-
 
         # reshape to 3D tensor
         input = input.contiguous().view(input.size(0)*input.size(1), input.size(2), input.size(3))
@@ -152,6 +145,16 @@ class StructuredEncoder(nn.Module):
 
         doc_score = self.doc_pred_linear(max_pooled_doc)
 
+        sent_head_scores = None
+        if self.args.heuristic_chains:
+            sa_encoded_sents_p = F.tanh(self.sent_p_linear(sa_encoded_sents))
+            sa_encoded_sents_c = F.tanh(self.sent_c_linear(sa_encoded_sents))
+            sent_head_scores = self.bilinear(sa_encoded_sents_p, sa_encoded_sents_c).view(batch_size, sent_size, sent_size) #.squeeze() # b, sent , sent
+            sent_head_scores = sent_head_scores * sent_mask.unsqueeze(1).repeat(1, sent_mask.size(1), 1)
+            sent_head_scores = sent_head_scores * sent_mask.unsqueeze(2)
+            sent_head_scores = self.sm2(sent_head_scores)
+
+
         encoder_output = {"encoded_tokens": encoded_tokens,
                           "token_hidden": token_hidden,
                           "encoded_sents": sa_encoded_sent_token_rep,
@@ -163,6 +166,7 @@ class StructuredEncoder(nn.Module):
                           "token_level_sentence_scores" : token_level_sentence_scores,
                           "sent_score": sent_score,
                           "token_score": token_score,
-                          "doc_score": doc_score}
+                          "doc_score": doc_score,
+                          "sent_head_scores": sent_head_scores}
 
         return encoder_output

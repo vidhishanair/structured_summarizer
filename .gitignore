@@ -4,3 +4,5 @@ pycocoevalcap/*
 .pyc
 .txt
 *.iml
+*.swo
+*.swp

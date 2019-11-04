@@ -31,7 +31,8 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Train(object):
     def __init__(self, args, model_name=None):
-        self.vocab = Vocab(config.vocab_path, config.vocab_size, config.embeddings_file, args)
+        vocab = args.vocab_path if args.vocab_path is not None else config.vocab_path
+        self.vocab = Vocab(vocab, config.vocab_size, config.embeddings_file, args)
         self.train_batcher = Batcher(args.train_data_path, self.vocab, mode='train',
                                      batch_size=args.batch_size, single_pass=False, args=args)
         self.eval_batcher = Batcher(args.eval_data_path, self.vocab, mode='eval',
@@ -333,6 +334,7 @@ if __name__ == '__main__':
     parser.add_argument('--reload_pretrained_clf_path', type=str, default=None, help='location of the older saved path')
     parser.add_argument('--train_data_path', type=str, default='/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/chunked/train_*', help='location of the train data path')
     parser.add_argument('--eval_data_path', type=str, default='/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/val.bin', help='location of the eval data path')
+    parser.add_argument('--vocab_path', type=str, default=None, help='location of the eval data path')
     # parser.add_argument('--train_data_path', type=str, default=None, help='location of the train data path')
 
     #Summ Decoding args
