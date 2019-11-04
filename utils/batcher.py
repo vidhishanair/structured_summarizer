@@ -27,8 +27,8 @@ class Example(object):
         self.pointer_gen = args.pointer_gen
 
         # Process the article
-        words = article.decode().split(" ")[:700]
-        tags = tags.decode().split(" ")[:700]
+        words = article.decode().split("")[:700]
+        tags = tags.decode().split("")[:700]
         sent = [[]]
         sent_tags = [[]]
         for word, tag in list(zip(words, tags)):
