@@ -27,30 +27,20 @@ class Example(object):
         self.pointer_gen = args.pointer_gen
 
         # Process the article
-        if args.test_len:
-            words = article.decode().split(" ")[:700]
-            tags = tags.decode().split(" ")[:700]
-            sent = [[]]
-            sent_tags = [[]]
-            for word, tag in list(zip(words, tags)):
-                if word == "<split1>":
-                    sent.append([])
-                    sent_tags.append([])
-                else:
-                    sent[-1].append(word)
-                    sent_tags[-1].append(tag)
-            article_words = sent[:20]
-            article_word_tags = sent_tags[:20]
-            all_article_words = list(itertools.chain.from_iterable(article_words))
-        else:
-            article_sents_tmp = article.decode().split('<split1>')
-            sent_tags = tags.decode().split('<split1>')
-
-            article_sents = article_sents_tmp[:20]
-            article_sent_tags = sent_tags[:20]
-            article_words = [sent.split()[:140] for sent in article_sents]
-            article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
-            all_article_words = list(itertools.chain.from_iterable(article_words))
+        words = article.decode().split(" ")[:700]
+        tags = tags.decode().split(" ")[:700]
+        sent = [[]]
+        sent_tags = [[]]
+        for word, tag in list(zip(words, tags)):
+            if word == "<split1>":
+                sent.append([])
+                sent_tags.append([])
+            else:
+                sent[-1].append(word)
+                sent_tags[-1].append(tag)
+        article_words = sent[:20]
+        article_word_tags = sent_tags[:20]
+        all_article_words = list(itertools.chain.from_iterable(article_words))
 
         self.enc_tok_len = [len(sent) for sent in article_words]  # store the length after truncation but before padding
         self.enc_doc_len = len(article_words)
@@ -79,10 +69,7 @@ class Example(object):
         # If using pointer-generator mode, we need to store some extra info
         if args.pointer_gen:
             # Store a version of the enc_input where in-article OOVs are represented by their temporary OOV id; also store the in-article OOVs words themselves
-            if args.test_sent_matrix:
-                self.enc_input_extend_vocab, self.article_oovs = data.article2ids(all_article_words, vocab)
-            else:
-                self.enc_input_extend_vocab, self.article_oovs = data.sent_sep_article2ids(article_words, vocab)
+            self.enc_input_extend_vocab, self.article_oovs = data.article2ids(all_article_words, vocab)
 
             # Get a verison of the reference summary where in-article OOVs are represented by their temporary article OOV id
             abs_ids_extend_vocab = data.abstract2ids(abstract_words, vocab, self.article_oovs)
@@ -176,7 +163,6 @@ class Batch(object):
         self.args = args
         self.batch_size = batch_size
         self.pointer_gen = args.pointer_gen
-        self.test_sent_matrix = args.test_sent_matrix
         self.heuristic_chains = args.heuristic_chains
         self.pad_id = vocab.word2id(data.PAD_TOKEN)  # id of the PAD token used to pad sequences
         self.init_encoder_seq(example_list)  # initialize the input to the encoder
@@ -246,10 +232,7 @@ class Batch(object):
             # Store the in-article OOVs themselves
             self.art_oovs = [ex.article_oovs for ex in example_list]
             # Store the version of the enc_batch that uses the article OOV ids
-            if self.test_sent_matrix:
-                self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
-            else:
-                self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
+            self.enc_batch_extend_vocab = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
             for i, ex in enumerate(example_list):
                 self.enc_batch_extend_vocab[i, :] = np.array(ex.enc_input_extend_vocab[:])
 

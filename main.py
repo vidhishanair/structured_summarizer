@@ -345,11 +345,9 @@ if __name__ == '__main__':
     parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
-    parser.add_argument('--test_sent_matrix', action='store_true', default=False, help='test_sent_matrix for training')
     parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
-    parser.add_argument('--test_len', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
     #Pretraining args
