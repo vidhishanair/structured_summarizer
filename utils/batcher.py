@@ -386,30 +386,33 @@ class Batcher(object):
                     new_t.daemon = True
                     new_t.start()
 
-    def text_generator(self, example_generator):
-        while True:
-            e = next(example_generator)  # e is a tf.Example
-            try:
-                article_text = e.features.feature['article'].bytes_list.value[
-                    0]  # the article text was saved under the key 'article' in the data files
-                tags = e.features.feature['labels'].bytes_list.value[
-                    0]  # the article text was saved under the key 'article' in the data files
-                abstract_text = e.features.feature['abstract'].bytes_list.value[
-                    0]  # the abstract text was saved under the key 'abstract' in the data files
-                links = []
-                if self.heuristic_chains:
-                    links = e.features.feature['links'].bytes_list.value[
-                        0]  #
-                    if links != b"":
-                        links = ast.literal_eval(links.decode('utf-8'))
-            except:# ValueError:
-                print(article_text)
-                print(e.features.feature['labels'].bytes_list.value)
-                exit()
-                print('Failed to get article or abstract from example')
-                continue
-            if len(article_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
-                #print('Found an example with empty article text. Skipping it.')
-                continue
-            else:
-                yield (article_text, abstract_text, tags, links)
+    def text_generator(self, example_generator, dataset='cnn-dm'):
+        if dataset == 'cnn-dm':
+            while True:
+                e = next(example_generator)  # e is a tf.Example
+                try:
+                    article_text = e.features.feature['article'].bytes_list.value[
+                        0]  # the article text was saved under the key 'article' in the data files
+                    tags = e.features.feature['labels'].bytes_list.value[
+                        0]  # the article text was saved under the key 'article' in the data files
+                    abstract_text = e.features.feature['abstract'].bytes_list.value[
+                        0]  # the abstract text was saved under the key 'abstract' in the data files
+                    links = []
+                    if self.heuristic_chains:
+                        links = e.features.feature['links'].bytes_list.value[
+                            0]  #
+                        if links != b"":
+                            links = ast.literal_eval(links.decode('utf-8'))
+                except:# ValueError:
+                    print(article_text)
+                    print(e.features.feature['labels'].bytes_list.value)
+                    exit()
+                    print('Failed to get article or abstract from example')
+                    continue
+                if len(article_text) == 0:  # See https://github.com/abisee/pointer-generator/issues/1
+                    #print('Found an example with empty article text. Skipping it.')
+                    continue
+                else:
+                    yield (article_text, abstract_text, tags, links)
+        else:
+            print("Dataset value must be one of 'cnn-dm'/ 'inshorts' / 'gigaword' ")

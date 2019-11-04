@@ -67,12 +67,12 @@ class BeamSearch(object):
             if not os.path.exists(p):
                 os.mkdir(p)
 
-        self.vocab = Vocab(config.vocab_path, config.vocab_size)
+        self.vocab = Vocab(config.vocab_path, config.vocab_size, config.embeddings_file, args)
         self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
                                batch_size=config.beam_size, single_pass=True, args=args)
         time.sleep(15)
 
-        self.model = Model(args).to(device)
+        self.model = Model(args, self.vocab).to(device)
         self.model.eval()
 
     def sort_beams(self, beams):
@@ -341,7 +341,7 @@ if __name__ == '__main__':
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
-
+    parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
     args = parser.parse_args()
     model_filename = args.reload_path
