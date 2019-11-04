@@ -29,7 +29,7 @@ batch_size=60
 max_enc_steps=400
 #max_dec_steps=100
 max_dec_steps=50
-beam_size=4
+beam_size=10
 min_dec_steps=35
 vocab_size=50000
 

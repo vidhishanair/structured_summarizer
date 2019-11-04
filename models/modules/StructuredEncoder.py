@@ -27,7 +27,7 @@ class StructuredEncoder(nn.Module):
         print("Using Structured Encoder")
         # self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
 
-        if args.use_glove:
+        if not args.use_glove:
             print("Using Random normal initialization for embeddings")
             self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
             init_wt_normal(self.embedding.weight)
