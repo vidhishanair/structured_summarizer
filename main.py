@@ -339,21 +339,21 @@ if __name__ == '__main__':
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
 
-    #SA encoder args
+    #SA encoder decoder args
     parser.add_argument('--L1_structure_penalty', action='store_true', default=False, help='L2 regularization on Structures')
     parser.add_argument('--sep_sent_features', action='store_true', default=False, help='use sent features for decoding attention')
     parser.add_argument('--token_scores', action='store_true', default=False, help='use token scores for decoding attention')
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
-    parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
-    parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
-    parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
-    #Pretraining args
+    #Pretraining and loss args
+    parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
     parser.add_argument('--token_level_tags', action='store_true', default=False, help='use token_level content selection for pre-training')
     parser.add_argument('--sent_level_tags', action='store_true', default=False, help='use sent_level content selection for pre-training')
     parser.add_argument('--doc_level_tags', action='store_true', default=False, help='use doc_level content selection for pre-training')
+    parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
 
 
     parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')
