@@ -109,7 +109,7 @@ class Train(object):
 
         self.optimizer.zero_grad()
         self.model.module.encoder.document_structure_att.output = None
-        loss = self.get_loss(batch, args)
+        loss, _, _ = self.get_loss(batch, args)
         if loss is None:
             return None
         loss.backward()
@@ -214,6 +214,8 @@ class Train(object):
 
         step_losses = []
         loss = 0
+        summ_loss = 0
+        aux_loss = 0
         if args.use_summ_loss:
             for di in range(min(max_dec_len, args.max_dec_steps)):
                 final_dist = final_dist_list[:, di, :]
@@ -232,6 +234,7 @@ class Train(object):
             sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
             batch_avg_loss = sum_losses / dec_lens_var
             loss += torch.mean(batch_avg_loss)
+            summ_loss += torch.mean(batch_avg_loss).item()
 
         if args.heuristic_chains:
             if args.use_attmat_loss:
@@ -247,6 +250,7 @@ class Train(object):
                 loss_aux = self.sent_crossentropy(pred, head_labels.long())
                 print('Aux loss ', (loss_aux).item())
                 loss += loss_aux
+                aux_loss += loss_aux.item()
             else:
                 print("Heuristic Chains should be accompanied with the right loss during training")
                 exit()
@@ -310,21 +314,31 @@ class Train(object):
         #gc.collect()
         #torch.cuda.empty_cache()
 
-        return loss
+        return loss, summ_loss, aux_loss
 
     def run_eval(self, logger, args):
         running_avg_loss, iter = 0, 0
+        running_avg_summ_loss, running_avg_aux_loss = 0, 0
         self.model.module.eval()
         self.eval_batcher._finished_reading = False
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
         while batch is not None:
-            loss = self.get_loss(batch, args, mode='eval').item()
+            loss, summ_loss, aux_loss = self.get_loss(batch, args, mode='eval')
+            loss = loss.item()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
+                running_avg_summ_loss = calc_running_avg_loss(summ_loss, running_avg_summ_loss, iter)
+                running_avg_aux_loss = calc_running_avg_loss(aux_loss, running_avg_aux_loss, iter)
                 iter += 1
             batch = self.eval_batcher.next_batch()
         msg = 'Eval: loss: %f' % running_avg_loss
+        print(msg)
+        logger.debug(msg)
+        msg = 'Summ Eval: loss: %f' % running_avg_summ_loss
+        print(msg)
+        logger.debug(msg)
+        msg = 'Aux Eval: loss: %f' % running_avg_aux_loss
         print(msg)
         logger.debug(msg)
         return running_avg_loss
