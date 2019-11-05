@@ -92,7 +92,7 @@ class Example(object):
 
     def generate_adj_mat_sup(self, no_sents, links):
         adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
-        parent_heads = np.zeros(no_sents, dtype='int')
+        parent_heads = np.full(no_sents, fill_value=-1, dtype='int')
         for link in links:
             if self.args.link_id_typed:
                 type = link[3]
@@ -110,13 +110,13 @@ class Example(object):
 
         adjusted_adj_mat = adj_mat + config.eps
         row_sums = adjusted_adj_mat.sum(axis=0)
-        norm_adj_mat = adj_mat / row_sums[np.newaxis, :]
+        norm_adj_mat = adjusted_adj_mat / row_sums[np.newaxis, :] # eq prob on all incase of no head is bad.
 
         for sent_idx in range(no_sents):
             head_dist = adj_mat[:, sent_idx]
             max_score = np.max(head_dist)
             if max_score <= config.eps:
-                head = 0
+                continue
             else:
                 indices = np.asarray(head_dist==max_score).nonzero()[0]
                 head = indices[(np.abs(indices - sent_idx)).argmin()]
@@ -212,6 +212,7 @@ class Batch(object):
 
         if self.heuristic_chains:
             self.sup_adj_map = np.zeros((self.batch_size, max_enc_doc_len, max_enc_doc_len), dtype=np.float32)
+            self.parent_heads = np.full((self.batch_size, max_enc_doc_len), fill_value=-1, dtype=np.int32)
 
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
@@ -235,6 +236,7 @@ class Batch(object):
 
             if self.heuristic_chains:
                 self.sup_adj_map[i, :ex.sup_adj_mat.shape[0], :ex.sup_adj_mat.shape[1]] = ex.sup_adj_mat
+                self.parent_heads[i, :ex.parent_heads.shape[0]] = ex.parent_heads
 
         # For pointer-generator mode, need to store some extra info
         if self.pointer_gen:

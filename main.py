@@ -193,7 +193,7 @@ class Train(object):
 
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
         enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
-        enc_tags_batch, enc_sent_token_mat, sup_adj_mat = get_input_from_batch(batch, use_cuda, args)
+        enc_tags_batch, enc_sent_token_mat, sup_adj_mat, parent_heads = get_input_from_batch(batch, use_cuda, args)
 
         final_dist_list, attn_dist_list, p_gen_list, coverage_list, encoder_output\
                                                                                         = self.model.forward(enc_batch,
@@ -234,28 +234,31 @@ class Train(object):
             loss += torch.mean(batch_avg_loss)
 
         if args.heuristic_chains:
-            #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
-            #sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
-            #print(sent_attention_matrix[:,:,1:].size(), sup_adj_mat.size())
-            pred = encoder_output['sent_attention_matrix'][:,:,1:].contiguous().view(-1)
-            gold = sup_adj_mat.view(-1)
-            # enc_tags_batch[enc_tags_batch == -1] = 0
-            # gold = enc_tags_batch.sum(dim=-1)
-            # gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
-            # gold = gold.view(-1)
-            loss_aux = self.attn_mse_loss(pred, gold)
-            #print(100*loss_aux)
-            #print('Aux loss ', (10*loss_aux).item())
-            loss += 100*loss_aux
+            if args.use_attmat_loss:
+                pred = encoder_output['sent_attention_matrix'][:,:,1:].contiguous().view(-1)
+                gold = sup_adj_mat.view(-1)
+                loss_aux = self.attn_mse_loss(pred, gold)
+                #print('Aux loss ', (100*loss_aux).item())
+                loss += 100*loss_aux
+            elif args.use_sent_head_loss:
+                pred = encoder_output['sent_head_scores']
+                pred = pred.view(-1, pred.size(2))
+                head_labels = parent_heads.view(-1)
+                loss_aux = self.sent_crossentropy(pred, head_labels.long())
+                print('Aux loss ', (loss_aux).item())
+                loss += loss_aux
+            else:
+                print("Heuristic Chains should be accompanied with the right loss during training")
+                exit()
 
-        if args.token_level_tags:
+        if args.use_token_contsel_loss:
             pred = encoder_output['token_score'].view(-1, 2)
             #enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.view(-1)
             loss1 = self.sent_crossentropy(pred, gold.long())
             #print('token loss ', loss1.item())
             loss += loss1
-        if args.sent_level_tags:
+        if args.use_sent_imp_loss:
             pred = encoder_output['sent_score'].view(-1)
             enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.sum(dim=-1)
@@ -264,7 +267,7 @@ class Train(object):
             loss2 = self.attn_mse_loss(pred, gold)
             #print('sent loss ', loss2.item())
             loss += loss2
-        if args.doc_level_tags:
+        if args.use_doc_imp_loss:
             pred = encoder_output['doc_score'].view(-1)
             count_tags = enc_tags_batch.clone().detach()
             count_tags[count_tags == 0] = 1
@@ -350,12 +353,15 @@ if __name__ == '__main__':
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
     #Pretraining and loss args
-    parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
-    parser.add_argument('--token_level_tags', action='store_true', default=False, help='use token_level content selection for pre-training')
-    parser.add_argument('--sent_level_tags', action='store_true', default=False, help='use sent_level content selection for pre-training')
-    parser.add_argument('--doc_level_tags', action='store_true', default=False, help='use doc_level content selection for pre-training')
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
+    parser.add_argument('--use_token_contsel_loss', action='store_true', default=False, help='use token_level content selection for pre-training')
+    parser.add_argument('--use_sent_imp_loss', action='store_true', default=False, help='use sent_level content selection for pre-training')
+    parser.add_argument('--use_doc_imp_loss', action='store_true', default=False, help='use doc_level content selection for pre-training')
+    parser.add_argument('--use_attmat_loss', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_sent_head_loss', action='store_true', default=False, help='heuristic ner for training')
+
 
 
     parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')
