@@ -80,7 +80,7 @@ class Example(object):
 
         # Create adj_mat for supervision
         if self.args.heuristic_chains:
-            self.sup_adj_mat = self.generate_adj_mat_sup(len(article_words), links)
+            self.sup_adj_mat, self.parent_heads = self.generate_adj_mat_sup(len(article_words), links)
 
         # Store the original strings
         self.enc_tags = article_word_tags
@@ -92,6 +92,7 @@ class Example(object):
 
     def generate_adj_mat_sup(self, no_sents, links):
         adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
+        parent_heads = np.zeros(no_sents, dtype='int')
         for link in links:
             if self.args.link_id_typed:
                 type = link[3]
@@ -107,10 +108,20 @@ class Example(object):
                 continue
             adj_mat[parent][child] += weight
 
-        adj_mat = adj_mat + 1e-5
-        row_sums = adj_mat.sum(axis=1)
-        adj_mat = adj_mat / row_sums[:, np.newaxis]
-        return adj_mat
+        adjusted_adj_mat = adj_mat + config.eps
+        row_sums = adjusted_adj_mat.sum(axis=0)
+        norm_adj_mat = adj_mat / row_sums[np.newaxis, :]
+
+        for sent_idx in range(no_sents):
+            head_dist = adj_mat[:, sent_idx]
+            max_score = np.max(head_dist)
+            if max_score <= config.eps:
+                head = 0
+            else:
+                indices = np.asarray(head_dist==max_score).nonzero()[0]
+                head = indices[(np.abs(indices - sent_idx)).argmin()]
+            parent_heads[sent_idx] = head
+        return norm_adj_mat, parent_heads
 
     def get_dec_inp_targ_seqs(self, sequence, max_len, start_id, stop_id):
         inp = [start_id] + sequence[:]
