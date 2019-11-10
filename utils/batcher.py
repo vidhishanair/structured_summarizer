@@ -42,6 +42,14 @@ class Example(object):
         article_word_tags = sent_tags[:20]
         all_article_words = list(itertools.chain.from_iterable(article_words))
 
+        #article_sents_tmp = article.decode().split('<split1>')
+        #sent_tags = tags.decode().split('<split1>')
+        #article_sents = article_sents_tmp[:20]
+        #article_sent_tags = sent_tags[:20]
+        #article_words = [sent.split()[:140] for sent in article_sents]
+        #article_word_tags = [[int(x) for x in sent.split()[:140]] for sent in article_sent_tags]
+        #all_article_words = list(itertools.chain.from_iterable(article_words)) 
+
         self.enc_tok_len = [len(sent) for sent in article_words]  # store the length after truncation but before padding
         self.enc_doc_len = len(article_words)
         self.enc_word_len = len(all_article_words)

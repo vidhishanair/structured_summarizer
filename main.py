@@ -247,13 +247,15 @@ class Train(object):
                 pred = encoder_output['sent_head_scores']
                 pred = pred.view(-1, pred.size(2))
                 head_labels = parent_heads.view(-1)
+                print(pred, head_labels)
                 loss_aux = self.sent_crossentropy(pred, head_labels.long())
-                print('Aux loss ', (loss_aux).item())
+                #print('Aux loss ', (loss_aux).item())
                 loss += loss_aux
                 aux_loss += loss_aux.item()
             else:
-                print("Heuristic Chains should be accompanied with the right loss during training")
-                exit()
+                pass
+                #print("Heuristic Chains should be accompanied with the right loss during training")
+                #exit()
 
         if args.use_token_contsel_loss:
             pred = encoder_output['token_score'].view(-1, 2)
