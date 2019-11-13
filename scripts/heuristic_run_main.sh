@@ -4,19 +4,22 @@ OUTPUT='heuristic_ner_test_pred_only_sent_heads'
 #OUTPUT='test_ner'
 RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
 
-CUDA_VISIBLE_DEVICES=0,1 python main.py \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python main.py \
        --is_coverage \
        --pointer_gen \
        --save_path=${OUTPUT} \
+       --reload_path=log/${OUTPUT}/model/model_55000_1573585035 \
        --sent_scores \
-       --lr_coverage 0.75 \
-       --batch_size 4 \
+       --lr_coverage 0.00001 \
+       --batch_size 60 \
        --max_dec_steps 20 \
        --train_data_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/chunked/train_* \
        --eval_data_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/val.bin \
-       --use_summ_loss
-#       --use_sent_head_loss
-#       --heuristic_chains \
+       --vocab_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/vocab \
+       --use_sent_head_loss \
+       --heuristic_chains 
+
+#       --use_summ_loss \
 #       --link_id_typed \
        
 
