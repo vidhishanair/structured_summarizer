@@ -35,7 +35,7 @@ class StructuredEncoder(nn.Module):
             init_wt_normal(self.embedding.weight)
         else:
             print("Using Pre-trained embeddings")
-            self.embedding = nn.Embedding.from_pretrained(vocab.embedding_matrix)
+            self.embedding = nn.Embedding.from_pretrained(torch.from_numpy(vocab.embedding_matrix))
 
         self.drop = nn.Dropout(0.3)
         init_wt_normal(self.embedding.weight)
