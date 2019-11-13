@@ -33,9 +33,12 @@ class StructuredEncoder(nn.Module):
             print("Using Random normal initialization for embeddings")
             self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
             init_wt_normal(self.embedding.weight)
+            self.emb_dim = config.emb_dim
         else:
             print("Using Pre-trained embeddings")
-            self.embedding = nn.Embedding.from_pretrained(torch.from_numpy(vocab.embedding_matrix))
+            emb_tensor = torch.from_numpy(vocab.embedding_matrix)
+            self.embedding = nn.Embedding.from_pretrained(emb_tensor)
+            self.emb_dim = emb_tensor.size(1)
 
         self.drop = nn.Dropout(0.3)
         init_wt_normal(self.embedding.weight)
@@ -54,7 +57,7 @@ class StructuredEncoder(nn.Module):
             self.sent_hidden_size = config.hidden_dim
             self.doc_hidden_size = config.hidden_dim
 
-        self.sentence_encoder = BiLSTMEncoder(self.device, self.sent_hidden_size, config.emb_dim, 1, dropout=0.3,
+        self.sentence_encoder = BiLSTMEncoder(self.device, self.sent_hidden_size, self.emb_dim, 1, dropout=0.3,
                                              bidirectional=bidirectional)
         self.document_encoder = BiLSTMEncoder(self.device, self.doc_hidden_size, self.sent_hidden_size, 1, dropout=0.3,
                                               bidirectional=bidirectional)
