@@ -9,6 +9,7 @@ def get_input_from_batch(batch, use_cuda, args):
     # device = torch.device("cuda" if config.use_gpu else "cpu")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
+    enc_sent_tags = Variable(torch.from_numpy(batch.enc_sent_tags).float())
     enc_tags_batch = Variable(torch.from_numpy(batch.enc_tags_batch).float())
     word_batch = Variable(torch.from_numpy(batch.enc_word_batch).long())
     word_padding_mask = Variable(torch.from_numpy(batch.enc_padding_word_mask)).float()
@@ -44,6 +45,7 @@ def get_input_from_batch(batch, use_cuda, args):
 
     if use_cuda:
         enc_batch = enc_batch.to(device)
+        enc_sent_tags = enc_sent_tags.to(device)
         enc_tags_batch = enc_tags_batch.to(device)
         enc_padding_mask = enc_padding_mask.to(device)
         enc_padding_sent_mask = enc_padding_sent_mask.to(device)
@@ -70,7 +72,7 @@ def get_input_from_batch(batch, use_cuda, args):
 
     return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
-           enc_tags_batch, enc_sent_token_mat, sup_adj_map, parent_heads
+           enc_tags_batch, enc_sent_tags, enc_sent_token_mat, sup_adj_map, parent_heads
 
 
 def get_output_from_batch(batch, use_cuda):

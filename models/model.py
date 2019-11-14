@@ -35,7 +35,7 @@ class Model(nn.Module):
         if(args.fixed_scorer):
             pretrained_scorer = StructuredEncoder(args)
         encoder = StructuredEncoder(args, vocab)
-        decoder = Decoder(args)
+        decoder = Decoder(args, vocab)
         reduce_state = ReduceState()
 
         # shared the embedding between encoder and decoder

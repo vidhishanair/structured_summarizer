@@ -193,7 +193,7 @@ class Train(object):
 
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
         enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
-        enc_tags_batch, enc_sent_token_mat, sup_adj_mat, parent_heads = get_input_from_batch(batch, use_cuda, args)
+        enc_tags_batch, enc_sent_tags, enc_sent_token_mat, sup_adj_mat, parent_heads = get_input_from_batch(batch, use_cuda, args)
 
         final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix, \
         sent_head_scores, token_score, sent_score, doc_score\
@@ -267,8 +267,8 @@ class Train(object):
             loss += loss1
         if args.use_sent_imp_loss:
             pred = sent_score.view(-1)
-            enc_tags_batch[enc_tags_batch == -1] = 0
-            gold = enc_tags_batch.sum(dim=-1)
+            enc_sent_tags[enc_sent_tags == -1] = 0
+            gold = enc_sent_tags.sum(dim=-1)
             gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             gold = gold.view(-1)
             loss2 = self.attn_mse_loss(pred, gold)

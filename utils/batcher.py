@@ -41,6 +41,7 @@ class Example(object):
         article_words = sent[:20]
         article_word_tags = sent_tags[:20]
         all_article_words = list(itertools.chain.from_iterable(article_words))
+        all_article_tags = list(itertools.chain.from_iterable(article_word_tags))
 
         #article_sents_tmp = article.decode().split('<split1>')
         #sent_tags = tags.decode().split('<split1>')
@@ -91,7 +92,8 @@ class Example(object):
             self.sup_adj_mat, self.parent_heads = self.generate_adj_mat_sup(len(article_words), links)
 
         # Store the original strings
-        self.enc_tags = article_word_tags
+        self.enc_tags = all_article_tags
+        self.enc_sent_tags = article_word_tags
         self.original_article = article
         self.article_words = article_words
         self.original_abstract = abstract
@@ -152,7 +154,7 @@ class Example(object):
         for i in range(0, len(self.enc_input)):
             while len(self.enc_input[i]) < max_len:
                 self.enc_input[i].append(pad_id)
-                self.enc_tags[i].append(-1)
+                self.enc_sent_tags[i].append(-1)
         # if self.pointer_gen:
         #     for i in range(0, len(self.enc_input_extend_vocab)):
         #         while len(self.enc_input_extend_vocab[i]) < max_len:
@@ -161,7 +163,7 @@ class Example(object):
     def pad_encoder_docs(self, max_len, pad_id, max_tok_len):
         while len(self.enc_input) < max_len:
             self.enc_input.append([pad_id] * max_tok_len)
-            self.enc_tags.append([-1] * max_tok_len)
+            self.enc_sent_tags.append([-1] * max_tok_len)
         # if self.args.heuristic_chains:
         #     self.sup_adj_mat.append([0]*)
 
@@ -172,6 +174,7 @@ class Example(object):
     def pad_encoder_words(self, max_len, pad_id):
         while len(self.word_input) < max_len:
             self.word_input.append(pad_id)
+            self.enc_tags.append(pad_id)
         if self.pointer_gen:
             while len(self.enc_input_extend_vocab) < max_len:
                 self.enc_input_extend_vocab.append(pad_id)
@@ -206,8 +209,8 @@ class Batch(object):
         # Note: our enc_batch can have different length (second dimension) for each batch because we use dynamic_rnn for the encoder.
 
         self.enc_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
-        self.enc_tags_batch = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
-
+        self.enc_sent_tags = np.zeros((self.batch_size, max_enc_doc_len, max_enc_tok_len), dtype=np.int32)
+        self.enc_tags_batch = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
         self.enc_word_batch = np.zeros((self.batch_size, max_enc_word_len), dtype=np.int32)
         self.enc_word_lens = np.zeros(self.batch_size, dtype=np.int32)
         self.enc_doc_lens = np.zeros(self.batch_size, dtype=np.int32)
@@ -225,6 +228,7 @@ class Batch(object):
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
             self.enc_batch[i, :] = np.array(ex.enc_input)
+            self.enc_sent_tags[i,:] = np.array(ex.enc_sent_tags)
             self.enc_tags_batch[i, :] = np.array(ex.enc_tags)
             self.enc_word_batch[i,:] = np.array(ex.word_input)
             self.enc_doc_lens[i] = ex.enc_doc_len

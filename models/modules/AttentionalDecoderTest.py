@@ -108,21 +108,33 @@ class Attention(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, vocab):
         super(Decoder, self).__init__()
         self.attention_network = Attention(args)
         self.pointer_gen = args.pointer_gen
         self.args = args
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         # decoder
-        self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
-        init_wt_normal(self.embedding.weight)
-        self.x_context = nn.Linear(self.encoder_op_size + config.emb_dim, config.emb_dim)
+        # self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+        # init_wt_normal(self.embedding.weight)
+        
+        if not args.use_glove:
+            print("Using Random normal initialization for embeddings")
+            self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+            init_wt_normal(self.embedding.weight)
+            self.emb_dim = config.emb_dim
+        else:
+            print("Using Pre-trained embeddings")
+            emb_tensor = torch.from_numpy(vocab.embedding_matrix)
+            self.embedding = nn.Embedding.from_pretrained(emb_tensor)
+            self.emb_dim = emb_tensor.size(1)        
+  
+        self.x_context = nn.Linear(self.encoder_op_size + self.emb_dim, self.emb_dim)
 
-        self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
+        self.lstm = nn.LSTM(self.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
         init_lstm_wt(self.lstm)
 
-        self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + self.encoder_op_size + config.emb_dim, 1)
+        self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + self.encoder_op_size + self.emb_dim, 1)
         self.out1 = nn.Linear(config.hidden_dim + self.encoder_op_size, config.hidden_dim)
         self.out2 = nn.Linear(config.hidden_dim, config.vocab_size)
 
