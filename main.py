@@ -148,7 +148,7 @@ class Train(object):
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 iter += 1
 
-            print_interval = 1000
+            print_interval = 100
             if iter % print_interval == 0:
                 msg = 'steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
                                                                            time.time() - start, loss)
@@ -235,7 +235,7 @@ class Train(object):
             sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
             batch_avg_loss = sum_losses / dec_lens_var
             loss += torch.mean(batch_avg_loss)
-            summ_loss += torch.mean(batch_avg_loss).item()
+            #summ_loss += torch.mean(batch_avg_loss).item()
 
         if args.heuristic_chains:
             if args.use_attmat_loss:
@@ -252,7 +252,7 @@ class Train(object):
                 loss_aux = self.sent_crossentropy(pred, head_labels.long())
                 #print('Aux loss ', (loss_aux).item())
                 loss += loss_aux
-                aux_loss += loss_aux.item()
+                #aux_loss += loss_aux.item()
             else:
                 pass
                 #print("Heuristic Chains should be accompanied with the right loss during training")
@@ -265,7 +265,7 @@ class Train(object):
             loss1 = self.sent_crossentropy(pred, gold.long())
             #print('token loss ', loss1.item())
             loss += loss1
-            aux_loss += loss1.item()
+            #aux_loss += loss1.item()
         if args.use_sent_imp_loss:
             pred = sent_score.view(-1)
             enc_sent_tags[enc_sent_tags == -1] = 0
@@ -273,7 +273,7 @@ class Train(object):
             gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             gold = gold.view(-1)
             loss2 = self.attn_mse_loss(pred, gold)
-            aux_loss += loss2.item()
+            #aux_loss += loss2.item()
             #print('sent loss ', loss2.item())
             loss += loss2
         if args.use_doc_imp_loss:
@@ -290,7 +290,7 @@ class Train(object):
             loss3 = self.attn_mse_loss(pred, gold)
             #print('doc loss ', loss3.item())
             loss += loss3
-            aux_loss += loss3.item()
+            #aux_loss += loss3.item()
 
         # if args.tag_norm_loss:
         #     #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
