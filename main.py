@@ -148,7 +148,7 @@ class Train(object):
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 iter += 1
 
-            print_interval = 100
+            print_interval = 1000
             if iter % print_interval == 0:
                 msg = 'steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
                                                                            time.time() - start, loss)
