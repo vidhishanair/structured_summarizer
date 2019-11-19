@@ -109,7 +109,7 @@ class Train(object):
 
         self.optimizer.zero_grad()
         self.model.module.encoder.document_structure_att.output = None
-        loss, _, _ = self.get_loss(batch, args)
+        loss, _, _, _, _, _, _ = self.get_loss(batch, args)
         if loss is None:
             return None
         loss.backward()
@@ -164,28 +164,6 @@ class Train(object):
                     print("Saving best model")
                     logger.debug("Saving best model")
 
-    # def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
-    #     """Duplicated in model.py"""
-    #
-    #     encoder_outputs = encoder_output["encoded_tokens"]
-    #     enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
-    #                                                                     enc_padding_token_mask.size(
-    #                                                                         1) * enc_padding_token_mask.size(2))
-    #     enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
-    #                                                                           enc_batch_extend_vocab.size(
-    #                                                                               1) * enc_batch_extend_vocab.size(2))
-    #     # else:
-    #     #     encoder_outputs = encoder_output["encoded_sents"]
-    #     #     enc_padding_mask = enc_padding_sent_mask
-    #
-    #     encoder_hidden = encoder_output["sent_hidden"]
-    #     max_encoder_output = encoder_output["document_rep"]
-    #     token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
-    #     sent_output = encoder_output['encoded_sents']
-    #     token_scores = encoder_output['token_score']
-    #     sent_scores = encoder_output['sent_score'].unsqueeze(2).repeat(1,1, enc_padding_token_mask.size(2), 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
-    #     return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
-
     def get_loss(self, batch, args, mode='train'):
 
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
@@ -217,6 +195,11 @@ class Train(object):
         loss = 0
         summ_loss = 0
         aux_loss = 0
+        token_consel_num_correct = 0
+        sent_imp_num_correct = 0
+        doc_imp_num_correct = 0
+        sent_heads_num_correct = 0
+
         if args.use_summ_loss:
             for di in range(min(max_dec_len, args.max_dec_steps)):
                 final_dist = final_dist_list[:, di, :]
@@ -252,6 +235,8 @@ class Train(object):
                 loss_aux = self.sent_crossentropy(pred, head_labels.long())
                 #print('Aux loss ', (loss_aux).item())
                 loss += loss_aux
+                prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+                sent_heads_num_correct = sum(prediction == head_labels).item() / head_labels.size(0).item()
                 #aux_loss += loss_aux.item()
             else:
                 pass
@@ -265,6 +250,10 @@ class Train(object):
             loss1 = self.sent_crossentropy(pred, gold.long())
             #print('token loss ', loss1.item())
             loss += loss1
+
+            prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+            token_consel_num_correct = sum(prediction == gold).item() / gold.size(0)
+
             #aux_loss += loss1.item()
         if args.use_sent_imp_loss:
             pred = sent_score.view(-1)
@@ -320,22 +309,26 @@ class Train(object):
         #gc.collect()
         #torch.cuda.empty_cache()
 
-        return loss, summ_loss, aux_loss
+        return loss, summ_loss, aux_loss, token_consel_num_correct, sent_imp_num_correct, doc_imp_num_correct, sent_heads_num_correct
 
     def run_eval(self, logger, args):
         running_avg_loss, iter = 0, 0
         running_avg_summ_loss, running_avg_aux_loss = 0, 0
+        token_consel_avg_correct, sent_imp_avg_correct, doc_imp_avg_correct, sent_heads_avg_correct = 0, 0, 0, 0
         self.model.module.eval()
         self.eval_batcher._finished_reading = False
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
         while batch is not None:
-            loss, summ_loss, aux_loss = self.get_loss(batch, args, mode='eval')
+            loss, summ_loss, aux_loss, token_consel_num_correct, sent_imp_num_correct, \
+                doc_imp_num_correct, sent_heads_num_correct = self.get_loss(batch, args, mode='eval')
             loss = loss.item()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 running_avg_summ_loss = calc_running_avg_loss(summ_loss, running_avg_summ_loss, iter)
                 running_avg_aux_loss = calc_running_avg_loss(aux_loss, running_avg_aux_loss, iter)
+                token_consel_avg_correct += token_consel_num_correct
+                sent_heads_avg_correct += sent_heads_num_correct
                 iter += 1
             batch = self.eval_batcher.next_batch()
         msg = 'Eval: loss: %f' % running_avg_loss
@@ -347,6 +340,14 @@ class Train(object):
         msg = 'Aux Eval: loss: %f' % running_avg_aux_loss
         print(msg)
         logger.debug(msg)
+        if args.use_token_contsel_loss:
+            msg = 'Average token content sel Accuracy: %f' % (token_consel_avg_correct/float(iter))
+            print(msg)
+            logger.debug(msg)
+        if args.use_sent_head_loss:
+            msg = 'Average sent heads sel Accuracy: %f' % (sent_heads_avg_correct/float(iter))
+            print(msg)
+            logger.debug(msg)
         return running_avg_loss
 
 

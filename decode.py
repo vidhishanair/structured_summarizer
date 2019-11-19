@@ -145,8 +145,8 @@ class BeamSearch(object):
         batch = self.batcher.next_batch()
         while batch is not None:
             # Run beam search to get best Hypothesis
-            boo, best_summary = self.beam_search(batch, counter)
-            if boo==False:
+            has_summary, best_summary = self.get_decoded_outputs(batch, counter)
+            if has_summary == False:
                 batch = self.batcher.next_batch()
                 continue
             # Extract the output ids from the hypothesis and convert back to words
@@ -177,50 +177,33 @@ class BeamSearch(object):
             #    exit()
 
         print("Decoder has finished reading dataset for single_pass.")
-        print("Now starting PYCOCO - ROUGE eval...")
         #results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
         #rouge_log(results_dict, self._decode_dir)
+
         write_to_json_file(abstract_ref, self._rouge_ref_file)
         write_to_json_file(abstract_pred, self._rouge_pred_file)
-        cocoEval = COCOEvalCap(self._rouge_ref_file, self._rouge_pred_file)
-        cocoEval.evaluate()
-        for metric, score in cocoEval.eval.items():
-            print('%s: %.3f'%(metric, score))
 
+        # cocoEval = COCOEvalCap(self._rouge_ref_file, self._rouge_pred_file)
+        # cocoEval.evaluate()
+        # for metric, score in cocoEval.eval.items():
+        #     print('%s: %.3f'%(metric, score))
 
-    # def get_app_outputs(self, encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab):
-    #     encoder_outputs = encoder_output["encoded_tokens"]
-    #     enc_padding_mask = enc_padding_token_mask.contiguous().view(enc_padding_token_mask.size(0),
-    #                                                                 enc_padding_token_mask.size(
-    #                                                                     1) * enc_padding_token_mask.size(2))
-    #     enc_batch_extend_vocab = enc_batch_extend_vocab.contiguous().view(enc_batch_extend_vocab.size(0),
-    #                                                                       enc_batch_extend_vocab.size(
-    #                                                                           1) * enc_batch_extend_vocab.size(2))
-    #     # else:
-    #     #     encoder_outputs = encoder_output["encoded_sents"]
-    #     #     enc_padding_mask = enc_padding_sent_mask
-    #     encoder_hidden = encoder_output["sent_hidden"]
-    #     max_encoder_output = encoder_output["document_rep"]
-    #     token_level_sentence_scores = encoder_output["token_level_sentence_scores"]
-    #     sent_output = encoder_output['encoded_sents']
-    #     token_scores = encoder_output['token_score']
-    #     sent_scores = encoder_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
-    #     return encoder_outputs, enc_padding_mask, encoder_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_output, token_scores, sent_scores
-
-
-    def beam_search(self, batch, count):
+    def get_decoded_outputs(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, \
         extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat, sup_adj_mat = \
             get_input_from_batch(batch, use_cuda, self.args)
 
-        if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1):
+        if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1): # test why this?
             return False, None
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
-                                                         enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
-        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores, sent_matrix = \
-            self.model.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat)
+                                                         enc_padding_sent_mask, word_batch, word_padding_mask,
+                                                         enc_word_lens, enc_tags_batch, enc_sent_token_mat)
+        encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, \
+        enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores, sent_matrix = \
+                                    self.model.get_app_outputs(encoder_output, enc_padding_token_mask,
+                                                   enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat)
 
         mask = enc_padding_sent_mask[0].unsqueeze(0).repeat(enc_padding_sent_mask.size(1),1) * enc_padding_sent_mask[0].unsqueeze(1).transpose(1,0)
 
@@ -251,79 +234,83 @@ class BeamSearch(object):
                  for _ in range(config.beam_size)]
         results = []
         steps = 0
-        while steps < config.max_dec_steps and len(results) < config.beam_size:
-            latest_tokens = [h.latest_token for h in beams]
-            latest_tokens = [t if t < self.vocab.size() else self.vocab.word2id(data.UNKNOWN_TOKEN) \
-                             for t in latest_tokens]
-            y_t_1 = Variable(torch.LongTensor(latest_tokens))
-            if use_cuda:
-                y_t_1 = y_t_1.cuda()
-            all_state_h =[]
-            all_state_c = []
+        has_summary = False
+        beams_sorted = [None]
+        if args.decode_summaries:
+            has_summary = True
+            while steps < config.max_dec_steps and len(results) < config.beam_size:
+                latest_tokens = [h.latest_token for h in beams]
+                latest_tokens = [t if t < self.vocab.size() else self.vocab.word2id(data.UNKNOWN_TOKEN) \
+                                 for t in latest_tokens]
+                y_t_1 = Variable(torch.LongTensor(latest_tokens))
+                if use_cuda:
+                    y_t_1 = y_t_1.cuda()
+                all_state_h =[]
+                all_state_c = []
 
-            all_context = []
+                all_context = []
 
-            for h in beams:
-                state_h, state_c = h.state
-                all_state_h.append(state_h)
-                all_state_c.append(state_c)
-
-                all_context.append(h.context)
-
-            s_t_1 = (torch.stack(all_state_h, 0).unsqueeze(0), torch.stack(all_state_c, 0).unsqueeze(0))
-            c_t_1 = torch.stack(all_context, 0)
-
-            coverage_t_1 = None
-            if self.args.is_coverage:
-                all_coverage = []
                 for h in beams:
-                    all_coverage.append(h.coverage)
-                coverage_t_1 = torch.stack(all_coverage, 0)
+                    state_h, state_c = h.state
+                    all_state_h.append(state_h)
+                    all_state_c.append(state_c)
 
-            final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
-                                                                                    encoder_outputs, word_padding_mask, c_t_1,
-                                                                                    extra_zeros, enc_batch_extend_vocab, coverage_t_1, token_scores, sent_scores, sent_outputs)
+                    all_context.append(h.context)
 
-            topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
+                s_t_1 = (torch.stack(all_state_h, 0).unsqueeze(0), torch.stack(all_state_c, 0).unsqueeze(0))
+                c_t_1 = torch.stack(all_context, 0)
 
-            dec_h, dec_c = s_t
-            dec_h = dec_h.squeeze()
-            dec_c = dec_c.squeeze()
+                coverage_t_1 = None
+                if self.args.is_coverage:
+                    all_coverage = []
+                    for h in beams:
+                        all_coverage.append(h.coverage)
+                    coverage_t_1 = torch.stack(all_coverage, 0)
 
-            all_beams = []
-            num_orig_beams = 1 if steps == 0 else len(beams)
-            for i in range(num_orig_beams):
-                h = beams[i]
-                state_i = (dec_h[i], dec_c[i])
-                context_i = c_t[i]
-                coverage_i = (coverage_t[i] if self.args.is_coverage else None)
+                final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
+                                                                                        encoder_outputs, word_padding_mask, c_t_1,
+                                                                                        extra_zeros, enc_batch_extend_vocab, coverage_t_1, token_scores, sent_scores, sent_outputs)
 
-                for j in range(config.beam_size * 2):  # for each of the top 2*beam_size hyps:
-                    new_beam = h.extend(token=topk_ids[i, j].item(),
-                                        log_prob=topk_log_probs[i, j].item(),
-                                        state=state_i,
-                                        context=context_i,
-                                        coverage=coverage_i)
-                    all_beams.append(new_beam)
+                topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
 
-            beams = []
-            for h in self.sort_beams(all_beams):
-                if h.latest_token == self.vocab.word2id(data.STOP_DECODING):
-                    if steps >= config.min_dec_steps:
-                        results.append(h)
-                else:
-                    beams.append(h)
-                if len(beams) == config.beam_size or len(results) == config.beam_size:
-                    break
+                dec_h, dec_c = s_t
+                dec_h = dec_h.squeeze()
+                dec_c = dec_c.squeeze()
 
-            steps += 1
+                all_beams = []
+                num_orig_beams = 1 if steps == 0 else len(beams)
+                for i in range(num_orig_beams):
+                    h = beams[i]
+                    state_i = (dec_h[i], dec_c[i])
+                    context_i = c_t[i]
+                    coverage_i = (coverage_t[i] if self.args.is_coverage else None)
 
-        if len(results) == 0:
-            results = beams
+                    for j in range(config.beam_size * 2):  # for each of the top 2*beam_size hyps:
+                        new_beam = h.extend(token=topk_ids[i, j].item(),
+                                            log_prob=topk_log_probs[i, j].item(),
+                                            state=state_i,
+                                            context=context_i,
+                                            coverage=coverage_i)
+                        all_beams.append(new_beam)
 
-        beams_sorted = self.sort_beams(results)
+                beams = []
+                for h in self.sort_beams(all_beams):
+                    if h.latest_token == self.vocab.word2id(data.STOP_DECODING):
+                        if steps >= config.min_dec_steps:
+                            results.append(h)
+                    else:
+                        beams.append(h)
+                    if len(beams) == config.beam_size or len(results) == config.beam_size:
+                        break
 
-        return True, beams_sorted[0]
+                steps += 1
+
+            if len(results) == 0:
+                results = beams
+
+            beams_sorted = self.sort_beams(results)
+
+        return has_summary, beams_sorted[0]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
@@ -342,6 +329,9 @@ if __name__ == '__main__':
     parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
+
+    parser.add_argument('--decode_summaries', action='store_true', default=False, help='decode summarization')
+
 
     args = parser.parse_args()
     model_filename = args.reload_path
