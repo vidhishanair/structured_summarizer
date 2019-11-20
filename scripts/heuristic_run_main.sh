@@ -1,17 +1,18 @@
 #Namespace(L1_structure_penalty=False, autoencode=False, is_coverage=True, pointer_gen=True, reload_path=None, reload_pretrained_clf_path='log/token_sent_level_tag/model/model_455000_1555707099', save_path='sent_level_tag_coverage', sent_scores=True, sep_sent_features=False, token_scores=False)
 
-OUTPUT='heuristic_ner_test_pred_only_sent_heads'
+OUTPUT='heuristic_ner_pred_sent_heads'
 #OUTPUT='test_ner'
 RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python main.py \
+CUDA_VISIBLE_DEVICES=1 python main.py \
        --is_coverage \
        --pointer_gen \
+       --use_glove \
        --save_path=${OUTPUT} \
-       --reload_path=log/${OUTPUT}/model/model_55000_1573585035 \
+       --reload_path=log/${OUTPUT}/model/model_5000_1574194742 \
        --sent_scores \
-       --lr_coverage 0.00001 \
-       --batch_size 60 \
+       --lr_coverage 0.01 \
+       --batch_size 10 \
        --max_dec_steps 20 \
        --train_data_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/chunked/train_* \
        --eval_data_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/val.bin \
