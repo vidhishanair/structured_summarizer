@@ -109,7 +109,7 @@ class Train(object):
 
         self.optimizer.zero_grad()
         self.model.module.encoder.document_structure_att.output = None
-        loss, _, _, _, _, _, _ = self.get_loss(batch, args)
+        loss, _, _, _, _, _, _, _, _ = self.get_loss(batch, args)
         if loss is None:
             return None
         loss.backward()
@@ -196,9 +196,11 @@ class Train(object):
         summ_loss = 0
         aux_loss = 0
         token_consel_num_correct = 0
+        token_consel_num = 0
         sent_imp_num_correct = 0
         doc_imp_num_correct = 0
         sent_heads_num_correct = 0
+        sent_heads_num = 0
 
         if args.use_summ_loss:
             for di in range(min(max_dec_len, args.max_dec_steps)):
@@ -250,15 +252,16 @@ class Train(object):
             loss1 = self.sent_crossentropy(pred, gold.long())
             #print('token loss ', loss1.item())
             loss += loss1
-
             prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
-            token_consel_num_correct = sum(prediction == gold).item() / gold.size(0)
+            prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
+            token_consel_num_correct = sum(prediction.eq(gold)).item()
+            token_consel_num = sum(gold != -1).item()
 
             #aux_loss += loss1.item()
         if args.use_sent_imp_loss:
             pred = sent_score.view(-1)
             enc_sent_tags[enc_sent_tags == -1] = 0
-            gold = enc_sent_tags.sum(dim=-1)
+            gold = enc_sent_tags.sum(dim=-1).float()
             gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             gold = gold.view(-1)
             loss2 = self.attn_mse_loss(pred, gold)
@@ -309,26 +312,30 @@ class Train(object):
         #gc.collect()
         #torch.cuda.empty_cache()
 
-        return loss, summ_loss, aux_loss, token_consel_num_correct, sent_imp_num_correct, doc_imp_num_correct, sent_heads_num_correct
+        return loss, summ_loss, aux_loss, token_consel_num_correct, token_consel_num,\
+               sent_imp_num_correct, doc_imp_num_correct, sent_heads_num_correct, sent_heads_num
 
     def run_eval(self, logger, args):
         running_avg_loss, iter = 0, 0
         running_avg_summ_loss, running_avg_aux_loss = 0, 0
-        token_consel_avg_correct, sent_imp_avg_correct, doc_imp_avg_correct, sent_heads_avg_correct = 0, 0, 0, 0
+        token_consel_tot_correct, token_consel_tot_num, sent_imp_tot_correct, sent_imp_tot_num,\
+        doc_imp_tot_correct, doc_imp_tot_num, sent_heads_tot_correct, sent_heads_tot_num = 0, 0, 0, 0, 0, 0, 0, 0
         self.model.module.eval()
         self.eval_batcher._finished_reading = False
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
         while batch is not None:
-            loss, summ_loss, aux_loss, token_consel_num_correct, sent_imp_num_correct, \
-                doc_imp_num_correct, sent_heads_num_correct = self.get_loss(batch, args, mode='eval')
+            loss, summ_loss, aux_loss, token_consel_num_correct, token_consel_num, sent_imp_num_correct, \
+                doc_imp_num_correct, sent_heads_num_correct, sent_heads_num = self.get_loss(batch, args, mode='eval')
             loss = loss.item()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 running_avg_summ_loss = calc_running_avg_loss(summ_loss, running_avg_summ_loss, iter)
                 running_avg_aux_loss = calc_running_avg_loss(aux_loss, running_avg_aux_loss, iter)
-                token_consel_avg_correct += token_consel_num_correct
-                sent_heads_avg_correct += sent_heads_num_correct
+                token_consel_tot_correct += token_consel_num_correct
+                sent_heads_tot_correct += sent_heads_num_correct
+                token_consel_tot_num += token_consel_num
+                sent_heads_tot_num += sent_heads_num
                 iter += 1
             batch = self.eval_batcher.next_batch()
         msg = 'Eval: loss: %f' % running_avg_loss
@@ -341,11 +348,11 @@ class Train(object):
         print(msg)
         logger.debug(msg)
         if args.use_token_contsel_loss:
-            msg = 'Average token content sel Accuracy: %f' % (token_consel_avg_correct/float(iter))
+            msg = 'Average token content sel Accuracy: %f' % (token_consel_tot_correct/float(token_consel_tot_num))
             print(msg)
             logger.debug(msg)
         if args.use_sent_head_loss:
-            msg = 'Average sent heads sel Accuracy: %f' % (sent_heads_avg_correct/float(iter))
+            msg = 'Average sent heads sel Accuracy: %f' % (sent_heads_tot_correct/float(sent_heads_tot_num))
             print(msg)
             logger.debug(msg)
         return running_avg_loss

@@ -9,14 +9,14 @@ def get_input_from_batch(batch, use_cuda, args):
     # device = torch.device("cuda" if config.use_gpu else "cpu")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     enc_batch = Variable(torch.from_numpy(batch.enc_batch).long())
-    enc_sent_tags = Variable(torch.from_numpy(batch.enc_sent_tags).float())
-    enc_tags_batch = Variable(torch.from_numpy(batch.enc_tags_batch).float())
+    enc_sent_tags = Variable(torch.from_numpy(batch.enc_sent_tags).long())
+    enc_tags_batch = Variable(torch.from_numpy(batch.enc_tags_batch).long())
     word_batch = Variable(torch.from_numpy(batch.enc_word_batch).long())
-    word_padding_mask = Variable(torch.from_numpy(batch.enc_padding_word_mask)).float()
-    enc_padding_mask = Variable(torch.from_numpy(batch.enc_padding_mask)).float()
-    enc_padding_token_mask = Variable(torch.from_numpy(batch.enc_padding_token_mask)).float()
-    enc_padding_sent_mask = Variable(torch.from_numpy(batch.enc_padding_sent_mask)).float()
-    enc_sent_token_mat = Variable(torch.from_numpy(batch.enc_sent_token_marker).float())
+    word_padding_mask = Variable(torch.from_numpy(batch.enc_padding_word_mask)).long()
+    enc_padding_mask = Variable(torch.from_numpy(batch.enc_padding_mask)).long()
+    enc_padding_token_mask = Variable(torch.from_numpy(batch.enc_padding_token_mask)).long()
+    enc_padding_sent_mask = Variable(torch.from_numpy(batch.enc_padding_sent_mask)).long()
+    enc_sent_token_mat = Variable(torch.from_numpy(batch.enc_sent_token_marker).long())
 
     enc_doc_lens = Variable(torch.from_numpy(batch.enc_doc_lens).int())
     enc_sent_lens = Variable(torch.from_numpy(batch.enc_sent_lens).int())
@@ -26,7 +26,7 @@ def get_input_from_batch(batch, use_cuda, args):
     parent_heads = None
     if args.heuristic_chains:
         sup_adj_map = Variable(torch.from_numpy(batch.sup_adj_map).float())
-        parent_heads = Variable(torch.from_numpy(batch.parent_heads).float())
+        parent_heads = Variable(torch.from_numpy(batch.parent_heads).long())
 
     extra_zeros = None
     enc_batch_extend_vocab = None

@@ -174,7 +174,7 @@ class Example(object):
     def pad_encoder_words(self, max_len, pad_id):
         while len(self.word_input) < max_len:
             self.word_input.append(pad_id)
-            self.enc_tags.append(pad_id)
+            self.enc_tags.append(-1)
         if self.pointer_gen:
             while len(self.enc_input_extend_vocab) < max_len:
                 self.enc_input_extend_vocab.append(pad_id)

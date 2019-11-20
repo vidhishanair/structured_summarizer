@@ -63,6 +63,7 @@ class BeamSearch(object):
         self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
+        self.stat_res_file = os.path.join(self._decode_dir, 'stats.txt')
         for p in [self._decode_dir, self._structures_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
             if not os.path.exists(p):
                 os.mkdir(p)
@@ -143,9 +144,13 @@ class BeamSearch(object):
         abstract_ref = []
         abstract_pred = []
         batch = self.batcher.next_batch()
+        token_contsel_avg, sent_heads_avg = 0,0
         while batch is not None:
             # Run beam search to get best Hypothesis
-            has_summary, best_summary = self.get_decoded_outputs(batch, counter)
+            has_summary, best_summary, token_consel_num_correct, sent_heads_num_correct = self.get_decoded_outputs(batch, counter)
+            token_contsel_avg += token_consel_num_correct
+            sent_heads_avg += sent_heads_num_correct
+
             if has_summary == False:
                 batch = self.batcher.next_batch()
                 continue
@@ -177,6 +182,11 @@ class BeamSearch(object):
             #    exit()
 
         print("Decoder has finished reading dataset for single_pass.")
+
+        fp = open(self.stat_res_file, 'w')
+        fp.write("Avg token_contsel: "+str((token_contsel_avg/float(counter))))
+        fp.write("Avg sent heads: "+str((sent_heads_avg/float(counter))))
+
         #results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
         #rouge_log(results_dict, self._decode_dir)
 
@@ -191,8 +201,8 @@ class BeamSearch(object):
     def get_decoded_outputs(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask,  enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, \
-        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat, sup_adj_mat = \
-            get_input_from_batch(batch, use_cuda, self.args)
+        extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, \
+        enc_tags_batch, enc_sent_token_mat, sup_adj_map, parent_heads = get_input_from_batch(batch, use_cuda, self.args)
 
         if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1): # test why this?
             return False, None
@@ -209,35 +219,52 @@ class BeamSearch(object):
 
         mask = torch.cat((enc_padding_sent_mask[0].unsqueeze(1), mask), dim=1)
         mat = encoder_output['sent_attention_matrix'][0][:,:] * mask
+
         self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
 
-        if(args.fixed_scorer):
-            scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
-            token_scores = scorer_output['token_score']
-            sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+        token_consel_num_correct, sent_heads_num_correct = 0, 0
+        if args.predict_contsel_tags:
+            pred = encoder_output['token_score'].view(-1, 2)
+            gold = enc_tags_batch.view(-1)
+            token_contsel_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+            token_consel_num_correct = sum(token_contsel_prediction == gold).item() / gold.size(0)
 
-        s_t_0 = self.model.reduce_state(encoder_last_hidden)
+        if args.predict_sent_heads:
+            pred = encoder_output['sent_head_scores']
+            pred = pred.view(-1, pred.size(2))
+            head_labels = parent_heads.view(-1)
+            sent_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+            sent_heads_num_correct = sum(sent_heads_prediction == head_labels).item() / head_labels.size(0).item()
 
-        if config.use_maxpool_init_ctx:
-            c_t_0 = max_encoder_output
-
-        dec_h, dec_c = s_t_0 # 1 x 2*hidden_size
-        dec_h = dec_h.squeeze()
-        dec_c = dec_c.squeeze()
-
-        #decoder batch preparation, it has beam_size example initially everything is repeated
-        beams = [Beam(tokens=[self.vocab.word2id(data.START_DECODING)],
-                      log_probs=[0.0],
-                      state=(dec_h[0], dec_c[0]),
-                      context = c_t_0[0],
-                      coverage=(coverage_t_0[0] if self.args.is_coverage else None))
-                 for _ in range(config.beam_size)]
         results = []
         steps = 0
         has_summary = False
         beams_sorted = [None]
         if args.decode_summaries:
             has_summary = True
+
+            if(args.fixed_scorer):
+                scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
+                token_scores = scorer_output['token_score']
+                sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+
+            s_t_0 = self.model.reduce_state(encoder_last_hidden)
+
+            if config.use_maxpool_init_ctx:
+                c_t_0 = max_encoder_output
+
+            dec_h, dec_c = s_t_0 # 1 x 2*hidden_size
+            dec_h = dec_h.squeeze()
+            dec_c = dec_c.squeeze()
+
+            #decoder batch preparation, it has beam_size example initially everything is repeated
+            beams = [Beam(tokens=[self.vocab.word2id(data.START_DECODING)],
+                          log_probs=[0.0],
+                          state=(dec_h[0], dec_c[0]),
+                          context = c_t_0[0],
+                          coverage=(coverage_t_0[0] if self.args.is_coverage else None))
+                     for _ in range(config.beam_size)]
+
             while steps < config.max_dec_steps and len(results) < config.beam_size:
                 latest_tokens = [h.latest_token for h in beams]
                 latest_tokens = [t if t < self.vocab.size() else self.vocab.word2id(data.UNKNOWN_TOKEN) \
@@ -310,7 +337,7 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0]
+        return has_summary, beams_sorted[0], token_consel_num_correct, sent_heads_num_correct
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
