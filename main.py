@@ -238,7 +238,11 @@ class Train(object):
                 #print('Aux loss ', (loss_aux).item())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
-                sent_heads_num_correct = sum(prediction == head_labels).item() / head_labels.size(0).item()
+                if mode == 'eval':
+                    prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+                    prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
+                    sent_heads_num_correct = sum(prediction.eq(head_labels)).item()
+                    sent_heads_num = sum(head_labels != -1).item()
                 #aux_loss += loss_aux.item()
             else:
                 pass
