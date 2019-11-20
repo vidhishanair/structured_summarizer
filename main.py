@@ -252,10 +252,11 @@ class Train(object):
             loss1 = self.sent_crossentropy(pred, gold.long())
             #print('token loss ', loss1.item())
             loss += loss1
-            prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
-            prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
-            token_consel_num_correct = sum(prediction.eq(gold)).item()
-            token_consel_num = sum(gold != -1).item()
+            if mode == 'eval':
+                prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+                prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
+                token_consel_num_correct = sum(prediction.eq(gold)).item()
+                token_consel_num = sum(gold != -1).item()
 
             #aux_loss += loss1.item()
         if args.use_sent_imp_loss:
