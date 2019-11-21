@@ -67,9 +67,9 @@ class BeamSearch(object):
         for p in [self._decode_dir, self._structures_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
             if not os.path.exists(p):
                 os.mkdir(p)
-
-        self.vocab = Vocab(config.vocab_path, config.vocab_size, config.embeddings_file, args)
-        self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
+        vocab = args.vocab_path if args.vocab_path is not None else config.vocab_path
+        self.vocab = Vocab(vocab, config.vocab_size, config.embeddings_file, args)
+        self.batcher = Batcher(args.decode_data_path, self.vocab, mode='decode',
                                batch_size=config.beam_size, single_pass=True, args=args)
         self.batcher.setup_queues()
         #time.sleep(15)
@@ -353,6 +353,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
     parser.add_argument('--save_path', type=str, default=None, help='location of the save path')
     parser.add_argument('--reload_path', type=str, default=None, help='location of the older saved path')
+    parser.add_argument('--decode_data_path', type=str, default='/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/test.bin', help='location of the decode data path')
+    parser.add_argument('--vocab_path', type=str, default=None, help='location of the eval data path')
+
+
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
     parser.add_argument('--autoencode', action='store_true', default=False, help='use autoencoder setting')
