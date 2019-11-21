@@ -150,8 +150,8 @@ class StructuredEncoder(nn.Module):
 
         sent_head_scores = None
         if self.args.heuristic_chains:
-            sa_encoded_sents_p = F.tanh(self.sent_p_linear(sa_encoded_sents)) # bxsentxdim
-            sa_encoded_sents_c = F.tanh(self.sent_c_linear(sa_encoded_sents)) # bxsentxdim
+            sa_encoded_sents_p = F.relu(self.sent_p_linear(sa_encoded_sents)) # bxsentxdim
+            sa_encoded_sents_c = F.relu(self.sent_c_linear(sa_encoded_sents)) # bxsentxdim
             sent_head_scores = self.bilinear(sa_encoded_sents_p, sa_encoded_sents_c).view(batch_size, sent_size, sent_size) #.squeeze() # b, sent , sent
             #print(sent_head_scores)
             sent_head_scores = sent_head_scores * sent_mask.unsqueeze(1).repeat(1, sent_mask.size(1), 1)

@@ -243,7 +243,7 @@ class Train(object):
                     prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
                     sent_heads_num_correct = torch.sum(prediction.eq(head_labels)).item()
                     sent_heads_num = torch.sum(head_labels != -1).item()
-                #aux_loss += loss_aux.item()
+                aux_loss += loss_aux.item()
             else:
                 pass
                 #print("Heuristic Chains should be accompanied with the right loss during training")
@@ -261,7 +261,6 @@ class Train(object):
                 prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
                 token_consel_num_correct = torch.sum(prediction.eq(gold)).item()
                 token_consel_num = torch.sum(gold != -1).item()
-
             #aux_loss += loss1.item()
         if args.use_sent_imp_loss:
             pred = sent_score.view(-1)
