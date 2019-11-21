@@ -71,7 +71,8 @@ class BeamSearch(object):
         self.vocab = Vocab(config.vocab_path, config.vocab_size, config.embeddings_file, args)
         self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
                                batch_size=config.beam_size, single_pass=True, args=args)
-        time.sleep(15)
+        self.batcher.setup_queues()
+        #time.sleep(15)
 
         self.model = Model(args, self.vocab).to(device)
         self.model.eval()
@@ -208,8 +209,8 @@ class BeamSearch(object):
         extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, \
         enc_tags_batch, enc_sent_token_mat, sup_adj_map, parent_heads = get_input_from_batch(batch, use_cuda, self.args)
 
-        if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1): # test why this?
-            return False, None
+        # if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1): # test why this?
+        #     return False, None
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask,

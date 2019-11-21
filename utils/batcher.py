@@ -335,6 +335,8 @@ class Batcher(object):
             self._batch_q_threads[-1].daemon = True
             self._batch_q_threads[-1].start()
         time.sleep(10)
+        print('Bucket input queue is empty when calling next_batch. Bucket queue size: %i, Input queue size: %i',
+                self._batch_queue.qsize(), self._example_queue.qsize())
 
     def next_batch(self):
         # If the batch queue is empty, print a warning
@@ -344,7 +346,7 @@ class Batcher(object):
             if self._single_pass and self._finished_reading:
                 print("Finished reading dataset in single_pass mode.")
                 return None
-
+        print("Getting batch")
         batch = self._batch_queue.get()  # get the next Batch
         return batch
 
@@ -354,7 +356,8 @@ class Batcher(object):
         while True:
             try:
                 (article, abstract, tags, links) = next(input_gen)  # read the next example from file. article and abstract are both strings.
-            except:  # if there are no more examples: #In python 3.7 StopIteration is a RuntimeError
+            except Exception as ex:  # if there are no more examples: #In python 3.7 StopIteration is a RuntimeError
+                print(ex)
                 print("The example generator for this example queue filling thread has exhausted data.")
                 if self._single_pass:
                     print("single_pass mode is on, so we've finished reading dataset. This thread is stopping.")
