@@ -162,7 +162,7 @@ class BeamSearch(object):
 
             if args.predict_sent_heads:
                 no_sents = batch.enc_doc_lens[0]
-                prediction = sent_heads_prediction[0:no_sents]
+                prediction = sent_heads_prediction[0:no_sents].tolist()
                 write_tags(prediction, counter, self._sent_heads_dir)
 
             if args.predict_contsel_tags:
@@ -197,14 +197,16 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
-            #if counter == 5:
-            #    exit()
+            # if counter == 5:
+            #     break
 
         print("Decoder has finished reading dataset for single_pass.")
 
         fp = open(self.stat_res_file, 'w')
-        fp.write("Avg token_contsel: "+str((token_contsel_tot_correct/float(token_contsel_tot_num))))
-        fp.write("Avg sent heads: "+str((sent_heads_tot_correct/float(sent_heads_tot_num))))
+        if args.predict_contsel_tags:
+            fp.write("Avg token_contsel: "+str((token_contsel_tot_correct/float(token_contsel_tot_num))))
+        if args.predict_sent_heads:
+            fp.write("Avg sent heads: "+str((sent_heads_tot_correct/float(sent_heads_tot_num))))
         fp.close()
 
         #results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
@@ -246,17 +248,17 @@ class BeamSearch(object):
         token_consel_num, sent_heads_num = 0, 0
         token_contsel_prediction, sent_heads_prediction = None, None
         if args.predict_contsel_tags:
-            pred = encoder_output['token_score'][0, -1, -1].view(-1, 2)
-            gold = enc_tags_batch[0, -1].view(-1)
+            pred = encoder_output['token_score'][0, :, :].view(-1, 2)
+            gold = enc_tags_batch[0, :].view(-1)
             token_contsel_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
             token_contsel_prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
             token_consel_num_correct = torch.sum(token_contsel_prediction.eq(gold)).item()
             token_consel_num = torch.sum(gold != -1).item()
 
         if args.predict_sent_heads:
-            pred = encoder_output['sent_head_scores'][0, -1, -1]
-            pred = pred.view(-1, pred.size(2))
-            head_labels = parent_heads[0, -1].view(-1)
+            pred = encoder_output['sent_head_scores'][0, :, :]
+            # pred = pred.view(-1, pred.size(2))
+            head_labels = parent_heads[0, :].view(-1)
             sent_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
             sent_heads_prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
             sent_heads_num_correct = torch.sum(sent_heads_prediction.eq(head_labels)).item()

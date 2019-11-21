@@ -61,8 +61,10 @@ def calc_running_avg_loss(loss, running_avg_loss, step, decay=0.99):
 
 
 def write_tags(predictions, ex_index, _ref_dir):
-
-    pass
+    ref_file = os.path.join(_ref_dir, "%06d_heads.txt" % ex_index)
+    with open(ref_file, 'w') as fp:
+        fp.write(str(predictions))
+    fp.close()
 
 
 

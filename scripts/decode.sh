@@ -16,17 +16,17 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
        --predict_sent_heads \
        --heuristic_chains
 
-cd ../pointer_summarizer/
-
-source activate pointgen
-
-python pyrouge_eval.py ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_ref/ ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_dec_dir/ > ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
-
-cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
-cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/stats.txt
-
-source deactivate
-
-source activate py3.7tor1.1
-
-cd ../structured_summarizer/
+# cd ../pointer_summarizer/
+# 
+# source activate pointgen
+# 
+# python pyrouge_eval.py ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_ref/ ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_dec_dir/ > ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
+# 
+# cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
+# cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/stats.txt
+# 
+# source deactivate
+# 
+# source activate py3.7tor1.1
+# 
+# cd ../structured_summarizer/
