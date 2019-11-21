@@ -20,7 +20,7 @@ from utils.batcher import Batcher
 from utils.data import Vocab
 from utils import data, config
 from models.model import Model
-from utils.utils import write_for_rouge, rouge_eval, rouge_log, write_to_json_file
+from utils.utils import write_for_rouge, rouge_eval, rouge_log, write_to_json_file, write_tags
 from utils.train_util import get_input_from_batch, get_output_from_batch
 from pycocoevalcap.eval import COCOEvalCap
 from pycocoevalcap.coco import COCO
@@ -59,12 +59,16 @@ class BeamSearch(object):
         self.args= args
         self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
         self._structures_dir = os.path.join(self._decode_dir, 'structures')
+        self._sent_heads_dir = os.path.join(self._decode_dir, 'sent_heads')
+        self._contsel_dir = os.path.join(self._decode_dir, 'content_sel_preds')
         self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
         self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
+
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
         self.stat_res_file = os.path.join(self._decode_dir, 'stats.txt')
-        for p in [self._decode_dir, self._structures_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
+        for p in [self._decode_dir, self._structures_dir, self._sent_heads_dir, self._contsel_dir,
+                  self._rouge_ref_dir, self._rouge_dec_dir]:
             if not os.path.exists(p):
                 os.mkdir(p)
         vocab = args.vocab_path if args.vocab_path is not None else config.vocab_path
@@ -149,12 +153,22 @@ class BeamSearch(object):
         token_contsel_tot_num, sent_heads_tot_num = 0,0
         while batch is not None:
             # Run beam search to get best Hypothesis
-            has_summary, best_summary, token_consel_num_correct, token_consel_num, \
-            sent_heads_num_correct, sent_heads_num = self.get_decoded_outputs(batch, counter)
+            has_summary, best_summary, token_consel_prediction, token_consel_num_correct, token_consel_num, \
+            sent_heads_prediction, sent_heads_num_correct, sent_heads_num = self.get_decoded_outputs(batch, counter)
             token_contsel_tot_correct += token_consel_num_correct
             token_contsel_tot_num += token_consel_num
             sent_heads_tot_correct += sent_heads_num_correct
             sent_heads_tot_num += sent_heads_num
+
+            if args.predict_sent_heads:
+                no_sents = batch.enc_doc_lens[0]
+                prediction = sent_heads_prediction[0:no_sents]
+                write_tags(prediction, counter, self._sent_heads_dir)
+
+            if args.predict_contsel_tags:
+                no_words = batch.enc_word_lens[0]
+                prediction = sent_heads_prediction[0:no_words]
+                write_tags(prediction, counter, self._contsel_dir)
 
             if has_summary == False:
                 batch = self.batcher.next_batch()
@@ -191,6 +205,7 @@ class BeamSearch(object):
         fp = open(self.stat_res_file, 'w')
         fp.write("Avg token_contsel: "+str((token_contsel_tot_correct/float(token_contsel_tot_num))))
         fp.write("Avg sent heads: "+str((sent_heads_tot_correct/float(sent_heads_tot_num))))
+        fp.close()
 
         #results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
         #rouge_log(results_dict, self._decode_dir)
@@ -229,18 +244,19 @@ class BeamSearch(object):
 
         token_consel_num_correct, sent_heads_num_correct = 0, 0
         token_consel_num, sent_heads_num = 0, 0
+        token_contsel_prediction, sent_heads_prediction = None, None
         if args.predict_contsel_tags:
-            pred = encoder_output['token_score'].view(-1, 2)
-            gold = enc_tags_batch.view(-1)
+            pred = encoder_output['token_score'][0, -1, -1].view(-1, 2)
+            gold = enc_tags_batch[0, -1].view(-1)
             token_contsel_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
             token_contsel_prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
             token_consel_num_correct = torch.sum(token_contsel_prediction.eq(gold)).item()
             token_consel_num = torch.sum(gold != -1).item()
 
         if args.predict_sent_heads:
-            pred = encoder_output['sent_head_scores']
+            pred = encoder_output['sent_head_scores'][0, -1, -1]
             pred = pred.view(-1, pred.size(2))
-            head_labels = parent_heads.view(-1)
+            head_labels = parent_heads[0, -1].view(-1)
             sent_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
             sent_heads_prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
             sent_heads_num_correct = torch.sum(sent_heads_prediction.eq(head_labels)).item()
@@ -347,7 +363,8 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0], token_consel_num_correct, token_consel_num, sent_heads_num_correct, sent_heads_num
+        return has_summary, beams_sorted[0], token_contsel_prediction,\
+               token_consel_num_correct, token_consel_num, sent_heads_prediction, sent_heads_num_correct, sent_heads_num
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')

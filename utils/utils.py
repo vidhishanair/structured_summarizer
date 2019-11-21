@@ -60,6 +60,12 @@ def calc_running_avg_loss(loss, running_avg_loss, step, decay=0.99):
     return running_avg_loss
 
 
+def write_tags(predictions, ex_index, _ref_dir):
+
+    pass
+
+
+
 def write_for_rouge(reference_sents, decoded_words, ex_index,
                     _rouge_ref_dir, _rouge_dec_dir):
     decoded_sents = []
