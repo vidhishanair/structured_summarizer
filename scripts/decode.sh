@@ -7,6 +7,8 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
        --is_coverage \
        --pointer_gen \
        --use_glove \
+       --decode_data_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/test.bin \
+       --vocab_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/vocab \
        --save_path=${OUTPUT} \
        --reload_path=log/${OUTPUT}/model/${MODEL} \
        --sent_scores \

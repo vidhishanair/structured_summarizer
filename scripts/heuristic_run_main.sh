@@ -10,7 +10,7 @@ CUDA_VISIBLE_DEVICES=1 python main.py \
        --pointer_gen \
        --use_glove \
        --save_path=${OUTPUT} \
-       --reload_path=log/${OUTPUT}/model/model_58000_1574346166 \
+       --reload_path=log/${OUTPUT}/model/model_60000_1574372388 \
        --sent_scores \
        --lr_coverage 0.05 \
        --batch_size 10 \
@@ -18,7 +18,6 @@ CUDA_VISIBLE_DEVICES=1 python main.py \
        --train_data_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/chunked/train_* \
        --eval_data_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/val.bin \
        --vocab_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/vocab \
-       --use_sent_head_loss \
        --use_summ_loss \
        --heuristic_chains 
 

@@ -220,7 +220,7 @@ class Train(object):
             sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
             batch_avg_loss = sum_losses / dec_lens_var
             loss += torch.mean(batch_avg_loss)
-            #summ_loss += torch.mean(batch_avg_loss).item()
+            summ_loss += torch.mean(batch_avg_loss).item()
 
         if args.heuristic_chains:
             if args.use_attmat_loss:
