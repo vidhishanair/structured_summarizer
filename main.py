@@ -261,27 +261,6 @@ class Train(object):
                 prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
                 token_consel_num_correct = torch.sum(prediction.eq(gold)).item()
                 token_consel_num = torch.sum(gold != -1).item()
-                if token_consel_num_correct > token_consel_num:
-                    # print(f"Gold matrix : {gold.tolist()}")
-                    # print(f"gold not eq -1 : {(gold != -1).tolist()}")
-                    #print(f"first sum {torch.sum(gold != -1).item()}")
-                    #print(f"gold not eq -1 : {sum((gold != -1).tolist())}")
-                    
-                    #print(f"Predction matrix : {prediction.tolist()}")
-                    #exit(0)
-                    #print(f"Prediction and gold sizes {prediction.size(), gold.size()}")
-                    #print(f"correct tokens and Total tokens {token_consel_num_correct, token_consel_num}")
-                    #print(f"Token score and Encoded tags {token_score.size(), enc_tags_batch.size()}")
-                    #print(sum(prediction==-2), sum(prediction!=-2))
-                    #print(sum(gold==-1), sum(gold!=-1))
-                    #print(sum((prediction.eq(gold))[gold==-1]))
-                    #print(sum((prediction[prediction!=-2]).eq(gold[gold!=-1])))
-                    #exit()
-                    print(torch.sum(gold != -1).item())
-                    print(torch.sum(gold.eq(prediction)).item())
-                    #print(sum(prediction == gold))
-                    #print(gold.size()[0] - sum((gold == -1)))
-                    exit()
 
             #aux_loss += loss1.item()
         if args.use_sent_imp_loss:

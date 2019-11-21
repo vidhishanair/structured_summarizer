@@ -328,12 +328,13 @@ class Batcher(object):
             self._example_q_threads.append(Thread(target=self.fill_example_queue))
             self._example_q_threads[-1].daemon = True
             self._example_q_threads[-1].start()
+        time.sleep(5)
         self._batch_q_threads = []
         for _ in range(self._num_batch_q_threads):
             self._batch_q_threads.append(Thread(target=self.fill_batch_queue))
             self._batch_q_threads[-1].daemon = True
             self._batch_q_threads[-1].start()
-        time.sleep(5)
+        time.sleep(10)
 
     def next_batch(self):
         # If the batch queue is empty, print a warning
@@ -389,7 +390,9 @@ class Batcher(object):
                 if not self._single_pass:
                     shuffle(batches)
                 for b in batches:  # each b is a list of Example objects
-                    self._batch_queue.put(Batch(b, self._vocab, self.batch_size, self.args))
+                    bat = Batch(b, self._vocab, self.batch_size, self.args)
+                    self._batch_queue.put(bat)
+                    #self.tot += bat.num_word_tags
 
     def watch_threads(self):
         while True:
