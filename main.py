@@ -148,7 +148,7 @@ class Train(object):
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
                 iter += 1
 
-            print_interval = 1000
+            print_interval = 200
             if iter % print_interval == 0:
                 msg = 'steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
                                                                            time.time() - start, loss)
@@ -241,8 +241,8 @@ class Train(object):
                 if mode == 'eval':
                     prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                     prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                    sent_heads_num_correct = sum(prediction.eq(head_labels)).item()
-                    sent_heads_num = sum(head_labels != -1).item()
+                    sent_heads_num_correct = torch.sum(prediction.eq(head_labels)).item()
+                    sent_heads_num = torch.sum(head_labels != -1).item()
                 #aux_loss += loss_aux.item()
             else:
                 pass
@@ -259,8 +259,29 @@ class Train(object):
             if mode == 'eval':
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                token_consel_num_correct = sum(prediction.eq(gold)).item()
-                token_consel_num = sum(gold != -1).item()
+                token_consel_num_correct = torch.sum(prediction.eq(gold)).item()
+                token_consel_num = torch.sum(gold != -1).item()
+                if token_consel_num_correct > token_consel_num:
+                    # print(f"Gold matrix : {gold.tolist()}")
+                    # print(f"gold not eq -1 : {(gold != -1).tolist()}")
+                    #print(f"first sum {torch.sum(gold != -1).item()}")
+                    #print(f"gold not eq -1 : {sum((gold != -1).tolist())}")
+                    
+                    #print(f"Predction matrix : {prediction.tolist()}")
+                    #exit(0)
+                    #print(f"Prediction and gold sizes {prediction.size(), gold.size()}")
+                    #print(f"correct tokens and Total tokens {token_consel_num_correct, token_consel_num}")
+                    #print(f"Token score and Encoded tags {token_score.size(), enc_tags_batch.size()}")
+                    #print(sum(prediction==-2), sum(prediction!=-2))
+                    #print(sum(gold==-1), sum(gold!=-1))
+                    #print(sum((prediction.eq(gold))[gold==-1]))
+                    #print(sum((prediction[prediction!=-2]).eq(gold[gold!=-1])))
+                    #exit()
+                    print(torch.sum(gold != -1).item())
+                    print(torch.sum(gold.eq(prediction)).item())
+                    #print(sum(prediction == gold))
+                    #print(gold.size()[0] - sum((gold == -1)))
+                    exit()
 
             #aux_loss += loss1.item()
         if args.use_sent_imp_loss:
@@ -354,10 +375,12 @@ class Train(object):
         logger.debug(msg)
         if args.use_token_contsel_loss:
             msg = 'Average token content sel Accuracy: %f' % (token_consel_tot_correct/float(token_consel_tot_num))
+            print(token_consel_tot_correct, token_consel_tot_num, iter)
             print(msg)
             logger.debug(msg)
         if args.use_sent_head_loss:
             msg = 'Average sent heads sel Accuracy: %f' % (sent_heads_tot_correct/float(sent_heads_tot_num))
+            print(sent_heads_tot_correct, sent_heads_tot_num, iter)
             print(msg)
             logger.debug(msg)
         return running_avg_loss

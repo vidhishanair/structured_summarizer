@@ -1,15 +1,15 @@
 #Namespace(L1_structure_penalty=False, autoencode=False, is_coverage=True, pointer_gen=True, reload_path=None, reload_pretrained_clf_path='log/token_sent_level_tag/model/model_455000_1555707099', save_path='sent_level_tag_coverage', sent_scores=True, sep_sent_features=False, token_scores=False)
 
-OUTPUT='heuristic_ner_pred_sent_heads'
-#OUTPUT='test_ner'
+#OUTPUT='heuristic_ner_pred_sent_heads'
+OUTPUT='test_ner'
 RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
 
+#--reload_path=log/${OUTPUT}/model/model_156000_1574266495 \
 CUDA_VISIBLE_DEVICES=1 python main.py \
        --is_coverage \
        --pointer_gen \
        --use_glove \
        --save_path=${OUTPUT} \
-       --reload_path=log/${OUTPUT}/model/model_5000_1574194742 \
        --sent_scores \
        --lr_coverage 0.01 \
        --batch_size 10 \

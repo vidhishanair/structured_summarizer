@@ -313,7 +313,8 @@ class Batcher(object):
             self._bucketing_cache_size = 100  # 100 # how many batches-worth of examples to load into cache before bucketing
 
         # Start the threads that load the queues
-        self.setup_queues()
+        if mode == 'train':
+            self.setup_queues()
 
         # Start a thread that watches the other threads and restarts them if they're dead
         if not single_pass:  # We don't want a watcher in single_pass mode because the threads shouldn't run forever
@@ -332,6 +333,7 @@ class Batcher(object):
             self._batch_q_threads.append(Thread(target=self.fill_batch_queue))
             self._batch_q_threads[-1].daemon = True
             self._batch_q_threads[-1].start()
+        time.sleep(5)
 
     def next_batch(self):
         # If the batch queue is empty, print a warning
