@@ -156,7 +156,7 @@ class StructuredEncoder(nn.Module):
             #print(sent_head_scores)
             sent_head_scores = sent_head_scores * sent_mask.unsqueeze(1).repeat(1, sent_mask.size(1), 1)
             sent_head_scores = sent_head_scores * sent_mask.unsqueeze(2)
-            sent_head_scores = self.sm2(sent_head_scores) # b x sent x sent
+            # sent_head_scores = self.sm2(sent_head_scores) # b x sent x sent
             #sums = sent_head_scores.sum(dim=2, keepdim=True)
             #sent_head_scores = sent_head_scores / sums
             #print(sent_head_scores)
