@@ -144,12 +144,16 @@ class BeamSearch(object):
         abstract_ref = []
         abstract_pred = []
         batch = self.batcher.next_batch()
-        token_contsel_avg, sent_heads_avg = 0,0
+        token_contsel_tot_correct, sent_heads_tot_correct = 0,0
+        token_contsel_tot_num, sent_heads_tot_num = 0,0
         while batch is not None:
             # Run beam search to get best Hypothesis
-            has_summary, best_summary, token_consel_num_correct, sent_heads_num_correct = self.get_decoded_outputs(batch, counter)
-            token_contsel_avg += token_consel_num_correct
-            sent_heads_avg += sent_heads_num_correct
+            has_summary, best_summary, token_consel_num_correct, token_consel_num, \
+            sent_heads_num_correct, sent_heads_num = self.get_decoded_outputs(batch, counter)
+            token_contsel_tot_correct += token_consel_num_correct
+            token_contsel_tot_num += token_consel_num
+            sent_heads_tot_correct += sent_heads_num_correct
+            sent_heads_tot_num += sent_heads_num
 
             if has_summary == False:
                 batch = self.batcher.next_batch()
@@ -184,8 +188,8 @@ class BeamSearch(object):
         print("Decoder has finished reading dataset for single_pass.")
 
         fp = open(self.stat_res_file, 'w')
-        fp.write("Avg token_contsel: "+str((token_contsel_avg/float(counter))))
-        fp.write("Avg sent heads: "+str((sent_heads_avg/float(counter))))
+        fp.write("Avg token_contsel: "+str((token_contsel_tot_correct/float(token_contsel_tot_num))))
+        fp.write("Avg sent heads: "+str((sent_heads_tot_correct/float(sent_heads_tot_num))))
 
         #results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
         #rouge_log(results_dict, self._decode_dir)
@@ -223,24 +227,29 @@ class BeamSearch(object):
         self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
 
         token_consel_num_correct, sent_heads_num_correct = 0, 0
+        token_consel_num, sent_heads_num = 0, 0
         if args.predict_contsel_tags:
             pred = encoder_output['token_score'].view(-1, 2)
             gold = enc_tags_batch.view(-1)
             token_contsel_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
-            token_consel_num_correct = sum(token_contsel_prediction == gold).item() / gold.size(0)
+            token_contsel_prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
+            token_consel_num_correct = torch.sum(token_contsel_prediction.eq(gold)).item()
+            token_consel_num = torch.sum(gold != -1).item()
 
         if args.predict_sent_heads:
             pred = encoder_output['sent_head_scores']
             pred = pred.view(-1, pred.size(2))
             head_labels = parent_heads.view(-1)
             sent_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
-            sent_heads_num_correct = sum(sent_heads_prediction == head_labels).item() / head_labels.size(0).item()
+            sent_heads_prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
+            sent_heads_num_correct = torch.sum(sent_heads_prediction.eq(head_labels)).item()
+            sent_heads_num = torch.sum(head_labels != -1).item()
 
         results = []
         steps = 0
         has_summary = False
         beams_sorted = [None]
-        if args.decode_summaries:
+        if args.predict_summaries:
             has_summary = True
 
             if(args.fixed_scorer):
@@ -337,7 +346,7 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0], token_consel_num_correct, sent_heads_num_correct
+        return has_summary, beams_sorted[0], token_consel_num_correct, token_consel_num, sent_heads_num_correct, sent_heads_num
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
@@ -357,7 +366,10 @@ if __name__ == '__main__':
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
-    parser.add_argument('--decode_summaries', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_summaries', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_sent_heads', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_contsel_tags', action='store_true', default=False, help='decode summarization')
+
 
 
     args = parser.parse_args()
