@@ -59,8 +59,10 @@ class BeamSearch(object):
         self.args= args
         self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
         self._structures_dir = os.path.join(self._decode_dir, 'structures')
-        self._sent_heads_dir = os.path.join(self._decode_dir, 'sent_heads')
+        self._sent_heads_dir = os.path.join(self._decode_dir, 'sent_heads_preds')
+        self._sent_heads_ref_dir = os.path.join(self._decode_dir, 'sent_heads_ref')
         self._contsel_dir = os.path.join(self._decode_dir, 'content_sel_preds')
+        self._contsel_ref_dir = os.path.join(self._decode_dir, 'content_sel_ref')
         self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
         self._rouge_dec_dir = os.path.join(self._decode_dir, 'rouge_dec_dir')
 
@@ -163,12 +165,14 @@ class BeamSearch(object):
             if args.predict_sent_heads:
                 no_sents = batch.enc_doc_lens[0]
                 prediction = sent_heads_prediction[0:no_sents].tolist()
-                write_tags(prediction, counter, self._sent_heads_dir)
+                ref = batch.parent_heads[0]
+                write_tags(prediction, ref, counter, self._sent_heads_dir, self._sent_heads_ref_dir)
 
             if args.predict_contsel_tags:
                 no_words = batch.enc_word_lens[0]
                 prediction = sent_heads_prediction[0:no_words]
-                write_tags(prediction, counter, self._contsel_dir)
+                ref = batch.contsel_tags[0]
+                write_tags(prediction, ref, counter, self._contsel_dir, self._contsel_ref_dir)
 
             if has_summary == False:
                 batch = self.batcher.next_batch()
@@ -249,11 +253,11 @@ class BeamSearch(object):
         token_contsel_prediction, sent_heads_prediction = None, None
         if args.predict_contsel_tags:
             pred = encoder_output['token_score'][0, :, :].view(-1, 2)
-            gold = enc_tags_batch[0, :].view(-1)
+            token_contsel_gold = enc_tags_batch[0, :].view(-1)
             token_contsel_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
-            token_contsel_prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
-            token_consel_num_correct = torch.sum(token_contsel_prediction.eq(gold)).item()
-            token_consel_num = torch.sum(gold != -1).item()
+            token_contsel_prediction[token_contsel_gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
+            token_consel_num_correct = torch.sum(token_contsel_prediction.eq(token_contsel_gold)).item()
+            token_consel_num = torch.sum(token_contsel_gold != -1).item()
 
         if args.predict_sent_heads:
             pred = encoder_output['sent_head_scores'][0, :, :]
@@ -365,8 +369,9 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0], token_contsel_prediction,\
-               token_consel_num_correct, token_consel_num, sent_heads_prediction, sent_heads_num_correct, sent_heads_num
+        return has_summary, beams_sorted[0], \
+               token_contsel_prediction, token_consel_num_correct, token_consel_num, \
+               sent_heads_prediction, sent_heads_num_correct, sent_heads_num
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
