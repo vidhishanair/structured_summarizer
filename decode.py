@@ -69,8 +69,8 @@ class BeamSearch(object):
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
         self.stat_res_file = os.path.join(self._decode_dir, 'stats.txt')
-        for p in [self._decode_dir, self._structures_dir, self._sent_heads_dir, self._contsel_dir,
-                  self._rouge_ref_dir, self._rouge_dec_dir]:
+        for p in [self._decode_dir, self._structures_dir, self._sent_heads_ref_dir, self._sent_heads_dir, self._contsel_ref_dir,
+                self._contsel_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
             if not os.path.exists(p):
                 os.mkdir(p)
         vocab = args.vocab_path if args.vocab_path is not None else config.vocab_path
@@ -87,7 +87,7 @@ class BeamSearch(object):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
 
     def extract_structures(self, batch, sent_attention_matrix, doc_attention_matrix, count, use_cuda, sent_scores):
-        fileName = os.path.join(self._structures_dir, str(count)+".txt")
+        fileName = os.path.join(self._structures_dir, "%06d_struct.txt" % count)
         fp = open(fileName, "w")
         fp.write("Doc: "+str(count)+"\n")
         #exit(0)
@@ -136,7 +136,10 @@ class BeamSearch(object):
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
         #print(heads, tree_score)
         fp.write("\n")
-        fp.write(str(batch.original_articles[0])+"\n")
+        sentences = str(batch.original_articles[0]).split("<split1>")
+        for idx, sent in enumerate(sentences):
+            fp.write(str(idx)+"\t"+str(sent)+"\n")
+        #fp.write(str("\n".join(batch.original_articles[0].split("<split1>"))+"\n")
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
         s = sent_scores[0].data.cpu().numpy()
@@ -165,7 +168,7 @@ class BeamSearch(object):
             if args.predict_sent_heads:
                 no_sents = batch.enc_doc_lens[0]
                 prediction = sent_heads_prediction[0:no_sents].tolist()
-                ref = batch.parent_heads[0]
+                ref = batch.original_parent_heads[0]
                 write_tags(prediction, ref, counter, self._sent_heads_dir, self._sent_heads_ref_dir)
 
             if args.predict_contsel_tags:
@@ -201,8 +204,8 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
-            # if counter == 5:
-            #     break
+            if counter == 5:
+                break
 
         print("Decoder has finished reading dataset for single_pass.")
 

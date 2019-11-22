@@ -284,7 +284,7 @@ class Batch(object):
         self.original_articles = [ex.original_article for ex in example_list]  # list of lists
         self.original_abstracts = [ex.original_abstract for ex in example_list]  # list of lists
         self.original_abstracts_sents = [ex.original_abstract_sents for ex in example_list]  # list of list of lists
-        self.parent_heads = [ex.parent_heads for ex in example_list]  # list of list of lists
+        self.original_parent_heads = [ex.parent_heads for ex in example_list]  # list of list of lists
         self.contsel_tags = [ex.enc_tags for ex in example_list]  # list of list of lists
 
 
