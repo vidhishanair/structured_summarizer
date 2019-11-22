@@ -204,8 +204,8 @@ class BeamSearch(object):
                 start = time.time()
 
             batch = self.batcher.next_batch()
-            if counter == 5:
-                break
+            # if counter == 5:
+            #    break
 
         print("Decoder has finished reading dataset for single_pass.")
 
