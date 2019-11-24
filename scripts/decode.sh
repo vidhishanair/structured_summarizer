@@ -1,8 +1,9 @@
 #Namespace(L1_structure_penalty=False, autoencode=False, is_coverage=True, pointer_gen=True, reload_path=None, reload_pretrained_clf_path='log/token_sent_level_tag/model/model_455000_1555707099', save_path='sent_level_tag_coverage', sent_scores=True, sep_sent_features=False, token_scores=False)
 
-OUTPUT='test_loading_summ'
+#OUTPUT='test_loading_summ2'
+OUTPUT='heuristic_ner_pred_sent_heads_withsummi_loadedemnlpmodel'
 RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
-MODEL='model_337000_1574435032'
+MODEL='model_337000_1574630246'
 CUDA_VISIBLE_DEVICES=3 python decode.py \
        --is_coverage \
        --pointer_gen \
@@ -12,7 +13,6 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
        --reload_path=log/${OUTPUT}/model/${MODEL} \
        --sent_scores \
        --predict_summaries \
-       --predict_sent_heads \
        --heuristic_chains
 
 cd ../pointer_summarizer/

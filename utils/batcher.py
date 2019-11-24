@@ -437,6 +437,9 @@ class Batcher(object):
                             0]  #
                         if links != b"":
                             links = ast.literal_eval(links.decode('utf-8'))
+                        #print(links)
+                        #print(links['coref'])
+                        #print(len(links['ner']))
                 except:# ValueError:
                     print(article_text)
                     print(e.features.feature['labels'].bytes_list.value)
