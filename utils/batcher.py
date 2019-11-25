@@ -194,6 +194,8 @@ class Example(object):
                     indices = np.asarray(head_dist == max_score).nonzero()[0]
                     head = indices[(np.abs(indices - sent_idx)).argmin()]
                 parent_heads[sent_idx] = head
+        #print("here: ", links, adj_mat)
+        #exit()
         return adj_mat, weighted_adj_mat, norm_adj_mat, parent_heads
 
     def get_dec_inp_targ_seqs(self, sequence, max_len, start_id, stop_id):

@@ -171,7 +171,7 @@ class StructuredEncoder(nn.Module):
                 sent_all_head_scores = sent_all_head_scores * sent_mask.unsqueeze(1).unsqueeze(3).repeat(1, sent_mask.size(1), 1, sent_all_head_scores.size(3))
                 sent_all_head_scores = sent_all_head_scores * sent_mask.unsqueeze(2).unsqueeze(3)
 
-            if self.args.use_sent_child_loss or self.args.predict_sent_all_child:
+            if self.args.use_sent_all_child_loss or self.args.predict_sent_all_child:
                 sa_encoded_child_sents_c = F.relu(self.sent_c_linear_call(sa_encoded_sents)) # bxsentxdim
                 sa_encoded_child_sents_p = F.relu(self.sent_p_linear_call(sa_encoded_sents)) # bxsentxdim
                 sent_all_child_scores = self.bilinear_pall(sa_encoded_child_sents_c, sa_encoded_child_sents_p).view(batch_size, sent_size, sent_size, self.sem_dim_size) #.squeeze() # b, sent , sent , dim

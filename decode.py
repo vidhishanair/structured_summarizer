@@ -442,7 +442,10 @@ if __name__ == '__main__':
     parser.add_argument('--predict_sent_all_child', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--predict_contsel_tags', action='store_true', default=False, help='decode summarization')
 
-
+    
+    parser.add_argument('--use_sent_single_head_loss', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
 
     args = parser.parse_args()
     model_filename = args.reload_path

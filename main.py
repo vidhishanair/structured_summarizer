@@ -240,7 +240,7 @@ class Train(object):
                 gold = norm_adj_mat.view(-1)
                 loss_aux = self.attn_mse_loss(pred, gold)
                 loss += 100*loss_aux
-            elif args.use_sent_single_head_loss:
+            if args.use_sent_single_head_loss:
                 pred = sent_single_head_scores
                 pred = pred.view(-1, pred.size(2))
                 head_labels = parent_heads.view(-1)
@@ -252,10 +252,11 @@ class Train(object):
                     counts['sent_single_heads_num_correct'] = torch.sum(prediction.eq(head_labels)).item()
                     counts['sent_single_heads_num'] = torch.sum(head_labels != -1).item()
                 ind_losses['sent_single_head_loss'] += loss_aux.item()
-            elif args.use_sent_all_head_loss:
+            if args.use_sent_all_head_loss:
                 pred = sent_all_head_scores
-                pred = pred.view(-1, pred.size(2))
+                pred = pred.view(-1, pred.size(3))
                 target = adj_mat.view(-1)
+                #print(pred.size(), target.size())
                 loss_aux = self.crossentropy(pred, target.long())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
@@ -263,11 +264,13 @@ class Train(object):
                     prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
                     counts['sent_all_heads_num_correct'] = torch.sum(prediction.eq(target)).item()
                     counts['sent_all_heads_num'] = torch.sum(target != -1).item()
+                    #print(counts['sent_all_heads_num_correct'], counts['sent_all_heads_num'])
                 ind_losses['sent_all_head_loss'] += loss_aux.item()
-            elif args.use_sent_all_child_loss:
+                #print('all head '+str(loss_aux.item()))
+            if args.use_sent_all_child_loss:
                 pred = sent_all_child_scores
-                pred = pred.view(-1, pred.size(2))
-                target = adj_mat.permute(1,2).view(-1)
+                pred = pred.view(-1, pred.size(3))
+                target = adj_mat.permute(0,2,1).contiguous().view(-1)
                 loss_aux = self.crossentropy(pred, target.long())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
@@ -276,9 +279,10 @@ class Train(object):
                     counts['sent_all_child_num_correct'] = torch.sum(prediction.eq(target)).item()
                     counts['sent_all_child_num'] = torch.sum(target != -1).item()
                 ind_losses['sent_all_child_loss'] += loss_aux.item()
+                #print('all child '+str(loss_aux.item()))
 
-            else:
-                pass
+            #else:
+            #   pass
 
         if args.use_token_contsel_loss:
             pred = token_score.view(-1, 2)
@@ -454,7 +458,11 @@ if __name__ == '__main__':
     parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
 
-
+    
+    parser.add_argument('--predict_sent_single_head', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_sent_all_head', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_sent_all_child', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_contsel_tags', action='store_true', default=False, help='decode summarization')
 
     parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')
     parser.add_argument('--lr_coverage', type=float, default=0.15, help='Learning Rate for Coverage')

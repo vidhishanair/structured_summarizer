@@ -27,7 +27,7 @@ def get_input_from_batch(batch, use_cuda, args):
     norm_adj_mat = None
     parent_heads = None
     if args.heuristic_chains:
-        adj_map = Variable(torch.from_numpy(batch.adj_mat).float())
+        adj_mat = Variable(torch.from_numpy(batch.adj_mat).float())
         weighted_adj_mat = Variable(torch.from_numpy(batch.weighted_adj_mat).float())
         norm_adj_mat = Variable(torch.from_numpy(batch.norm_adj_mat).float())
         parent_heads = Variable(torch.from_numpy(batch.parent_heads).long())
@@ -77,7 +77,7 @@ def get_input_from_batch(batch, use_cuda, args):
 
         if coverage is not None:
             coverage = coverage.to(device)
-
+    #print(adj_mat.size(), weighted_adj_mat.size(), norm_adj_mat.size(), parent_heads.size())
     return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
            enc_tags_batch, enc_sent_tags, enc_sent_token_mat, adj_mat, weighted_adj_mat, norm_adj_mat, parent_heads
