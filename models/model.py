@@ -148,8 +148,9 @@ class Model(nn.Module):
         #print('Time taken for decoder: ', time.process_time() - start)
         #print(coverage_list)
         #return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), torch.stack(p_gen_list, dim=1), 
-        return final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix, encoder_output['sent_head_scores'], \
-               encoder_output['token_score'], encoder_output['sent_score'], encoder_output['doc_score']
+        return final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix, encoder_output['sent_single_head_scores'], \
+               encoder_output['sent_all_head_scores'], encoder_output['sent_all_child_scores'], \
+               encoder_output['token_score'], encoder_output['sent_score'], encoder_output['doc_score'],
 
 
 

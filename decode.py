@@ -154,28 +154,45 @@ class BeamSearch(object):
         abstract_ref = []
         abstract_pred = []
         batch = self.batcher.next_batch()
-        token_contsel_tot_correct, sent_heads_tot_correct = 0,0
-        token_contsel_tot_num, sent_heads_tot_num = 0,0
+        counts = {'token_consel_num_correct' : 0,
+                  'token_consel_num' : 0,
+                  'sent_single_heads_num_correct' : 0,
+                  'sent_single_heads_num' : 0,
+                  'sent_all_heads_num_correct' : 0,
+                  'sent_all_heads_num' : 0,
+                  'sent_all_child_num_correct' : 0,
+                  'sent_all_child_num' : 0}
         while batch is not None:
             # Run beam search to get best Hypothesis
-            has_summary, best_summary, token_consel_prediction, token_consel_num_correct, token_consel_num, \
-            sent_heads_prediction, sent_heads_num_correct, sent_heads_num = self.get_decoded_outputs(batch, counter)
-            token_contsel_tot_correct += token_consel_num_correct
-            token_contsel_tot_num += token_consel_num
-            sent_heads_tot_correct += sent_heads_num_correct
-            sent_heads_tot_num += sent_heads_num
-
-            if args.predict_sent_heads:
-                no_sents = batch.enc_doc_lens[0]
-                prediction = sent_heads_prediction[0:no_sents].tolist()
-                ref = batch.original_parent_heads[0]
-                write_tags(prediction, ref, counter, self._sent_heads_dir, self._sent_heads_ref_dir)
+            has_summary, best_summary, sample_predictions, sample_counts = self.get_decoded_outputs(batch, counter)
+            # token_contsel_tot_correct += token_consel_num_correct
+            # token_contsel_tot_num += token_consel_num
+            # sent_heads_tot_correct += sent_heads_num_correct
+            # sent_heads_tot_num += sent_heads_num
 
             if args.predict_contsel_tags:
                 no_words = batch.enc_word_lens[0]
-                prediction = sent_heads_prediction[0:no_words]
+                prediction = sample_predictions['token_contsel_prediction'][0:no_words]
                 ref = batch.contsel_tags[0]
                 write_tags(prediction, ref, counter, self._contsel_dir, self._contsel_ref_dir)
+                counts['token_consel_num_correct'] += sample_counts['token_consel_num_correct']
+                counts['token_consel_num'] += sample_counts['token_consel_num']
+
+            if args.predict_sent_single_head:
+                no_sents = batch.enc_doc_lens[0]
+                prediction = sample_predictions['sent_single_heads_prediction'][0:no_sents].tolist()
+                ref = batch.original_parent_heads[0]
+                write_tags(prediction, ref, counter, self._sent_single_heads_dir, self._sent_single_heads_ref_dir)
+                counts['sent_single_heads_num_correct'] += sample_counts['sent_single_heads_num_correct']
+                counts['sent_single_heads_num'] += sample_counts['sent_single_heads_num']
+
+            if args.predict_sent_all_head:
+                counts['sent_all_heads_num_correct'] += sample_counts['sent_all_heads_num_correct']
+                counts['sent_all_heads_num'] += sample_counts['sent_all_heads_num']
+
+            if args.predict_sent_all_child:
+                counts['sent_all_child_num_correct'] += sample_counts['sent_all_child_num_correct']
+                counts['sent_all_child_num'] += sample_counts['sent_all_child_num']
 
             if has_summary == False:
                 batch = self.batcher.next_batch()
@@ -211,30 +228,25 @@ class BeamSearch(object):
 
         fp = open(self.stat_res_file, 'w')
         if args.predict_contsel_tags:
-            fp.write("Avg token_contsel: "+str((token_contsel_tot_correct/float(token_contsel_tot_num))))
-        if args.predict_sent_heads:
-            fp.write("Avg sent heads: "+str((sent_heads_tot_correct/float(sent_heads_tot_num))))
+            fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
+        if args.predict_sent_single_head:
+            fp.write("Avg single sent heads: "+str((counts['sent_single_heads_num_correct']/float(counts['sent_single_heads_num']))))
+        if args.predict_sent_all_head:
+            fp.write("Avg all sent heads: "+str((counts['sent_all_heads_num_correct']/float(counts['sent_all_heads_num']))))
+        if args.predict_sent_all_child:
+            fp.write("Avg all sent child: "+str((counts['sent_all_child_num_correct']/float(counts['sent_all_child_num']))))
         fp.close()
-
-        #results_dict = rouge_eval(self._rouge_ref_dir, self._rouge_dec_dir)
-        #rouge_log(results_dict, self._decode_dir)
 
         write_to_json_file(abstract_ref, self._rouge_ref_file)
         write_to_json_file(abstract_pred, self._rouge_pred_file)
 
-        # cocoEval = COCOEvalCap(self._rouge_ref_file, self._rouge_pred_file)
-        # cocoEval.evaluate()
-        # for metric, score in cocoEval.eval.items():
-        #     print('%s: %.3f'%(metric, score))
-
     def get_decoded_outputs(self, batch, count):
         #batch should have only one example
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-                        enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, \
-                                enc_tags_batch, enc_sent_tags, enc_sent_token_mat, sup_adj_mat, parent_heads = get_input_from_batch(batch, use_cuda, self.args)
+            enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, \
+                enc_tags_batch, enc_sent_tags, enc_sent_token_mat, adj_mat, weighted_adj_mat, norm_adj_mat, \
+                    parent_heads = get_input_from_batch(batch, use_cuda, self.args)
 
-        # if(enc_batch.size()[1]==1 or enc_batch.size()[2]==1): # test why this?
-        #     return False, None
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask,
@@ -251,9 +263,8 @@ class BeamSearch(object):
 
         self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
 
-        token_consel_num_correct, sent_heads_num_correct = 0, 0
-        token_consel_num, sent_heads_num = 0, 0
-        token_contsel_prediction, sent_heads_prediction = None, None
+        counts = {}
+        predictions = {}
         if args.predict_contsel_tags:
             pred = encoder_output['token_score'][0, :, :].view(-1, 2)
             token_contsel_gold = enc_tags_batch[0, :].view(-1)
@@ -261,15 +272,44 @@ class BeamSearch(object):
             token_contsel_prediction[token_contsel_gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
             token_consel_num_correct = torch.sum(token_contsel_prediction.eq(token_contsel_gold)).item()
             token_consel_num = torch.sum(token_contsel_gold != -1).item()
+            predictions['token_contsel_prediction'] = token_contsel_prediction
+            counts['token_consel_num_correct'] = token_consel_num_correct
+            counts['token_consel_num'] = token_consel_num
 
-        if args.predict_sent_heads:
-            pred = encoder_output['sent_head_scores'][0, :, :]
-            # pred = pred.view(-1, pred.size(2))
+        if args.predict_sent_single_head:
+            pred = encoder_output['sent_single_head_scores'][0, :, :]
             head_labels = parent_heads[0, :].view(-1)
-            sent_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
-            sent_heads_prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
-            sent_heads_num_correct = torch.sum(sent_heads_prediction.eq(head_labels)).item()
-            sent_heads_num = torch.sum(head_labels != -1).item()
+            sent_single_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+            sent_single_heads_prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
+            sent_single_heads_num_correct = torch.sum(sent_single_heads_prediction.eq(head_labels)).item()
+            sent_single_heads_num = torch.sum(head_labels != -1).item()
+            predictions['sent_single_heads_prediction'] = sent_single_heads_prediction
+            counts['sent_single_heads_num_correct'] = sent_single_heads_num_correct
+            counts['sent_single_heads_num'] = sent_single_heads_num
+
+        if args.predict_sent_all_head:
+            pred = encoder_output['sent_all_head_scores'][0, :, :, :]
+            target = adj_mat[0, :, :].view(-1)
+            sent_all_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+            sent_all_heads_prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
+            sent_all_heads_num_correct = torch.sum(sent_all_heads_prediction.eq(target)).item()
+            sent_all_heads_num = torch.sum(target != -1).item()
+            predictions['sent_all_heads_prediction'] = sent_all_heads_prediction
+            counts['sent_all_heads_num_correct'] = sent_all_heads_num_correct
+            counts['sent_all_heads_num'] = sent_all_heads_num
+
+        if args.predict_sent_all_child:
+            pred = encoder_output['sent_all_child_scores'][0, :, :, :]
+            target = adj_mat[0, :, :].permute(0,1).view(-1)
+            sent_all_child_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+            sent_all_child_prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
+            sent_all_child_num_correct = torch.sum(sent_all_child_prediction.eq(target)).item()
+            sent_all_child_num = torch.sum(target != -1).item()
+            predictions['sent_all_child_prediction'] = sent_all_child_prediction
+            counts['sent_all_child_num_correct'] = sent_all_child_num_correct
+            counts['sent_all_child_num'] = sent_all_child_num
+
+
 
         results = []
         steps = 0
@@ -372,9 +412,7 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0], \
-               token_contsel_prediction, token_consel_num_correct, token_consel_num, \
-               sent_heads_prediction, sent_heads_num_correct, sent_heads_num
+        return has_summary, beams_sorted[0], predictions, counts
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
@@ -394,12 +432,14 @@ if __name__ == '__main__':
     parser.add_argument('--sent_scores', action='store_true', default=False, help='use sent scores for decoding attention')
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
-    parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--sm_ner_model', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
     parser.add_argument('--predict_summaries', action='store_true', default=False, help='decode summarization')
-    parser.add_argument('--predict_sent_heads', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_sent_single_head', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_sent_all_head', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--predict_sent_all_child', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--predict_contsel_tags', action='store_true', default=False, help='decode summarization')
 
 

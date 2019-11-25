@@ -89,7 +89,9 @@ class Example(object):
 
         # Create adj_mat for supervision
         if self.args.heuristic_chains:
-            self.sup_adj_mat, self.parent_heads = self.generate_adj_mat_sup(len(article_words), links)
+            # self.sup_adj_mat, self.parent_heads = self.generate_adj_mat_sup(len(article_words), links)
+            self.adj_mat, self.weighted_adj_mat, self.norm_adj_mat, \
+                self.parent_heads = self.generate_adj_mat_sup(len(article_words), links)
 
         # Store the original strings
         self.enc_tags = all_article_tags
@@ -100,38 +102,99 @@ class Example(object):
         self.original_abstract_sents = abstract_sentences
 
 
+    # def generate_adj_mat_sup(self, no_sents, links):
+    #     adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
+    #     parent_heads = np.full(no_sents, fill_value=-1, dtype='int')
+    #     for link in links:
+    #         if self.args.link_id_typed:
+    #             type = link[3]
+    #             if type == 'ner':
+    #                 weight = 1
+    #             else:
+    #                 weight = 0.5
+    #         else:
+    #             weight = 1
+    #         parent = link[1]
+    #         child = link[0]
+    #         if parent >= no_sents or child >= no_sents:
+    #             continue
+    #         adj_mat[parent][child] += weight
+    #
+    #     adjusted_adj_mat = adj_mat + config.eps
+    #     row_sums = adjusted_adj_mat.sum(axis=0)
+    #     norm_adj_mat = adjusted_adj_mat / row_sums[np.newaxis, :] # eq prob on all incase of no head is bad.
+    #
+    #     for sent_idx in range(no_sents):
+    #         head_dist = adj_mat[:, sent_idx]
+    #         max_score = np.max(head_dist)
+    #         if max_score <= config.eps:
+    #             continue
+    #         else:
+    #             indices = np.asarray(head_dist==max_score).nonzero()[0]
+    #             head = indices[(np.abs(indices - sent_idx)).argmin()]
+    #         parent_heads[sent_idx] = head
+    #     return norm_adj_mat, parent_heads
+
     def generate_adj_mat_sup(self, no_sents, links):
         adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
+        weighted_adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
         parent_heads = np.full(no_sents, fill_value=-1, dtype='int')
-        for link in links:
-            if self.args.link_id_typed:
-                type = link[3]
-                if type == 'ner':
-                    weight = 1
+
+        if self.args.sm_ner_model:
+            for link in links:
+                parent = link[1]
+                child = link[0]
+                if parent >= no_sents or child >= no_sents:
+                    continue
+                adj_mat[parent][child] = 1
+                weighted_adj_mat[parent][child] += 1
+
+            adjusted_adj_mat = weighted_adj_mat + config.eps
+            row_sums = adjusted_adj_mat.sum(axis=0)
+            norm_adj_mat = adjusted_adj_mat / row_sums[np.newaxis, :] # eq prob on all incase of no head is bad.
+
+            for sent_idx in range(no_sents):
+                head_dist = weighted_adj_mat[:, sent_idx]
+                max_score = np.max(head_dist)
+                if max_score <= config.eps:
+                    continue
                 else:
-                    weight = 0.5
-            else:
-                weight = 1
-            parent = link[1]
-            child = link[0]
-            if parent >= no_sents or child >= no_sents:
-                continue
-            adj_mat[parent][child] += weight
+                    indices = np.asarray(head_dist == max_score).nonzero()[0]
+                    head = indices[(np.abs(indices - sent_idx)).argmin()]
+                parent_heads[sent_idx] = head
+        else:
+            if self.args.use_ner:
+                for link in links['ner']:
+                    parent = link['head_id']
+                    child = link['tail_id']
+                    if parent >= no_sents or child >= no_sents:
+                        continue
+                    adj_mat[parent][child] = 1
+                    weighted_adj_mat[parent][child] += 1
 
-        adjusted_adj_mat = adj_mat + config.eps
-        row_sums = adjusted_adj_mat.sum(axis=0)
-        norm_adj_mat = adjusted_adj_mat / row_sums[np.newaxis, :] # eq prob on all incase of no head is bad.
+            if self.args.use_coref:
+                for link in links['coref']:
+                    parent = link['head_id']
+                    child = link['tail_id']
+                    if parent >= no_sents or child >= no_sents:
+                        continue
+                    adj_mat[parent][child] = 1
+                    weighted_adj_mat[parent][child] += 1
 
-        for sent_idx in range(no_sents):
-            head_dist = adj_mat[:, sent_idx]
-            max_score = np.max(head_dist)
-            if max_score <= config.eps:
-                continue
-            else:
-                indices = np.asarray(head_dist==max_score).nonzero()[0]
-                head = indices[(np.abs(indices - sent_idx)).argmin()]
-            parent_heads[sent_idx] = head
-        return norm_adj_mat, parent_heads
+            adjusted_adj_mat = weighted_adj_mat + config.eps
+            row_sums = adjusted_adj_mat.sum(axis=0)
+            norm_adj_mat = adjusted_adj_mat / row_sums[np.newaxis, :] # eq prob on all incase of no head is bad.
+
+            for sent_idx in range(no_sents):
+                head_dist = weighted_adj_mat[:, sent_idx]
+                max_score = np.max(head_dist)
+                if max_score <= config.eps:
+                    continue
+                else:
+                    indices = np.asarray(head_dist == max_score).nonzero()[0]
+                    head = indices[(np.abs(indices - sent_idx)).argmin()]
+                parent_heads[sent_idx] = head
+        return adj_mat, weighted_adj_mat, norm_adj_mat, parent_heads
 
     def get_dec_inp_targ_seqs(self, sequence, max_len, start_id, stop_id):
         inp = [start_id] + sequence[:]
@@ -222,7 +285,9 @@ class Batch(object):
         self.enc_padding_word_mask = np.zeros((self.batch_size, max_enc_word_len), dtype=np.float32)
 
         if self.heuristic_chains:
-            self.sup_adj_map = np.zeros((self.batch_size, max_enc_doc_len, max_enc_doc_len), dtype=np.float32)
+            self.adj_mat = np.full((self.batch_size, max_enc_doc_len, max_enc_doc_len), fill_value=-1, dtype=np.float32)
+            self.weighted_adj_mat = np.full((self.batch_size, max_enc_doc_len, max_enc_doc_len), fill_value=-1, dtype=np.float32)
+            self.norm_adj_mat = np.zeros((self.batch_size, max_enc_doc_len, max_enc_doc_len), dtype=np.float32)
             self.parent_heads = np.full((self.batch_size, max_enc_doc_len), fill_value=-1, dtype=np.int32)
 
         # Fill in the numpy arrays
@@ -247,7 +312,9 @@ class Batch(object):
                 self.enc_padding_word_mask[i][j] = 1
 
             if self.heuristic_chains:
-                self.sup_adj_map[i, :ex.sup_adj_mat.shape[0], :ex.sup_adj_mat.shape[1]] = ex.sup_adj_mat
+                self.adj_mat[i, :ex.adj_mat.shape[0], :ex.adj_mat.shape[1]] = ex.adj_mat
+                self.weighted_adj_mat[i, :ex.weighted_adj_mat.shape[0], :ex.weighted_adj_mat.shape[1]] = ex.weighted_adj_mat
+                self.norm_adj_mat[i, :ex.norm_adj_mat.shape[0], :ex.norm_adj_mat.shape[1]] = ex.norm_adj_mat
                 self.parent_heads[i, :ex.parent_heads.shape[0]] = ex.parent_heads
 
         # For pointer-generator mode, need to store some extra info

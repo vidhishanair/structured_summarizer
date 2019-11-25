@@ -73,7 +73,7 @@ class Train(object):
         initial_lr = args.lr_coverage if args.is_coverage else args.lr
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
 
-        self.sent_crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
+        self.crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
         self.attn_mse_loss = nn.MSELoss()
 
         start_iter, start_loss = 0, 0
@@ -109,7 +109,7 @@ class Train(object):
 
         self.optimizer.zero_grad()
         self.model.module.encoder.document_structure_att.output = None
-        loss, _, _, _, _, _, _, _, _ = self.get_loss(batch, args)
+        loss, _, _ = self.get_loss(batch, args)
         if loss is None:
             return None
         loss.backward()
@@ -170,13 +170,13 @@ class Train(object):
             get_output_from_batch(batch, use_cuda)
 
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
-        enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
-        enc_tags_batch, enc_sent_tags, enc_sent_token_mat, sup_adj_mat, parent_heads = get_input_from_batch(batch, use_cuda, args)
+            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
+                enc_tags_batch, enc_sent_tags, enc_sent_token_mat, adj_mat, weighted_adj_mat, norm_adj_mat,\
+                    parent_heads = get_input_from_batch(batch, use_cuda, args)
 
         final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix, \
-        sent_head_scores, token_score, sent_score, doc_score\
-                                                                                        = self.model.forward(enc_batch,
-                                                                                        enc_padding_token_mask,
+        sent_single_head_scores, sent_all_head_scores, sent_all_child_scores, \
+        token_score, sent_score, doc_score = self.model.forward(enc_batch, enc_padding_token_mask,
                                                                                         enc_padding_sent_mask,
                                                                                         enc_doc_lens,
                                                                                         enc_sent_lens,
@@ -193,14 +193,26 @@ class Train(object):
 
         step_losses = []
         loss = 0
-        summ_loss = 0
-        aux_loss = 0
-        token_consel_num_correct = 0
-        token_consel_num = 0
-        sent_imp_num_correct = 0
-        doc_imp_num_correct = 0
-        sent_heads_num_correct = 0
-        sent_heads_num = 0
+        ind_losses = {
+            'summ_loss':0,
+            'sent_single_head_loss':0,
+            'sent_all_head_loss':0,
+            'sent_all_child_loss':0,
+            'token_contsel_loss':0,
+            'sent_imp_loss':0,
+            'doc_imp_loss':0
+        }
+        counts = {'token_consel_num_correct' : 0,
+                  'token_consel_num' : 0,
+                  'sent_imp_num_correct' : 0,
+                  'doc_imp_num_correct' : 0,
+                  'sent_single_heads_num_correct' : 0,
+                  'sent_single_heads_num' : 0,
+                  'sent_all_heads_num_correct' : 0,
+                  'sent_all_heads_num' : 0,
+                  'sent_all_child_num_correct' : 0,
+                  'sent_all_child_num' : 0}
+
 
         if args.use_summ_loss:
             for di in range(min(max_dec_len, args.max_dec_steps)):
@@ -220,48 +232,65 @@ class Train(object):
             sum_losses = torch.sum(torch.stack(step_losses, 1), 1)
             batch_avg_loss = sum_losses / dec_lens_var
             loss += torch.mean(batch_avg_loss)
-            summ_loss += torch.mean(batch_avg_loss).item()
+            ind_losses['summ_loss'] += torch.mean(batch_avg_loss).item()
 
         if args.heuristic_chains:
             if args.use_attmat_loss:
                 pred = sent_attention_matrix[:,:,1:].contiguous().view(-1)
-                gold = sup_adj_mat.view(-1)
+                gold = norm_adj_mat.view(-1)
                 loss_aux = self.attn_mse_loss(pred, gold)
-                #print('Aux loss ', (100*loss_aux).item())
                 loss += 100*loss_aux
-            elif args.use_sent_head_loss:
-                pred = sent_head_scores
+            elif args.use_sent_single_head_loss:
+                pred = sent_single_head_scores
                 pred = pred.view(-1, pred.size(2))
                 head_labels = parent_heads.view(-1)
-                #print(pred, head_labels)
-                loss_aux = self.sent_crossentropy(pred, head_labels.long())
-                #print('Aux loss ', (loss_aux).item())
+                loss_aux = self.crossentropy(pred, head_labels.long())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 if mode == 'eval':
-                    prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                     prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                    sent_heads_num_correct = torch.sum(prediction.eq(head_labels)).item()
-                    sent_heads_num = torch.sum(head_labels != -1).item()
-                aux_loss += loss_aux.item()
+                    counts['sent_single_heads_num_correct'] = torch.sum(prediction.eq(head_labels)).item()
+                    counts['sent_single_heads_num'] = torch.sum(head_labels != -1).item()
+                ind_losses['sent_single_head_loss'] += loss_aux.item()
+            elif args.use_sent_all_head_loss:
+                pred = sent_all_head_scores
+                pred = pred.view(-1, pred.size(2))
+                target = adj_mat.view(-1)
+                loss_aux = self.crossentropy(pred, target.long())
+                loss += loss_aux
+                prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+                if mode == 'eval':
+                    prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
+                    counts['sent_all_heads_num_correct'] = torch.sum(prediction.eq(target)).item()
+                    counts['sent_all_heads_num'] = torch.sum(target != -1).item()
+                ind_losses['sent_all_head_loss'] += loss_aux.item()
+            elif args.use_sent_all_child_loss:
+                pred = sent_all_child_scores
+                pred = pred.view(-1, pred.size(2))
+                target = adj_mat.permute(1,2).view(-1)
+                loss_aux = self.crossentropy(pred, target.long())
+                loss += loss_aux
+                prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
+                if mode == 'eval':
+                    prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
+                    counts['sent_all_child_num_correct'] = torch.sum(prediction.eq(target)).item()
+                    counts['sent_all_child_num'] = torch.sum(target != -1).item()
+                ind_losses['sent_all_child_loss'] += loss_aux.item()
+
             else:
                 pass
-                #print("Heuristic Chains should be accompanied with the right loss during training")
-                #exit()
 
         if args.use_token_contsel_loss:
             pred = token_score.view(-1, 2)
-            #enc_tags_batch[enc_tags_batch == -1] = 0
             gold = enc_tags_batch.view(-1)
-            loss1 = self.sent_crossentropy(pred, gold.long())
-            #print('token loss ', loss1.item())
+            loss1 = self.crossentropy(pred, gold.long())
             loss += loss1
             if mode == 'eval':
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 prediction[gold==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                token_consel_num_correct = torch.sum(prediction.eq(gold)).item()
-                token_consel_num = torch.sum(gold != -1).item()
-            #aux_loss += loss1.item()
+                counts['token_consel_num_correct'] = torch.sum(prediction.eq(gold)).item()
+                counts['token_consel_num'] = torch.sum(gold != -1).item()
+            ind_losses['token_contsel_loss'] += loss1.item()
         if args.use_sent_imp_loss:
             pred = sent_score.view(-1)
             enc_sent_tags[enc_sent_tags == -1] = 0
@@ -269,8 +298,7 @@ class Train(object):
             gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
             gold = gold.view(-1)
             loss2 = self.attn_mse_loss(pred, gold)
-            #aux_loss += loss2.item()
-            #print('sent loss ', loss2.item())
+            ind_losses['sent_imp_loss'] += loss2.item()
             loss += loss2
         if args.use_doc_imp_loss:
             pred = doc_score.view(-1)
@@ -282,85 +310,111 @@ class Train(object):
             gold = enc_tags_batch.sum(dim=-1)
             gold = gold.sum(dim=-1)
             gold = gold / token_count
-            # gold = gold.view(-1)
             loss3 = self.attn_mse_loss(pred, gold)
-            #print('doc loss ', loss3.item())
             loss += loss3
-            #aux_loss += loss3.item()
+            ind_losses['doc_imp_loss'] += loss3.item()
 
-        # if args.tag_norm_loss:
-        #     #sentence_importance_vector = encoder_output['sent_attention_matrix'][:,:,1:].sum(dim=1) * enc_padding_sent_mask
-        #     #sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
-        #     pred = encoder_output['sent_importance_vector'].view(-1)
-        #     enc_tags_batch[enc_tags_batch == -1] = 0
-        #     gold = enc_tags_batch.sum(dim=-1)
-        #     gold = gold / gold.sum(dim=1, keepdim=True).repeat(1, gold.size(1))
-        #     gold = gold.view(-1)
-        #     loss_aux = self.attn_mse_loss(pred, gold)
-        #     #print(loss_aux)
-        #     #print('Aux loss ', (10*loss_aux).item())
-        #     loss += 10*loss_aux
-        # #if math.isnan(loss.item()):
-        #     #print(encoder_outputs)
-
-        # if args.L1_structure_penalty:
-        #     all_linear1_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
-        #     all_linear2_params = torch.cat([x.view(-1) for x in self.model.module.encoder.document_structure_att.output])
-        #     l1_regularization = 0.001 * torch.norm(all_linear1_params, 1)
-        #     l2_regularization = 0.001 * torch.norm(all_linear2_params, 2)
-        #     loss += l1_regularization
-
-        #del enc_batch, enc_padding_token_mask, enc_padding_sent_mask, \
-        #    enc_doc_lens, enc_sent_lens, enc_batch_extend_vocab, extra_zeros, \
-        #    c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens
-        #gc.collect()
-        #torch.cuda.empty_cache()
-
-        return loss, summ_loss, aux_loss, token_consel_num_correct, token_consel_num,\
-               sent_imp_num_correct, doc_imp_num_correct, sent_heads_num_correct, sent_heads_num
+        return loss, ind_losses, counts
 
     def run_eval(self, logger, args):
         running_avg_loss, iter = 0, 0
-        running_avg_summ_loss, running_avg_aux_loss = 0, 0
-        token_consel_tot_correct, token_consel_tot_num, sent_imp_tot_correct, sent_imp_tot_num,\
-        doc_imp_tot_correct, doc_imp_tot_num, sent_heads_tot_correct, sent_heads_tot_num = 0, 0, 0, 0, 0, 0, 0, 0
+        run_avg_losses = {
+            'summ_loss':0,
+            'sent_single_head_loss':0,
+            'sent_all_head_loss':0,
+            'sent_all_child_loss':0,
+            'token_contsel_loss':0,
+            'sent_imp_loss':0,
+            'doc_imp_loss':0
+        }
+        counts = {'token_consel_num_correct' : 0,
+                  'token_consel_num' : 0,
+                  'sent_single_heads_num_correct' : 0,
+                  'sent_single_heads_num' : 0,
+                  'sent_all_heads_num_correct' : 0,
+                  'sent_all_heads_num' : 0,
+                  'sent_all_child_num_correct' : 0,
+                  'sent_all_child_num' : 0}
         self.model.module.eval()
         self.eval_batcher._finished_reading = False
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
         while batch is not None:
-            loss, summ_loss, aux_loss, token_consel_num_correct, token_consel_num, sent_imp_num_correct, \
-                doc_imp_num_correct, sent_heads_num_correct, sent_heads_num = self.get_loss(batch, args, mode='eval')
+            loss, sample_ind_losses, sample_counts = self.get_loss(batch, args, mode='eval')
             loss = loss.item()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
-                running_avg_summ_loss = calc_running_avg_loss(summ_loss, running_avg_summ_loss, iter)
-                running_avg_aux_loss = calc_running_avg_loss(aux_loss, running_avg_aux_loss, iter)
-                token_consel_tot_correct += token_consel_num_correct
-                sent_heads_tot_correct += sent_heads_num_correct
-                token_consel_tot_num += token_consel_num
-                sent_heads_tot_num += sent_heads_num
+
+                if args.use_summ_loss:
+                    run_avg_losses['summ_loss'] = calc_running_avg_loss(sample_ind_losses['summ_loss'], run_avg_losses['summ_loss'], iter)
+                if args.use_sent_single_head_loss:
+                    run_avg_losses['sent_single_head_loss'] = calc_running_avg_loss(sample_ind_losses['sent_single_head_loss'], run_avg_losses['sent_single_head_loss'], iter)
+                    counts['sent_single_heads_num_correct'] += sample_counts['sent_single_heads_num_correct']
+                    counts['sent_single_heads_num'] += sample_counts['sent_single_heads_num']
+                if args.use_sent_all_head_loss:
+                    run_avg_losses['sent_all_head_loss'] = calc_running_avg_loss(sample_ind_losses['sent_all_head_loss'], run_avg_losses['sent_all_head_loss'], iter)
+                    counts['sent_all_heads_num_correct'] += sample_counts['sent_all_heads_num_correct']
+                    counts['sent_all_heads_num'] += sample_counts['sent_all_heads_num']
+                if args.use_sent_all_child_loss:
+                    run_avg_losses['sent_all_child_loss'] = calc_running_avg_loss(sample_ind_losses['sent_all_child_loss'], run_avg_losses['sent_all_child_loss'], iter)
+                    counts['sent_all_child_num_correct'] += sample_counts['sent_all_child_num_correct']
+                    counts['sent_all_child_num'] += sample_counts['sent_all_child_num']
+                if args.use_token_contsel_loss:
+                    run_avg_losses['token_contsel_loss'] = calc_running_avg_loss(sample_ind_losses['token_contsel_loss'], run_avg_losses['token_contsel_loss'], iter)
+                    counts['token_consel_num_correct'] += sample_counts['token_consel_num_correct']
+                    counts['token_consel_num'] += sample_counts['token_consel_num']
+                if args.use_sent_imp_loss:
+                    run_avg_losses['sent_imp_loss'] = calc_running_avg_loss(sample_ind_losses['sent_imp_loss'], run_avg_losses['sent_imp_loss'], iter)
+                if args.use_doc_imp_loss:
+                    run_avg_losses['doc_imp_loss'] = calc_running_avg_loss(sample_ind_losses['doc_imp_loss'], run_avg_losses['doc_imp_loss'], iter)
                 iter += 1
             batch = self.eval_batcher.next_batch()
+
         msg = 'Eval: loss: %f' % running_avg_loss
         print(msg)
         logger.debug(msg)
-        msg = 'Summ Eval: loss: %f' % running_avg_summ_loss
-        print(msg)
-        logger.debug(msg)
-        msg = 'Aux Eval: loss: %f' % running_avg_aux_loss
-        print(msg)
-        logger.debug(msg)
+
+        if args.use_summ_loss:
+            msg = 'Summ Eval: loss: %f' % run_avg_losses['summ_loss']
+            print(msg)
+            logger.debug(msg)
+        if args.use_sent_single_head_loss:
+            msg = 'Single Sent Head Eval: loss: %f' % run_avg_losses['sent_single_head_loss']
+            print(msg)
+            logger.debug(msg)
+            msg = 'Average Sent Single Head Accuracy: %f' % (counts['sent_single_heads_num_correct']/float(counts['sent_single_heads_num']))
+            print(msg)
+            logger.debug(msg)
+        if args.use_sent_all_head_loss:
+            msg = 'All Sent Head Eval: loss: %f' % run_avg_losses['sent_all_head_loss']
+            print(msg)
+            logger.debug(msg)
+            msg = 'Average Sent All Head Accuracy: %f' % (counts['sent_all_heads_num_correct']/float(counts['sent_all_heads_num']))
+            print(msg)
+            logger.debug(msg)
+        if args.use_sent_all_child_loss:
+            msg = 'All Sent Child Eval: loss: %f' % run_avg_losses['sent_all_child_loss']
+            print(msg)
+            logger.debug(msg)
+            msg = 'Average Sent All Child Accuracy: %f' % (counts['sent_all_child_num_correct']/float(counts['sent_all_child_num']))
+            print(msg)
+            logger.debug(msg)
         if args.use_token_contsel_loss:
-            msg = 'Average token content sel Accuracy: %f' % (token_consel_tot_correct/float(token_consel_tot_num))
-            print(token_consel_tot_correct, token_consel_tot_num, iter)
+            msg = 'Token Contsel Eval: loss: %f' % run_avg_losses['token_contsel_loss']
             print(msg)
             logger.debug(msg)
-        if args.use_sent_head_loss:
-            msg = 'Average sent heads sel Accuracy: %f' % (sent_heads_tot_correct/float(sent_heads_tot_num))
-            print(sent_heads_tot_correct, sent_heads_tot_num, iter)
+            msg = 'Average token content sel Accuracy: %f' % (counts['token_consel_num_correct']/float(counts['token_consel_num']))
             print(msg)
             logger.debug(msg)
+        if args.use_sent_imp_loss:
+            msg = 'Sent Imp Eval: loss: %f' % run_avg_losses['sent_imp_loss']
+            print(msg)
+            logger.debug(msg)
+        if args.use_doc_imp_loss:
+            msg = 'Doc Imp Eval: loss: %f' % run_avg_losses['doc_imp_loss']
+            print(msg)
+            logger.debug(msg)
+
         return running_avg_loss
 
 
@@ -388,13 +442,17 @@ if __name__ == '__main__':
 
     #Pretraining and loss args
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
-    parser.add_argument('--link_id_typed', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--sm_ner_model', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_ner', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_coref', action='store_true', default=False, help='heuristic coref for training')
     parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
     parser.add_argument('--use_token_contsel_loss', action='store_true', default=False, help='use token_level content selection for pre-training')
     parser.add_argument('--use_sent_imp_loss', action='store_true', default=False, help='use sent_level content selection for pre-training')
     parser.add_argument('--use_doc_imp_loss', action='store_true', default=False, help='use doc_level content selection for pre-training')
     parser.add_argument('--use_attmat_loss', action='store_true', default=False, help='heuristic ner for training')
-    parser.add_argument('--use_sent_head_loss', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_sent_single_head_loss', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
 
 
 

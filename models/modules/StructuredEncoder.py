@@ -47,7 +47,6 @@ class StructuredEncoder(nn.Module):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.args = args
 
-        #self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
         if bidirectional:
             self.sem_dim_size = 2*config.sem_dim_size
             self.sent_hidden_size = 2*config.hidden_dim
@@ -74,9 +73,15 @@ class StructuredEncoder(nn.Module):
             self.sent_p_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
             self.sent_c_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
             self.sm2 = nn.Softmax(dim=2)
+            self.bilinear_pall = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, True, self.sem_dim_size)
+            self.sent_p_linear_pall = nn.Linear(self.sem_dim_size, self.sem_dim_size)
+            self.sent_c_linear_pall = nn.Linear(self.sem_dim_size, self.sem_dim_size)
+            self.pred_linear_pall = nn.Linear(self.sem_dim_size, 2)
+            self.bilinear_call = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, True, self.sem_dim_size)
+            self.sent_p_linear_call = nn.Linear(self.sem_dim_size, self.sem_dim_size)
+            self.sent_c_linear_call = nn.Linear(self.sem_dim_size, self.sem_dim_size)
+            self.pred_linear_call = nn.Linear(self.sem_dim_size, 2)
 
-        #init_lstm_wt(self.sentence_encoder)
-        #init_lstm_wt()
 
     #seq_lens should be in descending order
     def forward_test(self, input, sent_l, doc_l, tokens_mask, sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat):
@@ -133,7 +138,6 @@ class StructuredEncoder(nn.Module):
         mat = sent_attention_matrix * mask
         sentence_importance_vector = mat[:,:,1:].sum(dim=1) #* sent_mask
         sentence_importance_vector = sentence_importance_vector / sentence_importance_vector.sum(dim=1, keepdim=True).repeat(1, sentence_importance_vector.size(1))
-        # token_level_sentence_scores = sentence_importance_vector.unsqueeze(1).repeat(1, token_size, 1).view(batch_size, sent_size*token_size)
         token_level_sentence_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1).float(), sentence_importance_vector.unsqueeze(2)).view(batch_size, enc_sent_token_mat.size(2))
 
 
@@ -142,24 +146,39 @@ class StructuredEncoder(nn.Module):
         sent_score = self.sm(sent_score)
 
         token_score = self.token_pred_linear(bilstm_encoded_word_tokens)
-        # token_score = self.sm2(token_score)
-        # mask = word_padding_mask.unsqueeze(2)
-        # token_score = token_score * mask
+        mask = word_padding_mask.unsqueeze(2)
+        token_score = token_score * mask
 
         doc_score = self.doc_pred_linear(max_pooled_doc)
 
-        sent_head_scores = None
+        sent_single_head_scores = None
+        sent_all_head_scores = None
+        sent_all_child_scores = None
+
         if self.args.heuristic_chains:
-            sa_encoded_sents_p = F.relu(self.sent_p_linear(sa_encoded_sents)) # bxsentxdim
-            sa_encoded_sents_c = F.relu(self.sent_c_linear(sa_encoded_sents)) # bxsentxdim
-            sent_head_scores = self.bilinear(sa_encoded_sents_p, sa_encoded_sents_c).view(batch_size, sent_size, sent_size) #.squeeze() # b, sent , sent
-            #print(sent_head_scores)
-            sent_head_scores = sent_head_scores * sent_mask.unsqueeze(1).repeat(1, sent_mask.size(1), 1)
-            sent_head_scores = sent_head_scores * sent_mask.unsqueeze(2)
-            # sent_head_scores = self.sm2(sent_head_scores) # b x sent x sent
-            #sums = sent_head_scores.sum(dim=2, keepdim=True)
-            #sent_head_scores = sent_head_scores / sums
-            #print(sent_head_scores)
+            if self.args.use_sent_single_head_loss or self.args.predict_sent_single_head:
+                sa_encoded_single_sents_p = F.relu(self.sent_p_linear(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_single_sents_c = F.relu(self.sent_c_linear(sa_encoded_sents)) # bxsentxdim
+                sent_single_head_scores = self.bilinear(sa_encoded_single_sents_p, sa_encoded_single_sents_c).view(batch_size, sent_size, sent_size) #.squeeze() # b, sent , sent
+                sent_single_head_scores = sent_single_head_scores * sent_mask.unsqueeze(1).repeat(1, sent_mask.size(1), 1)
+                sent_single_head_scores = sent_single_head_scores * sent_mask.unsqueeze(2)
+
+            if self.args.use_sent_all_head_loss or self.args.predict_sent_all_head:
+                sa_encoded_all_sents_p = F.relu(self.sent_p_linear_pall(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_all_sents_c = F.relu(self.sent_c_linear_pall(sa_encoded_sents)) # bxsentxdim
+                sent_all_head_scores = self.bilinear_pall(sa_encoded_all_sents_p, sa_encoded_all_sents_c).view(batch_size, sent_size, sent_size, self.sem_dim_size) #.squeeze() # b, sent , sent , dim
+                sent_all_head_scores = self.pred_linear_pall(sent_all_head_scores) # b, sent, sent, 2
+                sent_all_head_scores = sent_all_head_scores * sent_mask.unsqueeze(1).unsqueeze(3).repeat(1, sent_mask.size(1), 1, sent_all_head_scores.size(3))
+                sent_all_head_scores = sent_all_head_scores * sent_mask.unsqueeze(2).unsqueeze(3)
+
+            if self.args.use_sent_child_loss or self.args.predict_sent_all_child:
+                sa_encoded_child_sents_c = F.relu(self.sent_c_linear_call(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_child_sents_p = F.relu(self.sent_p_linear_call(sa_encoded_sents)) # bxsentxdim
+                sent_all_child_scores = self.bilinear_pall(sa_encoded_child_sents_c, sa_encoded_child_sents_p).view(batch_size, sent_size, sent_size, self.sem_dim_size) #.squeeze() # b, sent , sent , dim
+                sent_all_child_scores = self.pred_linear_call(sent_all_child_scores) # b, sent, sent, 2
+                sent_all_child_scores = sent_all_child_scores * sent_mask.unsqueeze(1).unsqueeze(3).repeat(1, sent_mask.size(1), 1, sent_all_child_scores.size(3))
+                sent_all_child_scores = sent_all_child_scores * sent_mask.unsqueeze(2).unsqueeze(3)
+
 
         encoder_output = {"encoded_tokens": encoded_tokens,
                           "token_hidden": token_hidden,
@@ -173,6 +192,8 @@ class StructuredEncoder(nn.Module):
                           "sent_score": sent_score,
                           "token_score": token_score,
                           "doc_score": doc_score,
-                          "sent_head_scores": sent_head_scores}
+                          "sent_single_head_scores": sent_single_head_scores,
+                          "sent_all_head_scores": sent_all_head_scores,
+                          "sent_all_child_scores": sent_all_child_scores}
 
         return encoder_output

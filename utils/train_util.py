@@ -22,10 +22,14 @@ def get_input_from_batch(batch, use_cuda, args):
     enc_sent_lens = Variable(torch.from_numpy(batch.enc_sent_lens).int())
     enc_word_lens = Variable(torch.from_numpy(batch.enc_word_lens).int())
 
-    sup_adj_map = None
+    adj_mat = None
+    weighted_adj_mat = None
+    norm_adj_mat = None
     parent_heads = None
     if args.heuristic_chains:
-        sup_adj_map = Variable(torch.from_numpy(batch.sup_adj_map).float())
+        adj_map = Variable(torch.from_numpy(batch.adj_mat).float())
+        weighted_adj_mat = Variable(torch.from_numpy(batch.weighted_adj_mat).float())
+        norm_adj_mat = Variable(torch.from_numpy(batch.norm_adj_mat).float())
         parent_heads = Variable(torch.from_numpy(batch.parent_heads).long())
 
     extra_zeros = None
@@ -56,8 +60,12 @@ def get_input_from_batch(batch, use_cuda, args):
         enc_sent_lens = enc_sent_lens.to(device)
         enc_word_lens = enc_word_lens.to(device)
         enc_sent_token_mat = enc_sent_token_mat.to(device)
-        if sup_adj_map is not None:
-            sup_adj_map = sup_adj_map.to(device)
+        if adj_mat is not None:
+            adj_mat = adj_mat.to(device)
+        if weighted_adj_mat is not None:
+            weighted_adj_mat = weighted_adj_mat.to(device)
+        if norm_adj_mat is not None:
+            norm_adj_mat = norm_adj_mat.to(device)
         if parent_heads is not None:
             parent_heads = parent_heads.to(device)
 
@@ -72,7 +80,7 @@ def get_input_from_batch(batch, use_cuda, args):
 
     return enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
            enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
-           enc_tags_batch, enc_sent_tags, enc_sent_token_mat, sup_adj_map, parent_heads
+           enc_tags_batch, enc_sent_tags, enc_sent_token_mat, adj_mat, weighted_adj_mat, norm_adj_mat, parent_heads
 
 
 def get_output_from_batch(batch, use_cuda):
