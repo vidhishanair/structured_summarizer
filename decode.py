@@ -378,7 +378,9 @@ class BeamSearch(object):
 
                 final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = self.model.decoder(y_t_1, s_t_1,
                                                                                         encoder_outputs, word_padding_mask, c_t_1,
-                                                                                        extra_zeros, enc_batch_extend_vocab, coverage_t_1, token_scores, sent_scores, sent_outputs)
+                                                                                        extra_zeros, enc_batch_extend_vocab, coverage_t_1,
+                                                                                        token_scores, sent_scores, sent_outputs,
+                                                                                        enc_sent_token_mat, all_head, all_child)
 
                 topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
 
