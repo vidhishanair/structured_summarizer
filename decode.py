@@ -326,6 +326,8 @@ class BeamSearch(object):
                 token_scores = scorer_output['token_score']
                 sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
 
+
+            all_child, all_head = None, None
             if args.use_gold_annotations_for_decode:
                 all_head = adj_mat[:, :, :].permute(0,2,1)
                 all_child = adj_mat[:, :, :].permute(0,2,1)
