@@ -3,7 +3,7 @@
 #OUTPUT='test_loading_summ2'
 OUTPUT='heuristic_ner_pred_sent_heads_withsummi_loadedemnlpmodel'
 RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
-MODEL='model_337000_1574630246'
+MODEL='model_388000_1574807335'
 CUDA_VISIBLE_DEVICES=3 python decode.py \
        --is_coverage \
        --pointer_gen \
@@ -12,8 +12,10 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
        --save_path=${OUTPUT} \
        --reload_path=log/${OUTPUT}/model/${MODEL} \
        --sent_scores \
+       --predict_sent_single_head \
        --predict_summaries \
-       --heuristic_chains
+       --heuristic_chains \
+       --sm_ner_model \
 
 cd ../pointer_summarizer/
 
