@@ -56,7 +56,7 @@ class Attention(nn.Module):
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
 
-    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s):
+    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores):
         b, t_k, n1 = list(h.size())
         h = h.view(-1, n1)  # B * t_k x 2*hidden_dim
         encoder_feature = self.W_h(h)
@@ -88,6 +88,19 @@ class Attention(nn.Module):
             scores = scores * token_scores[:,:,1]
         if self.args.sent_scores:
             scores = scores * sent_scores
+        if self.args.all_sent_head:
+            sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
+            new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_head_scores).permute(0,2,1) # B x n_s x 1
+            new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores)
+            scores = scores * new_head_token_scores
+        if self.args.all_sent_child:
+            sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
+            new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_child_scores).permute(0,2,1) # B x n_s x 1
+            new_child_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores)
+            scores = scores * new_child_token_scores
+        if self.args.single_sent_head:
+            print("Not Implemented for single_sent_head in decode")
+            exit()
 
         attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
         normalization_factor = attn_dist_.sum(1, keepdim=True)
@@ -141,7 +154,7 @@ class Decoder(nn.Module):
         init_linear_wt(self.out2)
 
     def forward(self, y_t_1, s_t_1, encoder_outputs, enc_padding_mask,
-                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_scores, sent_scores, sent_features):
+                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_scores, sent_scores, sent_features, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores):
 
         y_t_1_embd = self.embedding(y_t_1)
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
@@ -151,7 +164,8 @@ class Decoder(nn.Module):
         s_t_hat = torch.cat((h_decoder.view(-1, config.hidden_dim),
                              c_decoder.view(-1, config.hidden_dim)), 1)  # B x 2*hidden_dim
         c_t, attn_dist, coverage = self.attention_network(s_t_hat, encoder_outputs,
-                                                          enc_padding_mask, coverage, token_scores, sent_scores, sent_features)
+                                                          enc_padding_mask, coverage, token_scores, sent_scores,
+                                                          sent_features, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores)
         p_gen = None
         if self.pointer_gen:
             p_gen_input = torch.cat((c_t, s_t_hat, x), 1)  # B x (2*2*hidden_dim + emb_dim)
