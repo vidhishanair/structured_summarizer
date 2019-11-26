@@ -59,8 +59,8 @@ class BeamSearch(object):
         self.args= args
         self._decode_dir = os.path.join(config.log_root, save_path, 'decode_%s' % (model_name))
         self._structures_dir = os.path.join(self._decode_dir, 'structures')
-        self._sent_heads_dir = os.path.join(self._decode_dir, 'sent_heads_preds')
-        self._sent_heads_ref_dir = os.path.join(self._decode_dir, 'sent_heads_ref')
+        self._sent_single_heads_dir = os.path.join(self._decode_dir, 'sent_heads_preds')
+        self._sent_single_heads_ref_dir = os.path.join(self._decode_dir, 'sent_heads_ref')
         self._contsel_dir = os.path.join(self._decode_dir, 'content_sel_preds')
         self._contsel_ref_dir = os.path.join(self._decode_dir, 'content_sel_ref')
         self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
@@ -69,7 +69,7 @@ class BeamSearch(object):
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
         self.stat_res_file = os.path.join(self._decode_dir, 'stats.txt')
-        for p in [self._decode_dir, self._structures_dir, self._sent_heads_ref_dir, self._sent_heads_dir, self._contsel_ref_dir,
+        for p in [self._decode_dir, self._structures_dir, self._sent_single_heads_ref_dir, self._sent_single_heads_dir, self._contsel_ref_dir,
                 self._contsel_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
             if not os.path.exists(p):
                 os.mkdir(p)
@@ -94,6 +94,7 @@ class BeamSearch(object):
         doc_attention_matrix = doc_attention_matrix[:,:] #this change yet to be tested!
         l = batch.enc_doc_lens[0].item()
         doc_sent_no = 0
+
         # for i in range(l):
         #     printstr = ''
         #     sent = batch.enc_batch[0][i]
@@ -154,6 +155,7 @@ class BeamSearch(object):
         abstract_ref = []
         abstract_pred = []
         batch = self.batcher.next_batch()
+
         counts = {'token_consel_num_correct' : 0,
                   'token_consel_num' : 0,
                   'sent_single_heads_num_correct' : 0,
@@ -162,6 +164,7 @@ class BeamSearch(object):
                   'sent_all_heads_num' : 0,
                   'sent_all_child_num_correct' : 0,
                   'sent_all_child_num' : 0}
+
         while batch is not None:
             # Run beam search to get best Hypothesis
             has_summary, best_summary, sample_predictions, sample_counts = self.get_decoded_outputs(batch, counter)
@@ -322,6 +325,10 @@ class BeamSearch(object):
                 scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
                 token_scores = scorer_output['token_score']
                 sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+
+            if args.use_gold_annotations_for_decode:
+                all_head = adj_mat[:, :, :].permute(0,2,1)
+                all_child = adj_mat[:, :, :].permute(0,2,1)
 
             s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
