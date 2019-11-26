@@ -136,7 +136,9 @@ class Model(nn.Module):
                                                                                             extra_zeros,
                                                                                             enc_batch_extend_vocab,
                                                                                             coverage, token_scores,
-                                                                                            sent_scores, sent_outputs)
+                                                                                            sent_scores, sent_outputs,
+                                                                                            enc_sent_token_mat, encoder_output['sent_all_head_scores'],
+                                                                                            encoder_output['sent_all_child_scores'])
                 final_dist_list.append(final_dist)
                 attn_dist_list.append(attn_dist)
                 p_gen_list.append(p_gen)
