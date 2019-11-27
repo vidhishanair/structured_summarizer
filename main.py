@@ -256,7 +256,7 @@ class Train(object):
             if args.use_sent_all_head_loss:
                 pred = sent_all_head_scores
                 pred = pred.view(-1, pred.size(3))
-                target = adj_mat.view(-1)
+                target = adj_mat.permute(0,2,1).view(-1)
                 #print(pred.size(), target.size())
                 loss_aux = self.crossentropy(pred, target.long())
                 loss += loss_aux
@@ -271,7 +271,7 @@ class Train(object):
             if args.use_sent_all_child_loss:
                 pred = sent_all_child_scores
                 pred = pred.view(-1, pred.size(3))
-                target = adj_mat.permute(0,2,1).contiguous().view(-1)
+                target = adj_mat.contiguous().view(-1)
                 loss_aux = self.crossentropy(pred, target.long())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)

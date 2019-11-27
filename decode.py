@@ -292,7 +292,7 @@ class BeamSearch(object):
 
         if args.predict_sent_all_head:
             pred = encoder_output['sent_all_head_scores'][0, :, :, :]
-            target = adj_mat[0, :, :].view(-1)
+            target = adj_mat[0, :, :].permute(0,1).view(-1)
             sent_all_heads_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
             sent_all_heads_prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
             sent_all_heads_num_correct = torch.sum(sent_all_heads_prediction.eq(target)).item()
@@ -303,7 +303,7 @@ class BeamSearch(object):
 
         if args.predict_sent_all_child:
             pred = encoder_output['sent_all_child_scores'][0, :, :, :]
-            target = adj_mat[0, :, :].permute(0,1).view(-1)
+            target = adj_mat[0, :, :].view(-1)
             sent_all_child_prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
             sent_all_child_prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
             sent_all_child_num_correct = torch.sum(sent_all_child_prediction.eq(target)).item()
@@ -329,8 +329,12 @@ class BeamSearch(object):
 
             all_child, all_head = None, None
             if args.use_gold_annotations_for_decode:
-                all_head = adj_mat[:, :, :].permute(0,2,1)
-                all_child = adj_mat[:, :, :].permute(0,2,1)
+                all_head = adj_mat[:, :, :].permute(0,2,1) + config.eps
+                row_sums = all_head.sum(axis=0)
+                all_head = all_head / row_sums[np.newaxis, :]
+                all_child = adj_mat[:, :, :] + config.eps
+                row_sums = all_child.sum(axis=0)
+                all_child = all_child / row_sums[np.newaxis, :]
 
             s_t_0 = self.model.reduce_state(encoder_last_hidden)
 

@@ -56,13 +56,9 @@ class Model(nn.Module):
 
         if args.reload_path is not None:
             state = torch.load(args.reload_path, map_location= lambda storage, location: storage)
-            try:
-                self.encoder.load_state_dict(state['encoder_state_dict'], strict=False)
-                self.decoder.load_state_dict(state['decoder_state_dict'], strict=False)
-                self.reduce_state.load_state_dict(state['reduce_state_dict'])
-            except RuntimeError as er:
-                print(er)
-                print("Potential mismatch in loading keys. Stop here if not expected!")
+            self.encoder.load_state_dict(state['encoder_state_dict'], strict=False)
+            self.decoder.load_state_dict(state['decoder_state_dict'], strict=False)
+            self.reduce_state.load_state_dict(state['reduce_state_dict'])
 
     def eval(self):
         if(self.args.fixed_scorer):
