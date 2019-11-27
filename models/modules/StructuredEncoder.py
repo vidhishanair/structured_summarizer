@@ -69,17 +69,14 @@ class StructuredEncoder(nn.Module):
         self.sm = nn.Softmax(dim=1)
 
         if args.heuristic_chains:
-            if self.args.use_sent_single_head_loss or self.args.predict_sent_single_head:
                 self.bilinear = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, False, 1)
                 self.sent_p_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
                 self.sent_c_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
                 self.sm2 = nn.Softmax(dim=2)
-            if self.args.use_sent_all_head_loss or self.args.predict_sent_all_head:
                 self.bilinear_pall = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, True, self.sem_dim_size)
                 self.sent_p_linear_pall = nn.Linear(self.sem_dim_size, self.sem_dim_size)
                 self.sent_c_linear_pall = nn.Linear(self.sem_dim_size, self.sem_dim_size)
                 self.pred_linear_pall = nn.Linear(self.sem_dim_size, 2)
-            if self.args.use_sent_all_child_loss or self.args.predict_sent_all_child:
                 self.bilinear_call = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, True, self.sem_dim_size)
                 self.sent_p_linear_call = nn.Linear(self.sem_dim_size, self.sem_dim_size)
                 self.sent_c_linear_call = nn.Linear(self.sem_dim_size, self.sem_dim_size)
