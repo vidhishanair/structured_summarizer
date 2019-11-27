@@ -89,11 +89,13 @@ class Attention(nn.Module):
         if self.args.sent_scores:
             scores = scores * sent_scores
         if self.args.use_all_sent_head_at_decode:
+            print("here1")
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_head_scores).permute(0,2,1) # B x n_s x 1
             new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores)
             scores = scores * new_head_token_scores
         if self.args.use_all_sent_child_at_decode:
+            print("here2")
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_child_scores).permute(0,2,1) # B x n_s x 1
             new_child_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores)

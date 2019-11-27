@@ -37,7 +37,7 @@ class Train(object):
                                      batch_size=args.batch_size, single_pass=False, args=args)
         self.eval_batcher = Batcher(args.eval_data_path, self.vocab, mode='eval',
                                     batch_size=args.batch_size, single_pass=True, args = args)
-        time.sleep(15)
+        time.sleep(30)
 
         if model_name is None:
             self.train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
@@ -218,7 +218,8 @@ class Train(object):
             for di in range(min(max_dec_len, args.max_dec_steps)):
                 final_dist = final_dist_list[:, di, :]
                 attn_dist = attn_dist_list[:, di, :]
-                coverage = coverage_list[:, di, :]
+                if args.is_coverage:
+                    coverage = coverage_list[:, di, :]
 
                 target = target_batch[:, di]
                 gold_probs = torch.gather(final_dist, 1, target.unsqueeze(1)).squeeze()

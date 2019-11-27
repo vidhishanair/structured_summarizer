@@ -107,7 +107,7 @@ class Model(nn.Module):
 
         start = time.process_time()
         encoder_output = self.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
-        #print('Time taken for encoder: ', time.process_time() - start)
+        # print('Time taken for encoder: ', time.process_time() - start)
 
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores, sent_attention_matrix = \
             self.get_app_outputs(encoder_output, enc_padding_token_mask, enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat)
@@ -146,10 +146,11 @@ class Model(nn.Module):
             final_dist_list = torch.stack(final_dist_list, dim=1)
             attn_dist_list = torch.stack(attn_dist_list, dim=1)
             p_gen_list = torch.stack(p_gen_list, dim=1)
-            coverage_list = torch.stack(coverage_list, dim=1)
-        #print('Time taken for decoder: ', time.process_time() - start)
-        #print(coverage_list)
-        #return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), torch.stack(p_gen_list, dim=1), 
+            if self.args.is_coverage:
+                coverage_list = torch.stack(coverage_list, dim=1)
+        # print('Time taken for decoder: ', time.process_time() - start)
+        # print(coverage_list)
+        # return torch.stack(final_dist_list, dim=1), torch.stack(attn_dist_list, dim=1), torch.stack(p_gen_list, dim=1), 
         return final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix, encoder_output['sent_single_head_scores'], \
                encoder_output['sent_all_head_scores'], encoder_output['sent_all_child_scores'], \
                encoder_output['token_score'], encoder_output['sent_score'], encoder_output['doc_score'],
