@@ -157,23 +157,23 @@ class StructuredEncoder(nn.Module):
 
         if self.args.heuristic_chains:
             if self.args.use_sent_single_head_loss or self.args.predict_sent_single_head:
-                sa_encoded_single_sents_p = F.relu(self.sent_p_linear(sa_encoded_sents)) # bxsentxdim
-                sa_encoded_single_sents_c = F.relu(self.sent_c_linear(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_single_sents_p = F.tanh(self.sent_p_linear(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_single_sents_c = F.tanh(self.sent_c_linear(sa_encoded_sents)) # bxsentxdim
                 sent_single_head_scores = self.bilinear(sa_encoded_single_sents_p, sa_encoded_single_sents_c).view(batch_size, sent_size, sent_size) #.squeeze() # b, sent , sent
                 sent_single_head_scores = sent_single_head_scores * sent_mask.unsqueeze(1).repeat(1, sent_mask.size(1), 1)
                 sent_single_head_scores = sent_single_head_scores * sent_mask.unsqueeze(2)
 
             if self.args.use_sent_all_head_loss or self.args.predict_sent_all_head:
-                sa_encoded_all_sents_p = F.relu(self.sent_p_linear_pall(sa_encoded_sents)) # bxsentxdim
-                sa_encoded_all_sents_c = F.relu(self.sent_c_linear_pall(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_all_sents_p = F.tanh(self.sent_p_linear_pall(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_all_sents_c = F.tanh(self.sent_c_linear_pall(sa_encoded_sents)) # bxsentxdim
                 sent_all_head_scores = self.bilinear_pall(sa_encoded_all_sents_p, sa_encoded_all_sents_c).view(batch_size, sent_size, sent_size, self.sem_dim_size) #.squeeze() # b, sent , sent , dim
                 sent_all_head_scores = self.pred_linear_pall(sent_all_head_scores) # b, sent, sent, 2
                 sent_all_head_scores = sent_all_head_scores * sent_mask.unsqueeze(1).unsqueeze(3).repeat(1, sent_mask.size(1), 1, sent_all_head_scores.size(3))
                 sent_all_head_scores = sent_all_head_scores * sent_mask.unsqueeze(2).unsqueeze(3)
 
             if self.args.use_sent_all_child_loss or self.args.predict_sent_all_child:
-                sa_encoded_child_sents_c = F.relu(self.sent_c_linear_call(sa_encoded_sents)) # bxsentxdim
-                sa_encoded_child_sents_p = F.relu(self.sent_p_linear_call(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_child_sents_c = F.tanh(self.sent_c_linear_call(sa_encoded_sents)) # bxsentxdim
+                sa_encoded_child_sents_p = F.tanh(self.sent_p_linear_call(sa_encoded_sents)) # bxsentxdim
                 sent_all_child_scores = self.bilinear_pall(sa_encoded_child_sents_c, sa_encoded_child_sents_p).view(batch_size, sent_size, sent_size, self.sem_dim_size) #.squeeze() # b, sent , sent , dim
                 sent_all_child_scores = self.pred_linear_call(sent_all_child_scores) # b, sent, sent, 2
                 sent_all_child_scores = sent_all_child_scores * sent_mask.unsqueeze(1).unsqueeze(3).repeat(1, sent_mask.size(1), 1, sent_all_child_scores.size(3))

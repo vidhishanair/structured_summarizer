@@ -78,7 +78,7 @@ class BeamSearch(object):
         self.batcher = Batcher(args.decode_data_path, self.vocab, mode='decode',
                                batch_size=config.beam_size, single_pass=True, args=args)
         self.batcher.setup_queues()
-        #time.sleep(15)
+        time.sleep(30)
 
         self.model = Model(args, self.vocab).to(device)
         self.model.eval()
@@ -167,7 +167,9 @@ class BeamSearch(object):
 
         while batch is not None:
             # Run beam search to get best Hypothesis
+            #start = time.process_time()
             has_summary, best_summary, sample_predictions, sample_counts = self.get_decoded_outputs(batch, counter)
+            #print('Time taken for decoder: ', time.process_time() - start)
             # token_contsel_tot_correct += token_consel_num_correct
             # token_contsel_tot_num += token_consel_num
             # sent_heads_tot_correct += sent_heads_num_correct
@@ -218,12 +220,18 @@ class BeamSearch(object):
             abstract_pred.append(" ".join(decoded_words))
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
+            #counter += 1
+            #if counter % 1000 == 0:
+            #    print('%d example in %d sec'%(counter, time.time() - start))
+            #    start = time.time()
+
+            batch = self.batcher.next_batch()
+
             counter += 1
             if counter % 1000 == 0:
                 print('%d example in %d sec'%(counter, time.time() - start))
                 start = time.time()
-
-            batch = self.batcher.next_batch()
+            #print('Time taken for rest: ', time.process_time() - start)
             # if counter == 5:
             #    break
 
@@ -330,11 +338,11 @@ class BeamSearch(object):
             all_child, all_head = None, None
             if args.use_gold_annotations_for_decode:
                 all_head = adj_mat[:, :, :].permute(0,2,1) + config.eps
-                row_sums = all_head.sum(axis=0)
-                all_head = all_head / row_sums[np.newaxis, :]
+                row_sums = torch.sum(all_head, dim=1, keepdim=True)
+                all_head = all_head / row_sums
                 all_child = adj_mat[:, :, :] + config.eps
-                row_sums = all_child.sum(axis=0)
-                all_child = all_child / row_sums[np.newaxis, :]
+                row_sums = torch.sum(all_child, dim=1, keepdim=True)
+                all_child = all_child / row_sums
 
             s_t_0 = self.model.reduce_state(encoder_last_hidden)
 

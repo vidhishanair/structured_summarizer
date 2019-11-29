@@ -112,7 +112,9 @@ class Train(object):
         loss, _, _ = self.get_loss(batch, args)
         if loss is None:
             return None
+        s1 = time.time()
         loss.backward()
+        #print("time for backward: "+str(time.time() - s1))
 
         clip_grad_norm(self.model.module.encoder.parameters(), config.max_grad_norm)
         clip_grad_norm(self.model.module.decoder.parameters(), config.max_grad_norm)
@@ -134,7 +136,11 @@ class Train(object):
             iter = start_iter + it
             self.model.module.train()
             batch = self.train_batcher.next_batch()
+            start1 = time.time()
             loss = self.train_one_batch(batch, args)
+            #print("time for 1 batch+get: "+str(time.time() - start))
+            #print("time for 1 batch: "+str(time.time() - start1))
+            #start=time.time()
             #print(loss)
             # for n,p in self.model.module.encoder.named_parameters():
             #     print('===========\ngradient:{}\n----------\n{}'.format(n,p.grad))
@@ -166,6 +172,7 @@ class Train(object):
 
     def get_loss(self, batch, args, mode='train'):
 
+        s2 = time.time()
         dec_batch, dec_padding_mask, max_dec_len, dec_lens_var, target_batch = \
             get_output_from_batch(batch, use_cuda)
 
@@ -173,6 +180,7 @@ class Train(object):
             enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
                 enc_tags_batch, enc_sent_tags, enc_sent_token_mat, adj_mat, weighted_adj_mat, norm_adj_mat,\
                     parent_heads = get_input_from_batch(batch, use_cuda, args)
+        #print("time for input func: "+str(time.time() - s2))
 
         final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix, \
         sent_single_head_scores, sent_all_head_scores, sent_all_child_scores, \
@@ -212,8 +220,8 @@ class Train(object):
                   'sent_all_heads_num' : 0,
                   'sent_all_child_num_correct' : 0,
                   'sent_all_child_num' : 0}
-
-
+        
+        s1 = time.time()
         if args.use_summ_loss:
             for di in range(min(max_dec_len, args.max_dec_steps)):
                 final_dist = final_dist_list[:, di, :]
@@ -250,20 +258,20 @@ class Train(object):
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 if mode == 'eval':
                     prediction[head_labels==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                    counts['sent_single_heads_num_correct'] = torch.sum(prediction.eq(head_labels)).item()
+                    counts['sent_single_heads_num_correct'] = torch.sum(prediction.eq(head_labels.long())).item()
                     counts['sent_single_heads_num'] = torch.sum(head_labels != -1).item()
                 ind_losses['sent_single_head_loss'] += loss_aux.item()
             if args.use_sent_all_head_loss:
                 pred = sent_all_head_scores
                 pred = pred.view(-1, pred.size(3))
-                target = adj_mat.permute(0,2,1).view(-1)
+                target = adj_mat.permute(0,2,1).contiguous().view(-1)
                 #print(pred.size(), target.size())
                 loss_aux = self.crossentropy(pred, target.long())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 if mode == 'eval':
                     prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                    counts['sent_all_heads_num_correct'] = torch.sum(prediction.eq(target)).item()
+                    counts['sent_all_heads_num_correct'] = torch.sum(prediction.eq(target.long())).item()
                     counts['sent_all_heads_num'] = torch.sum(target != -1).item()
                     #print(counts['sent_all_heads_num_correct'], counts['sent_all_heads_num'])
                 ind_losses['sent_all_head_loss'] += loss_aux.item()
@@ -277,7 +285,7 @@ class Train(object):
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 if mode == 'eval':
                     prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                    counts['sent_all_child_num_correct'] = torch.sum(prediction.eq(target)).item()
+                    counts['sent_all_child_num_correct'] = torch.sum(prediction.eq(target.long())).item()
                     counts['sent_all_child_num'] = torch.sum(target != -1).item()
                 ind_losses['sent_all_child_loss'] += loss_aux.item()
                 #print('all child '+str(loss_aux.item()))
@@ -318,7 +326,8 @@ class Train(object):
             loss3 = self.attn_mse_loss(pred, gold)
             loss += loss3
             ind_losses['doc_imp_loss'] += loss3.item()
-
+        #print("time for loss compute: "+str(time.time() - s1))
+        #print("time for 1 batch func: "+str(time.time() - s2))
         return loss, ind_losses, counts
 
     def run_eval(self, logger, args):
