@@ -134,7 +134,7 @@ class Train(object):
         start = time.time()
         best_val_loss = None
 
-        for it in tqdm(range(n_iters)):
+        for it in tqdm(range(n_iters), dynamic_ncols=True):
             iter = start_iter + it
             self.model.module.train()
             batch = self.train_batcher.next_batch()
@@ -281,8 +281,8 @@ class Train(object):
                     counts['sent_all_heads_num_1'] = torch.sum(target_h == 1).item()
                     counts['sent_all_heads_num_0'] = torch.sum(target_h == 0).item()
                     counts['sent_all_heads_num'] = torch.sum(target_h != -1).item()
-                    eval_data['sent_all_heads_pred'] = prediction.numpy()
-                    eval_data['sent_all_heads_true'] = target_h.numpy()
+                    eval_data['sent_all_heads_pred'] = prediction.cpu().numpy()
+                    eval_data['sent_all_heads_true'] = target_h.cpu().numpy()
                 ind_losses['sent_all_head_loss'] += loss_aux.item()
                 #print('all head '+str(loss_aux.item()))
             if args.use_sent_all_child_loss:
@@ -300,8 +300,8 @@ class Train(object):
                     counts['sent_all_child_num_1'] = torch.sum(target == 1).item()
                     counts['sent_all_child_num_0'] = torch.sum(target == 0).item()
                     counts['sent_all_child_num'] = torch.sum(target != -1).item()
-                    eval_data['sent_all_child_pred'] = prediction.numpy()
-                    eval_data['sent_all_child_true'] = target.numpy()
+                    eval_data['sent_all_child_pred'] = prediction.cpu().numpy()
+                    eval_data['sent_all_child_true'] = target.cpu().numpy()
                 ind_losses['sent_all_child_loss'] += loss_aux.item()
                 #print('all child '+str(loss_aux.item()))
             # print(target_h.long().eq(target.long()))
