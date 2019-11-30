@@ -199,7 +199,8 @@ class Train(object):
                                                                                         enc_tags_batch,
                                                                                         enc_sent_token_mat,
                                                                                         max_dec_len,
-                                                                                        dec_batch, args)
+                                                                                        dec_batch, adj_mat,
+                                                                                        weighted_adj_mat, args)
 
         step_losses = []
         loss = 0
