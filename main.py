@@ -74,7 +74,7 @@ class Train(object):
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
 
         self.crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
-        self.head_child_crossent = nn.CrossEntropyLoss(ignore_index=-1, weight=torch.Tensor([0.3,1]).cuda())
+        self.head_child_crossent = nn.CrossEntropyLoss(ignore_index=-1, weight=torch.Tensor([0.1,1]).cuda())
         self.attn_mse_loss = nn.MSELoss()
 
         start_iter, start_loss = 0, 0
@@ -273,8 +273,8 @@ class Train(object):
                 if mode == 'eval':
                     prediction[target_h==-1] = -2 # Explicitly set masked tokens as different from value in gold
                     counts['sent_all_heads_num_correct'] = torch.sum(prediction.eq(target_h.long())).item()
-                    counts['sent_all_heads_num_correct_1'] = torch.sum(prediction[prediction==1].eq(target_h[target_h==1].long())).item()
-                    counts['sent_all_heads_num_correct_0'] = torch.sum(prediction[prediction==0].eq(target_h[target_h==0].long())).item()
+                    counts['sent_all_heads_num_correct_1'] = torch.sum(prediction[target_h==1].eq(target_h[target_h==1].long())).item()
+                    counts['sent_all_heads_num_correct_0'] = torch.sum(prediction[target_h==0].eq(target_h[target_h==0].long())).item()
                     counts['sent_all_heads_num_1'] = torch.sum(target_h == 1).item()
                     counts['sent_all_heads_num_0'] = torch.sum(target_h == 0).item()
                     counts['sent_all_heads_num'] = torch.sum(target_h != -1).item()
@@ -290,8 +290,8 @@ class Train(object):
                 if mode == 'eval':
                     prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
                     counts['sent_all_child_num_correct'] = torch.sum(prediction.eq(target.long())).item()
-                    counts['sent_all_child_num_correct_1'] = torch.sum(prediction[prediction==1].eq(target[target_h==1].long())).item()
-                    counts['sent_all_child_num_correct_0'] = torch.sum(prediction[prediction==0].eq(target[target_h==0].long())).item()
+                    counts['sent_all_child_num_correct_1'] = torch.sum(prediction[target==1].eq(target[target==1].long())).item()
+                    counts['sent_all_child_num_correct_0'] = torch.sum(prediction[target==0].eq(target[target==0].long())).item()
                     counts['sent_all_child_num_1'] = torch.sum(target == 1).item()
                     counts['sent_all_child_num_0'] = torch.sum(target == 0).item()
                     counts['sent_all_child_num'] = torch.sum(target != -1).item()

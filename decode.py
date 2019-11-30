@@ -337,12 +337,20 @@ class BeamSearch(object):
 
             all_child, all_head = None, None
             if args.use_gold_annotations_for_decode:
-                all_head = adj_mat[:, :, :].permute(0,2,1) + config.eps
-                row_sums = torch.sum(all_head, dim=1, keepdim=True)
-                all_head = all_head / row_sums
-                all_child = adj_mat[:, :, :] + config.eps
-                row_sums = torch.sum(all_child, dim=1, keepdim=True)
-                all_child = all_child / row_sums
+                if args.use_weighted_annotations: 
+                    all_head = weighted_adj_mat[:, :, :].permute(0,2,1) + config.eps
+                    row_sums = torch.sum(all_head, dim=1, keepdim=True)
+                    all_head = all_head / row_sums
+                    all_child = weighted_adj_mat[:, :, :] + config.eps
+                    row_sums = torch.sum(all_child, dim=1, keepdim=True)
+                    all_child = all_child / row_sums
+                else:
+                    all_head = adj_mat[:, :, :].permute(0,2,1) + config.eps
+                    row_sums = torch.sum(all_head, dim=1, keepdim=True)
+                    all_head = all_head / row_sums
+                    all_child = adj_mat[:, :, :] + config.eps
+                    row_sums = torch.sum(all_child, dim=1, keepdim=True)
+                    all_child = all_child / row_sums
 
             s_t_0 = self.model.reduce_state(encoder_last_hidden)
 
@@ -471,6 +479,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_gold_annotations_for_decode', action='store_true', default=False, help='decode summarization')
 
+    parser.add_argument('--use_weighted_annotations', action='store_true', default=False, help='decode summarization')
     
     parser.add_argument('--use_sent_single_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
