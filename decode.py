@@ -456,6 +456,8 @@ if __name__ == '__main__':
     parser.add_argument('--fixed_scorer', action='store_true', default=False, help='use fixed pretrained scorer')
     parser.add_argument('--heuristic_chains', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--sm_ner_model', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_ner', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--use_coref', action='store_true', default=False, help='heuristic coref for training')
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 

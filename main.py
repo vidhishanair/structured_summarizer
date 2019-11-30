@@ -74,6 +74,7 @@ class Train(object):
         self.optimizer = AdagradCustom(params, lr=initial_lr, initial_accumulator_value=config.adagrad_init_acc)
 
         self.crossentropy = nn.CrossEntropyLoss(ignore_index=-1)
+        self.head_child_crossent = nn.CrossEntropyLoss(ignore_index=-1, weight=torch.Tensor([0.3,1]).cuda())
         self.attn_mse_loss = nn.MSELoss()
 
         start_iter, start_loss = 0, 0
@@ -264,15 +265,16 @@ class Train(object):
             if args.use_sent_all_head_loss:
                 pred = sent_all_head_scores
                 pred = pred.view(-1, pred.size(3))
-                target = adj_mat.permute(0,2,1).contiguous().view(-1)
+                target_h = adj_mat.permute(0,2,1).contiguous().view(-1)
                 #print(pred.size(), target.size())
-                loss_aux = self.crossentropy(pred, target.long())
+                loss_aux = self.head_child_crossent(pred, target_h.long())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 if mode == 'eval':
-                    prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
-                    counts['sent_all_heads_num_correct'] = torch.sum(prediction.eq(target.long())).item()
-                    counts['sent_all_heads_num'] = torch.sum(target != -1).item()
+                    prediction[target_h==-1] = -2 # Explicitly set masked tokens as different from value in gold
+                    counts['sent_all_heads_num_correct'] = torch.sum(prediction.eq(target_h.long())).item()
+                    #counts['sent_all_heads_num_correct'] = torch.sum(target_h == 0).item()
+                    counts['sent_all_heads_num'] = torch.sum(target_h != -1).item()
                     #print(counts['sent_all_heads_num_correct'], counts['sent_all_heads_num'])
                 ind_losses['sent_all_head_loss'] += loss_aux.item()
                 #print('all head '+str(loss_aux.item()))
@@ -280,16 +282,18 @@ class Train(object):
                 pred = sent_all_child_scores
                 pred = pred.view(-1, pred.size(3))
                 target = adj_mat.contiguous().view(-1)
-                loss_aux = self.crossentropy(pred, target.long())
+                loss_aux = self.head_child_crossent(pred, target.long())
                 loss += loss_aux
                 prediction = torch.argmax(pred.clone().detach().requires_grad_(False), dim=1)
                 if mode == 'eval':
                     prediction[target==-1] = -2 # Explicitly set masked tokens as different from value in gold
                     counts['sent_all_child_num_correct'] = torch.sum(prediction.eq(target.long())).item()
+                    #counts['sent_all_child_num_correct'] = torch.sum(target == 0).item()
                     counts['sent_all_child_num'] = torch.sum(target != -1).item()
                 ind_losses['sent_all_child_loss'] += loss_aux.item()
                 #print('all child '+str(loss_aux.item()))
-
+            # print(target_h.long().eq(target.long()))
+            # print(adj_mat)
             #else:
             #   pass
 
