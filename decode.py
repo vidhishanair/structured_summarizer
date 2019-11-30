@@ -478,7 +478,6 @@ if __name__ == '__main__':
     parser.add_argument('--use_all_sent_child_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_gold_annotations_for_decode', action='store_true', default=False, help='decode summarization')
-
     parser.add_argument('--use_weighted_annotations', action='store_true', default=False, help='decode summarization')
     
     parser.add_argument('--use_sent_single_head_loss', action='store_true', default=False, help='heuristic ner for training')
