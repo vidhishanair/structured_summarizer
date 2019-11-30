@@ -6,7 +6,7 @@ import gc
 import argparse
 import logging
 import math
-
+import numpy as np
 # from tensorboardX import SummaryWriter
 
 import torch
@@ -22,6 +22,7 @@ from utils.batcher import Batcher
 from utils.data import Vocab
 from utils.utils import calc_running_avg_loss
 from utils.train_util import get_input_from_batch, get_output_from_batch
+from sklearn.metrics import classification_report
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 #print('Devices available: '+str(torch.cuda.current_device()))
@@ -110,7 +111,7 @@ class Train(object):
 
         self.optimizer.zero_grad()
         self.model.module.encoder.document_structure_att.output = None
-        loss, _, _ = self.get_loss(batch, args)
+        loss, _, _, _ = self.get_loss(batch, args)
         if loss is None:
             return None
         s1 = time.time()
@@ -221,6 +222,7 @@ class Train(object):
                   'sent_all_heads_num' : 0,
                   'sent_all_child_num_correct' : 0,
                   'sent_all_child_num' : 0}
+        eval_data = {}
         
         s1 = time.time()
         if args.use_summ_loss:
@@ -278,6 +280,8 @@ class Train(object):
                     counts['sent_all_heads_num_1'] = torch.sum(target_h == 1).item()
                     counts['sent_all_heads_num_0'] = torch.sum(target_h == 0).item()
                     counts['sent_all_heads_num'] = torch.sum(target_h != -1).item()
+                    eval_data['sent_all_heads_pred'] = prediction.numpy()
+                    eval_data['sent_all_heads_true'] = target_h.numpy()
                 ind_losses['sent_all_head_loss'] += loss_aux.item()
                 #print('all head '+str(loss_aux.item()))
             if args.use_sent_all_child_loss:
@@ -295,6 +299,8 @@ class Train(object):
                     counts['sent_all_child_num_1'] = torch.sum(target == 1).item()
                     counts['sent_all_child_num_0'] = torch.sum(target == 0).item()
                     counts['sent_all_child_num'] = torch.sum(target != -1).item()
+                    eval_data['sent_all_child_pred'] = prediction.numpy()
+                    eval_data['sent_all_child_true'] = target.numpy()
                 ind_losses['sent_all_child_loss'] += loss_aux.item()
                 #print('all child '+str(loss_aux.item()))
             # print(target_h.long().eq(target.long()))
@@ -337,7 +343,7 @@ class Train(object):
             ind_losses['doc_imp_loss'] += loss3.item()
         #print("time for loss compute: "+str(time.time() - s1))
         #print("time for 1 batch func: "+str(time.time() - s2))
-        return loss, ind_losses, counts
+        return loss, ind_losses, counts, eval_data
 
     def run_eval(self, logger, args):
         running_avg_loss, iter = 0, 0
@@ -366,12 +372,17 @@ class Train(object):
                   'sent_all_child_num_1' : 0,
                   'sent_all_child_num_correct_0' : 0,
                   'sent_all_child_num_0' : 0}
+        eval_res = {'sent_all_heads_pred': [],
+                    'sent_all_heads_true': [],
+                    'sent_all_child_pred': [],
+                    'sent_all_child_true': [],
+                    }
         self.model.module.eval()
         self.eval_batcher._finished_reading = False
         self.eval_batcher.setup_queues()
         batch = self.eval_batcher.next_batch()
         while batch is not None:
-            loss, sample_ind_losses, sample_counts = self.get_loss(batch, args, mode='eval')
+            loss, sample_ind_losses, sample_counts, eval_data = self.get_loss(batch, args, mode='eval')
             loss = loss.item()
             if loss is not None:
                 running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, iter)
@@ -390,6 +401,8 @@ class Train(object):
                     counts['sent_all_heads_num_1'] += sample_counts['sent_all_heads_num_1']
                     counts['sent_all_heads_num_correct_0'] += sample_counts['sent_all_heads_num_correct_0']
                     counts['sent_all_heads_num_0'] += sample_counts['sent_all_heads_num_0']
+                    eval_res['sent_all_heads_pred'].append(eval_data['sent_all_heads_pred'])
+                    eval_res['sent_all_heads_true'].append(eval_data['sent_all_heads_true'])
                 if args.use_sent_all_child_loss:
                     run_avg_losses['sent_all_child_loss'] = calc_running_avg_loss(sample_ind_losses['sent_all_child_loss'], run_avg_losses['sent_all_child_loss'], iter)
                     counts['sent_all_child_num_correct'] += sample_counts['sent_all_child_num_correct']
@@ -398,6 +411,8 @@ class Train(object):
                     counts['sent_all_child_num_1'] += sample_counts['sent_all_child_num_1']
                     counts['sent_all_child_num_correct_0'] += sample_counts['sent_all_child_num_correct_0']
                     counts['sent_all_child_num_0'] += sample_counts['sent_all_child_num_0']
+                    eval_res['sent_all_child_pred'].append(eval_data['sent_all_child_pred'])
+                    eval_res['sent_all_child_true'].append(eval_data['sent_all_child_true'])
                 if args.use_token_contsel_loss:
                     run_avg_losses['token_contsel_loss'] = calc_running_avg_loss(sample_ind_losses['token_contsel_loss'], run_avg_losses['token_contsel_loss'], iter)
                     counts['token_consel_num_correct'] += sample_counts['token_consel_num_correct']
@@ -431,12 +446,19 @@ class Train(object):
             msg = 'Average Sent All Head Accuracy: %f' % (counts['sent_all_heads_num_correct']/float(counts['sent_all_heads_num']))
             print(msg)
             logger.debug(msg)
-            msg = 'Average Sent All Head Class1 Accuracy: %f' % (counts['sent_all_heads_num_correct_1']/float(counts['sent_all_heads_num_1']))
+            # msg = 'Average Sent All Head Class1 Accuracy: %f' % (counts['sent_all_heads_num_correct_1']/float(counts['sent_all_heads_num_1']))
+            # print(msg)
+            # logger.debug(msg)
+            # msg = 'Average Sent All Head Class0 Accuracy: %f' % (counts['sent_all_heads_num_correct_0']/float(counts['sent_all_heads_num_0']))
+            # print(msg)
+            # logger.debug(msg)
+            y_pred = np.concatenate(eval_res['sent_all_heads_pred'])
+            y_true = np.concatenate(eval_res['sent_all_heads_true'])
+            msg = classification_report(y_true, y_pred, labels=[0,1])
             print(msg)
             logger.debug(msg)
-            msg = 'Average Sent All Head Class0 Accuracy: %f' % (counts['sent_all_heads_num_correct_0']/float(counts['sent_all_heads_num_0']))
-            print(msg)
-            logger.debug(msg)
+
+
         if args.use_sent_all_child_loss:
             msg = 'All Sent Child Eval: loss: %f' % run_avg_losses['sent_all_child_loss']
             print(msg)
@@ -444,10 +466,15 @@ class Train(object):
             msg = 'Average Sent All Child Accuracy: %f' % (counts['sent_all_child_num_correct']/float(counts['sent_all_child_num']))
             print(msg)
             logger.debug(msg)
-            msg = 'Average Sent All Child Class1 Accuracy: %f' % (counts['sent_all_child_num_correct_1']/float(counts['sent_all_child_num_1']))
-            print(msg)
-            logger.debug(msg)
-            msg = 'Average Sent All Child Class0 Accuracy: %f' % (counts['sent_all_child_num_correct_0']/float(counts['sent_all_child_num_0']))
+            # msg = 'Average Sent All Child Class1 Accuracy: %f' % (counts['sent_all_child_num_correct_1']/float(counts['sent_all_child_num_1']))
+            # print(msg)
+            # logger.debug(msg)
+            # msg = 'Average Sent All Child Class0 Accuracy: %f' % (counts['sent_all_child_num_correct_0']/float(counts['sent_all_child_num_0']))
+            # print(msg)
+            # logger.debug(msg)
+            y_pred = np.concatenate(eval_res['sent_all_child_pred'])
+            y_true = np.concatenate(eval_res['sent_all_child_true'])
+            msg = classification_report(y_true, y_pred, labels=[0,1])
             print(msg)
             logger.debug(msg)
         if args.use_token_contsel_loss:
