@@ -3,7 +3,7 @@
 #OUTPUT='test_loading_summ2'
 OUTPUT='heuristic_ner_pred_sent_heads_withsummi_loadedemnlpmodel'
 RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
-MODEL='model_388000_1574807335'
+MODEL='model_456000_1575046343'
 CUDA_VISIBLE_DEVICES=3 python decode.py \
        --is_coverage \
        --pointer_gen \

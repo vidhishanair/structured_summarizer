@@ -99,7 +99,7 @@ class Model(nn.Module):
                       enc_doc_lens, enc_sent_lens,
                       enc_batch_extend_vocab, extra_zeros, c_t_1, coverage,
                       word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat,
-                      max_dec_len, dec_batch, args):
+                      max_dec_len, dec_batch, adj_mat, weighted_adj_mat, args):
 
         start = time.time()
         encoder_output = self.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
@@ -112,6 +112,23 @@ class Model(nn.Module):
             scorer_output = self.model.module.pretrained_scorer.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch)
             token_scores = scorer_output['token_score']
             sent_scores = scorer_output['sent_score'].unsqueeze(1).repeat(1, enc_padding_token_mask.size(2),1, 1).view(enc_padding_token_mask.size(0), enc_padding_token_mask.size(1)*enc_padding_token_mask.size(2))
+
+        all_child, all_head = encoder_output['sent_all_head_scores'][:,:,:,1], encoder_output['sent_all_child_scores'][:,:,:,1]
+        if args.use_gold_annotations_for_decode:
+            if args.use_weighted_annotations:
+                all_head = weighted_adj_mat[:, :, :].permute(0,2,1) + config.eps
+                row_sums = torch.sum(all_head, dim=1, keepdim=True)
+                all_head = all_head / row_sums
+                all_child = weighted_adj_mat[:, :, :] + config.eps
+                row_sums = torch.sum(all_child, dim=1, keepdim=True)
+                all_child = all_child / row_sums
+            else:
+                all_head = adj_mat[:, :, :].permute(0,2,1) + config.eps
+                row_sums = torch.sum(all_head, dim=1, keepdim=True)
+                all_head = all_head / row_sums
+                all_child = adj_mat[:, :, :] + config.eps
+                row_sums = torch.sum(all_child, dim=1, keepdim=True)
+                all_child = all_child / row_sums
 
 
         s_t_1 = self.reduce_state(encoder_last_hidden)
@@ -133,8 +150,8 @@ class Model(nn.Module):
                                                                                             enc_batch_extend_vocab,
                                                                                             coverage, token_scores,
                                                                                             sent_scores, sent_outputs,
-                                                                                            enc_sent_token_mat, encoder_output['sent_all_head_scores'],
-                                                                                            encoder_output['sent_all_child_scores'])
+                                                                                            enc_sent_token_mat,
+                                                                                            all_head, all_child)
                 final_dist_list.append(final_dist)
                 attn_dist_list.append(attn_dist)
                 p_gen_list.append(p_gen)
