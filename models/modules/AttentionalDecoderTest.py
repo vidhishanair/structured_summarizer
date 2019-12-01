@@ -92,7 +92,8 @@ class Attention(nn.Module):
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_head_scores).permute(0,2,1) # B x n_s x 1
             new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores)
-            #print(scores.size(), new_head_token_scores.size())
+            #print("scores: ", scores, scores.size())
+            #print("head: ", 0.001*new_head_token_scores.view(scores.size(0), scores.size(1)), new_head_token_scores.view(scores.size(0), scores.size(1)).size())
             scores = scores + 0.01*new_head_token_scores.view(scores.size(0), scores.size(1)) # to add to attention, need to test multiplication
         if self.args.use_all_sent_child_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
@@ -107,7 +108,7 @@ class Attention(nn.Module):
         attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
         normalization_factor = attn_dist_.sum(1, keepdim=True)
         attn_dist = attn_dist_ / normalization_factor
-
+        #print(attn_dist)
         attn_dist = attn_dist.unsqueeze(1)  # B x 1 x t_k
         h = h.view(-1, t_k, n1)  # B x t_k x 2*hidden_dim
         c_t = torch.bmm(attn_dist, h)  # B x 1 x n
