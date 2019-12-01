@@ -338,17 +338,17 @@ class BeamSearch(object):
             all_child, all_head = None, None
             if args.use_gold_annotations_for_decode:
                 if args.use_weighted_annotations: 
-                    all_head = weighted_adj_mat[:, :, :].permute(0,2,1) + config.eps
+                    all_head = weighted_adj_mat[:, :, :].permute(0,2,1) + 0.005
                     row_sums = torch.sum(all_head, dim=1, keepdim=True)
                     all_head = all_head / row_sums
-                    all_child = weighted_adj_mat[:, :, :] + config.eps
+                    all_child = weighted_adj_mat[:, :, :] + 0.005
                     row_sums = torch.sum(all_child, dim=1, keepdim=True)
                     all_child = all_child / row_sums
                 else:
-                    all_head = adj_mat[:, :, :].permute(0,2,1) + config.eps
+                    all_head = adj_mat[:, :, :].permute(0,2,1) + 0.005
                     row_sums = torch.sum(all_head, dim=1, keepdim=True)
                     all_head = all_head / row_sums
-                    all_child = adj_mat[:, :, :] + config.eps
+                    all_child = adj_mat[:, :, :] + 0.005
                     row_sums = torch.sum(all_child, dim=1, keepdim=True)
                     all_child = all_child / row_sums
 

@@ -91,16 +91,16 @@ class Attention(nn.Module):
         if self.args.use_all_sent_head_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_head_scores).permute(0,2,1) # B x n_s x 1
-            new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores)
-            #print("scores: ", scores, scores.size())
-            #print("head: ", 0.001*new_head_token_scores.view(scores.size(0), scores.size(1)), new_head_token_scores.view(scores.size(0), scores.size(1)).size())
-            scores = scores + 0.01*new_head_token_scores.view(scores.size(0), scores.size(1)) # to add to attention, need to test multiplication
+            new_head_token_scores = F.tanh(torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores))
+            # print("scores: ", scores, scores.size())
+            # print("head: ", new_head_token_scores.view(scores.size(0), scores.size(1)), new_head_token_scores.view(scores.size(0), scores.size(1)).size())
+            scores = scores + new_head_token_scores.view(scores.size(0), scores.size(1)) # to add to attention, need to test multiplication
         if self.args.use_all_sent_child_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_child_scores).permute(0,2,1) # B x n_s x 1
-            new_child_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores)
+            new_child_token_scores = F.tanh(torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores))
             #print(scores, new_child_token_scores)
-            scores = scores + 0.01*new_child_token_scores.view(scores.size(0), scores.size(1))
+            scores = scores + new_child_token_scores.view(scores.size(0), scores.size(1))
         if self.args.use_single_sent_head_at_decode:
             print("Not Implemented for single_sent_head in decode")
             exit()
