@@ -95,9 +95,13 @@ class Vocab(object):
         writer.writerow({"word": self._id_to_word[i]})
 
 
-def example_generator(data_path, single_pass):
+def example_generator(data_path, single_pass, args):
   while True:
     filelist = glob.glob(data_path) # get the list of datafiles
+    if args.use_small_train_data:
+        filelist = filelist[:1]
+    #print(len(filelist))
+    #exit()
     assert filelist, ('Error: Empty filelist at %s' % data_path) # check filelist isn't empty
     if single_pass:
       filelist = sorted(filelist)

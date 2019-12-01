@@ -422,7 +422,7 @@ class Batcher(object):
         return batch
 
     def fill_example_queue(self):
-        input_gen = self.text_generator(data.example_generator(self._data_path, self._single_pass))
+        input_gen = self.text_generator(data.example_generator(self._data_path, self._single_pass, self.args))
 
         while True:
             try:
