@@ -451,7 +451,7 @@ if __name__ == '__main__':
     parser.add_argument('--reload_path', type=str, default=None, help='location of the older saved path')
     parser.add_argument('--decode_data_path', type=str, default='/remote/bones/user/public/vbalacha/datasets/cnndailymail/finished_files_wlabels_p3/test.bin', help='location of the decode data path')
     parser.add_argument('--vocab_path', type=str, default=None, help='location of the eval data path')
-
+    parser.add_argument('--use_small_train_data', action='store_true', default=False, help='use_small_data for training')
 
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
     parser.add_argument('--is_coverage', action='store_true', default=False, help='use coverage loss')
