@@ -16,6 +16,7 @@ from torch.autograd import Variable
 from dependency_decoding import chu_liu_edmonds
 import numpy as np
 
+from analysis import get_sent_dist
 from utils.batcher import Batcher
 from utils.data import Vocab
 from utils import data, config
@@ -69,6 +70,7 @@ class BeamSearch(object):
         self._rouge_ref_file = os.path.join(self._decode_dir, 'rouge_ref.json')
         self._rouge_pred_file = os.path.join(self._decode_dir, 'rouge_pred.json')
         self.stat_res_file = os.path.join(self._decode_dir, 'stats.txt')
+        self.sent_count_file = os.path.join(self._decode_dir, 'sent_used_counts.txt')
         for p in [self._decode_dir, self._structures_dir, self._sent_single_heads_ref_dir, self._sent_single_heads_dir, self._contsel_ref_dir,
                 self._contsel_dir, self._rouge_ref_dir, self._rouge_dec_dir]:
             if not os.path.exists(p):
@@ -154,7 +156,10 @@ class BeamSearch(object):
         counter = 0
         abstract_ref = []
         abstract_pred = []
+        sentence_count = []
         batch = self.batcher.next_batch()
+        sent_count_fp = open(self.sent_count_file, 'w')
+
 
         counts = {'token_consel_num_correct' : 0,
                   'token_consel_num' : 0,
@@ -218,6 +223,9 @@ class BeamSearch(object):
 
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
+            sentences_used, count_sent = get_sent_dist(" ".join(decoded_words), batch.original_articles[0])
+            sentence_count.append((sentences_used, count_sent))
+            sent_count_fp.write(str(counter)+"\t"+str(count_sent)+"\t"+str(sentences_used)+"\n")
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
             #counter += 1
@@ -238,6 +246,9 @@ class BeamSearch(object):
         print("Decoder has finished reading dataset for single_pass.")
 
         fp = open(self.stat_res_file, 'w')
+        percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sentence_count]
+        avg_percentage = sum(percentages)/float(len(percentages))
+        fp.write("Average percentage of sentences copied: "+str(avg_percentage))
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:
@@ -247,6 +258,7 @@ class BeamSearch(object):
         if args.predict_sent_all_child:
             fp.write("Avg all sent child: "+str((counts['sent_all_child_num_correct']/float(counts['sent_all_child_num']))))
         fp.close()
+        sent_count_fp.close()
 
         write_to_json_file(abstract_ref, self._rouge_ref_file)
         write_to_json_file(abstract_pred, self._rouge_pred_file)

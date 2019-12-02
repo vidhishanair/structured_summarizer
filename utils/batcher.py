@@ -351,6 +351,7 @@ class Batch(object):
 
     def store_orig_strings(self, example_list):
         self.original_articles = [ex.original_article for ex in example_list]  # list of lists
+        self.orifinal_article_words = [ex.article_words for ex in example_list]
         self.original_abstracts = [ex.original_abstract for ex in example_list]  # list of lists
         self.original_abstracts_sents = [ex.original_abstract_sents for ex in example_list]  # list of list of lists
         if self.args.heuristic_chains:
