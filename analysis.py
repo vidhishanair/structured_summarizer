@@ -47,7 +47,7 @@ def get_sent_dist(summary, article):
                     pass
                 else:
                     #matches.extend(["1"] * (endix - startix))
-                    print(full_string)
+                    #print(full_string)
                     seen_sentences.update(longest_match_list)
                     matchstrings[full_string] += 1
                 longest_match_list = []

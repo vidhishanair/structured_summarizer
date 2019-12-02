@@ -223,7 +223,7 @@ class BeamSearch(object):
 
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
-            sentences_used, count_sent = get_sent_dist(" ".join(decoded_words), batch.original_articles[0])
+            sentences_used, count_sent = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decoded())
             sentence_count.append((sentences_used, count_sent))
             sent_count_fp.write(str(counter)+"\t"+str(count_sent)+"\t"+str(sentences_used)+"\n")
             write_for_rouge(original_abstract_sents, decoded_words, counter,
@@ -246,9 +246,11 @@ class BeamSearch(object):
         print("Decoder has finished reading dataset for single_pass.")
 
         fp = open(self.stat_res_file, 'w')
+        total_sent = [len(seen_sent) for seen_sent, seen_count in sentence_count]
         percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sentence_count]
         avg_percentage = sum(percentages)/float(len(percentages))
         fp.write("Average percentage of sentences copied: "+str(avg_percentage))
+        fp.write("Average count of sentences copied: "+str(float(sum(total_sent))/float(len(total_sent))))
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:
