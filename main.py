@@ -53,9 +53,10 @@ class Train(object):
 
         #self.summary_writer = SummaryWriter(train_dir)
 
-    def save_model(self, running_avg_loss, iter):
+    def save_model(self, running_avg_loss, iter, best_val_loss):
         state = {
             'iter': iter,
+            'best_val_loss': best_val_loss,
             'encoder_state_dict': self.model.module.encoder.state_dict(),
             'decoder_state_dict': self.model.module.decoder.state_dict(),
             'reduce_state_dict': self.model.module.reduce_state.state_dict(),
@@ -85,6 +86,9 @@ class Train(object):
             state = torch.load(args.reload_path, map_location=lambda storage, location: storage)
             start_iter = state['iter']
             start_loss = state['current_loss']
+            best_val_loss = None
+            if 'best_val_loss' in state:
+                best_val_loss = state['best_val_loss']
 
             if not args.is_coverage:
                 self.optimizer.load_state_dict(state['optimizer'])
@@ -94,7 +98,7 @@ class Train(object):
                             if torch.is_tensor(v):
                                 state[k] = v.to(device)
 
-        return start_iter, start_loss
+        return start_iter, start_loss, best_val_loss
 
     def setup_logging(self):
         logger = logging.getLogger()
@@ -126,13 +130,13 @@ class Train(object):
         return loss.item()
 
     def train_iters(self, n_iters, args):
-        start_iter, running_avg_loss = self.setup_train(args)
+        start_iter, running_avg_loss, best_val_loss = self.setup_train(args)
         logger = self.setup_logging()
         logger.debug(str(args))
         logger.debug(str(config))
 
         start = time.time()
-        best_val_loss = None
+        # best_val_loss = None
 
         for it in tqdm(range(n_iters), dynamic_ncols=True):
             iter = start_iter + it
@@ -168,7 +172,7 @@ class Train(object):
                 loss = self.run_eval(logger, args)
                 if best_val_loss is None or loss < best_val_loss:
                     best_val_loss = loss
-                    self.save_model(running_avg_loss, iter)
+                    self.save_model(running_avg_loss, iter, best_val_loss)
                     print("Saving best model")
                     logger.debug("Saving best model")
 
