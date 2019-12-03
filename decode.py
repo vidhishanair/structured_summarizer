@@ -78,7 +78,7 @@ class BeamSearch(object):
         vocab = args.vocab_path if args.vocab_path is not None else config.vocab_path
         self.vocab = Vocab(vocab, config.vocab_size, config.embeddings_file, args)
         self.batcher = Batcher(args.decode_data_path, self.vocab, mode='decode',
-                               batch_size=config.beam_size, single_pass=True, args=args)
+                               batch_size=args.beam_size, single_pass=True, args=args)
         self.batcher.setup_queues()
         time.sleep(30)
 
@@ -382,9 +382,9 @@ class BeamSearch(object):
                           state=(dec_h[0], dec_c[0]),
                           context = c_t_0[0],
                           coverage=(coverage_t_0[0] if self.args.is_coverage else None))
-                     for _ in range(config.beam_size)]
+                     for _ in range(args.beam_size)]
 
-            while steps < config.max_dec_steps and len(results) < config.beam_size:
+            while steps < args.max_dec_steps and len(results) < args.beam_size:
                 latest_tokens = [h.latest_token for h in beams]
                 latest_tokens = [t if t < self.vocab.size() else self.vocab.word2id(data.UNKNOWN_TOKEN) \
                                  for t in latest_tokens]
@@ -419,7 +419,7 @@ class BeamSearch(object):
                                                                                         token_scores, sent_scores, sent_outputs,
                                                                                         enc_sent_token_mat, all_head, all_child)
 
-                topk_log_probs, topk_ids = torch.topk(final_dist, config.beam_size * 2)
+                topk_log_probs, topk_ids = torch.topk(final_dist, args.beam_size * 2)
 
                 dec_h, dec_c = s_t
                 dec_h = dec_h.squeeze()
@@ -433,7 +433,7 @@ class BeamSearch(object):
                     context_i = c_t[i]
                     coverage_i = (coverage_t[i] if self.args.is_coverage else None)
 
-                    for j in range(config.beam_size * 2):  # for each of the top 2*beam_size hyps:
+                    for j in range(args.beam_size * 2):  # for each of the top 2*beam_size hyps:
                         new_beam = h.extend(token=topk_ids[i, j].item(),
                                             log_prob=topk_log_probs[i, j].item(),
                                             state=state_i,
@@ -448,7 +448,7 @@ class BeamSearch(object):
                             results.append(h)
                     else:
                         beams.append(h)
-                    if len(beams) == config.beam_size or len(results) == config.beam_size:
+                    if len(beams) == args.beam_size or len(results) == args.beam_size:
                         break
 
                 steps += 1
@@ -482,6 +482,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_ner', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_coref', action='store_true', default=False, help='heuristic coref for training')
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
+    parser.add_argument('--beam_size', type=int, default=3, help='Max Dec Steps')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
     parser.add_argument('--predict_summaries', action='store_true', default=False, help='decode summarization')
