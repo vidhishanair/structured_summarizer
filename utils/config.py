@@ -29,8 +29,8 @@ emb_dim= 128
 batch_size=60
 max_enc_steps=400
 #max_dec_steps=100
-max_dec_steps=50
-beam_size=6
+# max_dec_steps=60
+# beam_size=3
 min_dec_steps=35
 vocab_size=50000
 

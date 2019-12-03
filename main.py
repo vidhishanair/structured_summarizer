@@ -53,7 +53,7 @@ class Train(object):
 
         #self.summary_writer = SummaryWriter(train_dir)
 
-    def save_model(self, running_avg_loss, iter, best_val_loss):
+    def save_model(self, running_avg_loss, iter, logger, best_val_loss):
         state = {
             'iter': iter,
             'best_val_loss': best_val_loss,
@@ -64,6 +64,8 @@ class Train(object):
             'current_loss': running_avg_loss
         }
         model_save_path = os.path.join(self.model_dir, 'model_%d_%d' % (iter, int(time.time())))
+        print(model_save_path)
+        logger.debug(model_save_path)
         torch.save(state, model_save_path)
 
     def setup_train(self, args):
@@ -80,13 +82,12 @@ class Train(object):
         self.attn_mse_loss = nn.MSELoss()
 
         start_iter, start_loss = 0, 0
-
+        best_val_loss = None
         if args.reload_path is not None:
             print('Loading from checkpoint: '+str(args.reload_path))
             state = torch.load(args.reload_path, map_location=lambda storage, location: storage)
             start_iter = state['iter']
             start_loss = state['current_loss']
-            best_val_loss = None
             if 'best_val_loss' in state:
                 best_val_loss = state['best_val_loss']
 
@@ -172,7 +173,7 @@ class Train(object):
                 loss = self.run_eval(logger, args)
                 if best_val_loss is None or loss < best_val_loss:
                     best_val_loss = loss
-                    self.save_model(running_avg_loss, iter, best_val_loss)
+                    self.save_model(running_avg_loss, iter, logger, best_val_loss)
                     print("Saving best model")
                     logger.debug("Saving best model")
 
