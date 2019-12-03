@@ -169,7 +169,7 @@ class BeamSearch(object):
                   'sent_all_heads_num' : 0,
                   'sent_all_child_num_correct' : 0,
                   'sent_all_child_num' : 0}
-
+        no_batches_processed = 0
         while batch is not None:
             # Run beam search to get best Hypothesis
             #start = time.process_time()
@@ -223,7 +223,7 @@ class BeamSearch(object):
 
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
-            sentences_used, count_sent = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decoded())
+            sentences_used, count_sent = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
             sentence_count.append((sentences_used, count_sent))
             sent_count_fp.write(str(counter)+"\t"+str(count_sent)+"\t"+str(sentences_used)+"\n")
             write_for_rouge(original_abstract_sents, decoded_words, counter,
@@ -240,8 +240,9 @@ class BeamSearch(object):
                 print('%d example in %d sec'%(counter, time.time() - start))
                 start = time.time()
             #print('Time taken for rest: ', time.process_time() - start)
-            # if counter == 5:
-            #    break
+            if args.decode_for_subset:
+                if counter == 1000:
+                    break
 
         print("Decoder has finished reading dataset for single_pass.")
 
@@ -498,6 +499,8 @@ if __name__ == '__main__':
     parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
 
+    parser.add_argument('--decode_for_subset', action='store_true', default=False, help='heuristic ner for training')
+    
     args = parser.parse_args()
     model_filename = args.reload_path
     save_path = args.save_path

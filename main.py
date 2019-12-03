@@ -53,7 +53,7 @@ class Train(object):
 
         #self.summary_writer = SummaryWriter(train_dir)
 
-    def save_model(self, running_avg_loss, iter):
+    def save_model(self, running_avg_loss, iter, logger):
         state = {
             'iter': iter,
             'encoder_state_dict': self.model.module.encoder.state_dict(),
@@ -63,6 +63,8 @@ class Train(object):
             'current_loss': running_avg_loss
         }
         model_save_path = os.path.join(self.model_dir, 'model_%d_%d' % (iter, int(time.time())))
+        print(model_save_path)
+        logger.debug(model_save_path)
         torch.save(state, model_save_path)
 
     def setup_train(self, args):
@@ -168,7 +170,7 @@ class Train(object):
                 loss = self.run_eval(logger, args)
                 if best_val_loss is None or loss < best_val_loss:
                     best_val_loss = loss
-                    self.save_model(running_avg_loss, iter)
+                    self.save_model(running_avg_loss, iter, logger)
                     print("Saving best model")
                     logger.debug("Saving best model")
 

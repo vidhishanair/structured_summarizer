@@ -1,4 +1,5 @@
 import os
+from tqdm import tqdm
 import spacy
 nlp = spacy.load("en_core_web_lg")
 
@@ -64,9 +65,12 @@ def get_avg_sent_copied(article_dir, summary_dir):
     article_files = os.listdir(article_dir)
     summary_files = os.listdir(summary_dir)
     sent_counter = []
-    for article, summ in zip(article_files, summary_files):
-        article = open(article).read()
-        summary = open(summ).read()
+    for article in tqdm(article_files):
+        counter = article.split("_")[0]
+        summ = str(counter)+"_decoded.txt"
+        #print(article, summ)
+        article = open(os.path.join(article_dir, article)).read()
+        summary = open(os.path.join(summary_dir, summ)).read()
         doc = nlp(article)
         article_sents = " <split1> ".join([sent.text for sent in doc.sents])
         seen_sent, art_len = get_sent_dist(summary, article_sents)
@@ -80,12 +84,15 @@ def get_avg_sent_copied(article_dir, summary_dir):
 
 
 if __name__ == '__main__':
-    article_dir = ""
-    baseline_dir = ""
-    pointgen_dir = ""
-    pointgen_cov_dir = ""
+    article_dir = "./test_output/articles"
+    baseline_dir = "./test_output/baseline"
+    pointgen_dir = "./test_output/pointer-gen"
+    pointgen_cov_dir = "./test_output/pointer-gen-cov"
+    print("Doing baseline")
     baseline_avg_percent, baseline_avg_nosents = get_avg_sent_copied(article_dir, baseline_dir)
+    print("Doing pointgen")
     pointgen_avg_percent, pointgen_avg_nosents = get_avg_sent_copied(article_dir, pointgen_dir)
+    print("Doing coverage")
     pointgen_cov_avg_percent, pointgen_cov_avg_nosents = get_avg_sent_copied(article_dir, pointgen_cov_dir)
     print("Baseline: "+str(baseline_avg_nosents)+" "+str(baseline_avg_percent))
     print("Pointgen: "+str(pointgen_avg_nosents)+" "+str(pointgen_avg_percent))
