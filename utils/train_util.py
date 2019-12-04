@@ -44,7 +44,7 @@ def get_input_from_batch(batch, use_cuda, args):
     # c_t_1 = Variable(torch.zeros((batch_size, 2 * config.hidden_dim)))
     c_t_1 = Variable(torch.zeros((batch_size, 2 * config.sem_dim_size))) # add 4 * for pointergen
     coverage = None
-    if args.is_coverage:
+    if args.is_coverage or args.bu_coverage_penalty:
         coverage = Variable(torch.zeros(word_batch.size()))
 
     if use_cuda:
