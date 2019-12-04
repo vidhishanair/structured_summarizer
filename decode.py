@@ -393,7 +393,7 @@ class BeamSearch(object):
                           log_probs=[0.0],
                           state=(dec_h[0], dec_c[0]),
                           context = c_t_0[0],
-                          coverage=(coverage_t_0[0] if self.args.is_coverage else None))
+                          coverage=(coverage_t_0[0] if self.args.is_coverage or self.args.bu_coverage_penalty else None))
                      for _ in range(args.beam_size)]
 
             while steps < args.max_dec_steps and len(results) < args.beam_size:
