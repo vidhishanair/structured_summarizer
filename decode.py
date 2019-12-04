@@ -419,6 +419,12 @@ class BeamSearch(object):
                                                                                         token_scores, sent_scores, sent_outputs,
                                                                                         enc_sent_token_mat, all_head, all_child)
 
+                if args.bu_coverage_penalty:
+                    penalty = torch.max(coverage_t, coverage_t.clone().fill_(1.0)).sum(-1)
+                    penalty -= coverage_t.size(-1)
+                    final_dist -= args.beta*penalty
+
+
                 topk_log_probs, topk_ids = torch.topk(final_dist, args.beam_size * 2)
 
                 dec_h, dec_c = s_t
@@ -501,7 +507,9 @@ if __name__ == '__main__':
     parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
 
     parser.add_argument('--decode_for_subset', action='store_true', default=False, help='heuristic ner for training')
-    
+    parser.add_argument('--bu_coverage_penalty', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--beta', type=int, default=5, help='heuristic ner for training')
+
     args = parser.parse_args()
     model_filename = args.reload_path
     save_path = args.save_path
