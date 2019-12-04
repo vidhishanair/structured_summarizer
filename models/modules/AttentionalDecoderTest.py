@@ -125,7 +125,7 @@ class Attention(nn.Module):
 
         attn_dist = attn_dist.view(-1, t_k)  # B x t_k
 
-        if self.is_coverage:
+        if self.is_coverage or self.args.bu_coverage_penalty:
             coverage = coverage.view(-1, t_k)
             coverage = coverage + attn_dist
 
