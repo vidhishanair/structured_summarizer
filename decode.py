@@ -434,7 +434,8 @@ class BeamSearch(object):
                 if args.bu_coverage_penalty:
                     penalty = torch.max(coverage_t, coverage_t.clone().fill_(1.0)).sum(-1)
                     penalty -= coverage_t.size(-1)
-                    final_dist -= args.beta*penalty
+                    #print(penalty.unsqueeze(1).expand_as(final_dist).size(), final_dist.size())
+                    final_dist -= args.beta*penalty.unsqueeze(1).expand_as(final_dist)
 
 
                 topk_log_probs, topk_ids = torch.topk(final_dist, args.beam_size * 2)
@@ -449,7 +450,7 @@ class BeamSearch(object):
                     h = beams[i]
                     state_i = (dec_h[i], dec_c[i])
                     context_i = c_t[i]
-                    coverage_i = (coverage_t[i] if self.args.is_coverage else None)
+                    coverage_i = (coverage_t[i] if self.args.is_coverage or self.args.bu_coverage_penalty else None)
 
                     for j in range(args.beam_size * 2):  # for each of the top 2*beam_size hyps:
                         new_beam = h.extend(token=topk_ids[i, j].item(),
