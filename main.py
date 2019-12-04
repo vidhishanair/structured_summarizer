@@ -545,7 +545,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_gold_annotations_for_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_weighted_annotations', action='store_true', default=False, help='decode summarization')
-
+    parser.add_argument('--bu_coverage_penalty', action='store_true', default=False, help='decode summarization')
     
     parser.add_argument('--predict_sent_single_head', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--predict_sent_all_head', action='store_true', default=False, help='decode summarization')
