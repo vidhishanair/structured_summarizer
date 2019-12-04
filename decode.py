@@ -419,7 +419,7 @@ class BeamSearch(object):
                 c_t_1 = torch.stack(all_context, 0)
 
                 coverage_t_1 = None
-                if self.args.is_coverage:
+                if self.args.is_coverage or self.args.bu_coverage_penalty:
                     all_coverage = []
                     for h in beams:
                         all_coverage.append(h.coverage)
