@@ -82,30 +82,39 @@ class Attention(nn.Module):
         e = F.tanh(att_features) # B * t_k x 2*hidden_dim
         scores = self.v(e)  # B * t_k x 1
         scores = scores.view(-1, t_k)  # B x t_k
-        if self.args.token_scores:
-            #print(scores.size())
-            #print(token_scores.size())
-            scores = scores * token_scores[:,:,1]
-        if self.args.sent_scores:
-            scores = scores * sent_scores
+        scores = F.softmax(scores*enc_padding_mask, dim=1)*enc_padding_mask # B x t_k
+        attn_dist_ = scores.clone()
+        # if self.args.token_scores:
+        #     #print(scores.size())
+        #     #print(token_scores.size())
+        #     scores = scores * token_scores[:,:,1]
+        # if self.args.sent_scores:
+        #     scores = scores * sent_scores
         if self.args.use_all_sent_head_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_head_scores).permute(0,2,1) # B x n_s x 1
-            new_head_token_scores = F.tanh(torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores))
-            # print("scores: ", scores, scores.size())
-            # print("head: ", new_head_token_scores.view(scores.size(0), scores.size(1)), new_head_token_scores.view(scores.size(0), scores.size(1)).size())
-            scores = scores + new_head_token_scores.view(scores.size(0), scores.size(1)) # to add to attention, need to test multiplication
+            #print(sent_att_scores)
+            #print(new_attended_sent_scores)
+            #exit()
+            new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1),
+                                              new_attended_sent_scores).view(scores.size(0), scores.size(1))
+            new_head_token_scores = F.softmax(new_head_token_scores, dim=1)*enc_padding_mask
+            attn_dist_ += new_head_token_scores # to add to attention, need to test multiplication
         if self.args.use_all_sent_child_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_child_scores).permute(0,2,1) # B x n_s x 1
-            new_child_token_scores = F.tanh(torch.bmm(enc_sent_token_mat.permute(0,2,1), new_attended_sent_scores))
+            #print(sent_att_scores)
+            #print(new_attended_sent_scores)
+            #exit()
+            new_child_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1),
+                                               new_attended_sent_scores).view(scores.size(0), scores.size(1))
             #print(scores, new_child_token_scores)
-            scores = scores + new_child_token_scores.view(scores.size(0), scores.size(1))
+            attn_dist_ += F.softmax(new_child_token_scores, dim=1)*enc_padding_mask
         if self.args.use_single_sent_head_at_decode:
             print("Not Implemented for single_sent_head in decode")
             exit()
 
-        attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
+        # attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
         normalization_factor = attn_dist_.sum(1, keepdim=True)
         attn_dist = attn_dist_ / normalization_factor
         #print(attn_dist)

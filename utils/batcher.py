@@ -39,6 +39,8 @@ class Example(object):
                 sent[-1].append(word)
                 sent_tags[-1].append(tag)
         article_words = sent[:20]
+        #for idx, sent in enumerate(article_words):
+        #    print(str(idx)+"  "+" ".join(sent))
         article_word_tags = sent_tags[:20]
         all_article_words = list(itertools.chain.from_iterable(article_words))
         all_article_tags = list(itertools.chain.from_iterable(article_word_tags))
@@ -178,9 +180,10 @@ class Example(object):
                     child = link['tail_id']
                     if parent >= no_sents or child >= no_sents:
                         continue
+                    #print(parent, child)
                     adj_mat[parent][child] = 1
                     weighted_adj_mat[parent][child] += 1
-
+            #print(weighted_adj_mat)
             adjusted_adj_mat = weighted_adj_mat + config.eps
             row_sums = adjusted_adj_mat.sum(axis=0)
             norm_adj_mat = adjusted_adj_mat / row_sums[np.newaxis, :] # eq prob on all incase of no head is bad.

@@ -88,8 +88,8 @@ class Train(object):
             state = torch.load(args.reload_path, map_location=lambda storage, location: storage)
             start_iter = state['iter']
             start_loss = state['current_loss']
-            if 'best_val_loss' in state:
-                best_val_loss = state['best_val_loss']
+            #if 'best_val_loss' in state:
+            #    best_val_loss = state['best_val_loss']
 
             if not args.is_coverage:
                 self.optimizer.load_state_dict(state['optimizer'])
@@ -530,6 +530,7 @@ if __name__ == '__main__':
     parser.add_argument('--sm_ner_model', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_ner', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_coref', action='store_true', default=False, help='heuristic coref for training')
+
     parser.add_argument('--use_summ_loss', action='store_true', default=False, help='use summ loss for training')
     parser.add_argument('--use_token_contsel_loss', action='store_true', default=False, help='use token_level content selection for pre-training')
     parser.add_argument('--use_sent_imp_loss', action='store_true', default=False, help='use sent_level content selection for pre-training')
@@ -538,6 +539,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_sent_single_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
+
     parser.add_argument('--use_all_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_all_sent_child_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
