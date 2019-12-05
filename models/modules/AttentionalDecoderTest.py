@@ -54,8 +54,9 @@ class Attention(nn.Module):
             self.W_c = nn.Linear(1, config.hidden_dim * 2, bias=False)
 
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
+        self.decode_proj_sent = nn.Linear(config.hidden_dim * 2, 2*config.sem_dim_size)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
-        self.v2 = nn.Linear(config.hidden_dim * 2, 1, bias=False)
+        self.v2 = nn.Linear(2*config.sem_dim_size, 1, bias=False)
 
     def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores, sent_level_rep):
         b, t_k, n1 = list(h.size())
@@ -94,7 +95,8 @@ class Attention(nn.Module):
 
         if self.args.sent_attention_at_dec:
             bs, n_s, hsize = sent_level_rep.size()
-            current_dec_sent_rep = dec_fea.unsqueeze(1).expand(b, n_s, hsize).contiguous()
+            dec_fea_sent = self.decode_proj_sent(s_t_hat)
+            current_dec_sent_rep = dec_fea_sent.unsqueeze(1).expand(b, n_s, hsize).contiguous()
             sent_features = F.tanh(self.W_s(sent_level_rep + current_dec_sent_rep)) # B x n_s x 2*hdim
             sent_scores = self.v2(sent_features) # B x n_s x 1
             token_level_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), sent_scores) # B x tk x 1
