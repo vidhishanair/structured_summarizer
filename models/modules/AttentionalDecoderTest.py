@@ -55,8 +55,9 @@ class Attention(nn.Module):
 
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
+        self.v2 = nn.Linear(config.hidden_dim * 2, 1, bias=False)
 
-    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores):
+    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores, sent_level_rep):
         b, t_k, n1 = list(h.size())
         h = h.view(-1, n1)  # B * t_k x 2*hidden_dim
         encoder_feature = self.W_h(h)
@@ -82,7 +83,7 @@ class Attention(nn.Module):
         e = F.tanh(att_features) # B * t_k x 2*hidden_dim
         scores = self.v(e)  # B * t_k x 1
         scores = scores.view(-1, t_k)  # B x t_k
-        scores = F.softmax(scores*enc_padding_mask, dim=1)*enc_padding_mask # B x t_k
+        scores = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
         attn_dist_ = scores.clone()
         # if self.args.token_scores:
         #     #print(scores.size())
@@ -90,12 +91,20 @@ class Attention(nn.Module):
         #     scores = scores * token_scores[:,:,1]
         # if self.args.sent_scores:
         #     scores = scores * sent_scores
+
+        if self.args.sent_attention_at_dec:
+            bs, n_s, hsize = sent_level_rep.size()
+            current_dec_sent_rep = dec_fea.unsqueeze(1).expand(b, n_s, hsize).contiguous()
+            sent_features = F.tanh(self.W_s(sent_level_rep + current_dec_sent_rep)) # B x n_s x 2*hdim
+            sent_scores = self.v2(sent_features) # B x n_s x 1
+            token_level_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), sent_scores) # B x tk x 1
+            token_level_scores = token_level_scores.view(-1, t_k)
+            attn_dist_ *= F.softmax(token_level_scores, dim=1)*enc_padding_mask
+
+
         if self.args.use_all_sent_head_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_head_scores).permute(0,2,1) # B x n_s x 1
-            #print(sent_att_scores)
-            #print(new_attended_sent_scores)
-            #exit()
             new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1),
                                               new_attended_sent_scores).view(scores.size(0), scores.size(1))
             new_head_token_scores = F.softmax(new_head_token_scores, dim=1)*enc_padding_mask
@@ -103,12 +112,8 @@ class Attention(nn.Module):
         if self.args.use_all_sent_child_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
             new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_child_scores).permute(0,2,1) # B x n_s x 1
-            #print(sent_att_scores)
-            #print(new_attended_sent_scores)
-            #exit()
             new_child_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1),
                                                new_attended_sent_scores).view(scores.size(0), scores.size(1))
-            #print(scores, new_child_token_scores)
             attn_dist_ += F.softmax(new_child_token_scores, dim=1)*enc_padding_mask
         if self.args.use_single_sent_head_at_decode:
             print("Not Implemented for single_sent_head in decode")

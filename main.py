@@ -541,6 +541,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
 
+    parser.add_argument('--sent_attention_at_dec', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_all_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_all_sent_child_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')

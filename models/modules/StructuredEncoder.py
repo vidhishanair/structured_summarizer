@@ -182,6 +182,7 @@ class StructuredEncoder(nn.Module):
 
         encoder_output = {"encoded_tokens": encoded_tokens,
                           "token_hidden": token_hidden,
+                          "sentence_level_encoded_sents": sa_encoded_sents,
                           "encoded_sents": sa_encoded_sent_token_rep,
                           "sent_hidden": sent_hidden,
                           "document_rep" : max_pooled_doc,

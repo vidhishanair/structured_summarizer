@@ -278,7 +278,8 @@ class BeamSearch(object):
                                                          enc_padding_sent_mask, word_batch, word_padding_mask,
                                                          enc_word_lens, enc_tags_batch, enc_sent_token_mat)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, \
-        enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, sent_scores, sent_matrix = \
+        enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, \
+        sent_scores, sent_matrix, sent_level_rep = \
                                     self.model.get_app_outputs(encoder_output, enc_padding_token_mask,
                                                    enc_padding_sent_mask, enc_batch_extend_vocab, enc_sent_token_mat)
 
@@ -440,13 +441,15 @@ class BeamSearch(object):
                                                                                         encoder_outputs, word_padding_mask, c_t_1,
                                                                                         extra_zeros, enc_batch_extend_vocab, coverage_t_1,
                                                                                         token_scores, sent_scores, sent_outputs,
-                                                                                        enc_sent_token_mat, all_head, all_child)
+                                                                                        enc_sent_token_mat, all_head,
+                                                                                        all_child, sent_level_rep)
 
                 if args.bu_coverage_penalty:
                     penalty = torch.max(coverage_t, coverage_t.clone().fill_(1.0)).sum(-1)
                     penalty -= coverage_t.size(-1)
-                    #print(penalty.unsqueeze(1).expand_as(final_dist).size(), final_dist.size())
                     final_dist -= args.beta*penalty.unsqueeze(1).expand_as(final_dist)
+                # if args.bu_length_penalty:
+                #     penalty = ((5 + cur_len) / 6.0) ** alpha
 
 
                 topk_log_probs, topk_ids = torch.topk(final_dist, args.beam_size * 2)
@@ -520,6 +523,8 @@ if __name__ == '__main__':
     parser.add_argument('--predict_sent_all_head', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--predict_sent_all_child', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--predict_contsel_tags', action='store_true', default=False, help='decode summarization')
+
+    parser.add_argument('--sent_attention_at_dec', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_all_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_all_sent_child_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
