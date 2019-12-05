@@ -176,6 +176,8 @@ class Example(object):
                         continue
                     adj_mat[parent][child] = 1
                     weighted_adj_mat[parent][child] += 1
+                    undir_weighted_adj_mat[parent][child] += 1
+                    undir_weighted_adj_mat[child][parent] += 1
 
             if self.args.use_coref:
                 for link in links['coref']:
@@ -186,6 +188,8 @@ class Example(object):
                     #print(parent, child)
                     adj_mat[parent][child] = 1
                     weighted_adj_mat[parent][child] += 1
+                    undir_weighted_adj_mat[parent][child] += 1
+                    undir_weighted_adj_mat[child][parent] += 1
             #print(weighted_adj_mat)
             adjusted_adj_mat = weighted_adj_mat + config.eps
             row_sums = adjusted_adj_mat.sum(axis=0)
