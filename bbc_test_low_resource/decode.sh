@@ -1,7 +1,7 @@
 #Namespace(L1_structure_penalty=False, autoencode=False, is_coverage=True, pointer_gen=True, reload_path=None, reload_pretrained_clf_path='log/token_sent_level_tag/model/model_455000_1555707099', save_path='sent_level_tag_coverage', sent_scores=True, sep_sent_features=False, token_scores=False)
 
 #OUTPUT='test_loading_summ2'
-OUTPUT='bbc_test_low_resource_model_15000_1575518068_first_convergence'
+OUTPUT='bbc_test_low_resource'
 # RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
 MODEL='model_15000_1575518068'
 CUDA_VISIBLE_DEVICES=3 python decode.py \
@@ -18,17 +18,17 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
        # --heuristic_chains \
        # --sm_ner_model \
 
-cd ../pointer_summarizer/
+cd ../artidoro-pointer_summarizer/
 
-source activate pointgen
+source activate py27
 
-python pyrouge_eval.py ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_ref/ ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_dec_dir/ > ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
+python pyrouge_eval.py ../artidoro-structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_ref/ ../artidoro-structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_dec_dir/ > ../artidoro-structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
 
-cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
-cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/stats.txt
+cat ../artidoro-structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
+cat ../artidoro-structured_summarizer/log/${OUTPUT}/decode_${MODEL}/stats.txt
 
 conda deactivate
 
-source activate py3.7tor1.1
+source activate py36
 
-cd ../structured_summarizer/
+cd ../artidoro-structured_summarizer/
