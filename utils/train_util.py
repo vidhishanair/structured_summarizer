@@ -24,6 +24,7 @@ def get_input_from_batch(batch, use_cuda, args):
 
     adj_mat = None
     weighted_adj_mat = None
+    undir_weighted_adj_mat = None
     norm_adj_mat = None
     parent_heads = None
     if args.heuristic_chains:
