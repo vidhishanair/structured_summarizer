@@ -7,3 +7,4 @@ pycocoevalcap/*
 *.swo
 *.swp
 log/
+.vscode/
