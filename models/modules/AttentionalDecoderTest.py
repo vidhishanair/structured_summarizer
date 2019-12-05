@@ -171,7 +171,7 @@ class Decoder(nn.Module):
         init_linear_wt(self.out2)
 
     def forward(self, y_t_1, s_t_1, encoder_outputs, enc_padding_mask,
-                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_scores, sent_scores, sent_features, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores):
+                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_scores, sent_scores, sent_features, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores, sent_level_rep):
 
         y_t_1_embd = self.embedding(y_t_1)
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
@@ -182,7 +182,8 @@ class Decoder(nn.Module):
                              c_decoder.view(-1, config.hidden_dim)), 1)  # B x 2*hidden_dim
         c_t, attn_dist, coverage = self.attention_network(s_t_hat, encoder_outputs,
                                                           enc_padding_mask, coverage, token_scores, sent_scores,
-                                                          sent_features, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores)
+                                                          sent_features, enc_sent_token_mat,
+                                                          sent_all_head_scores, sent_all_child_scores, sent_level_rep)
         p_gen = None
         if self.pointer_gen:
             p_gen_input = torch.cat((c_t, s_t_hat, x), 1)  # B x (2*2*hidden_dim + emb_dim)
