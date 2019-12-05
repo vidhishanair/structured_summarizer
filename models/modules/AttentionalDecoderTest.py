@@ -56,7 +56,7 @@ class Attention(nn.Module):
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.decode_proj_sent = nn.Linear(config.hidden_dim * 2, 2*config.sem_dim_size)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
-        self.v2 = nn.Linear(2*config.sem_dim_size, 1, bias=False)
+        self.v2 = nn.Linear(2*config.hidden_dim, 1, bias=False)
 
     def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores, sent_level_rep):
         b, t_k, n1 = list(h.size())
