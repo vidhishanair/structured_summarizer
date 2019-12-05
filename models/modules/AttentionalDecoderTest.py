@@ -46,7 +46,7 @@ class Attention(nn.Module):
         self.args = args
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
-        if self.args.sep_sent_features:
+        if self.args.sep_sent_features or self.args.sent_attention_at_dec:
             self.W_s = nn.Linear(2*config.sem_dim_size, config.hidden_dim * 2, bias=False)
 
 
