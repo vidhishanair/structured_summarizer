@@ -11,11 +11,11 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
        --vocab_path=/remote/bones/user/public/vbalacha/cnn-dailymail/finished_files_wlabels_wnerchains/vocab \
        --save_path=${OUTPUT} \
        --reload_path=log/${OUTPUT}/model/${MODEL} \
-       --sent_scores \
-       --predict_sent_single_head \
        --predict_summaries \
-       --heuristic_chains \
-       --sm_ner_model \
+       max_dec_steps 70, beam_size 3
+       max_dec_steps 100/120, beam_size 3
+       # --heuristic_chains \
+       # --sm_ner_model \
 
 cd ../pointer_summarizer/
 
