@@ -99,7 +99,7 @@ class Model(nn.Module):
                       enc_doc_lens, enc_sent_lens,
                       enc_batch_extend_vocab, extra_zeros, c_t_1, coverage,
                       word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat,
-                      max_dec_len, dec_batch, adj_mat, weighted_adj_mat, args):
+                      max_dec_len, dec_batch, adj_mat, weighted_adj_mat, undir_weighted_adj_mat, args):
 
         start = time.time()
         encoder_output = self.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask, enc_padding_sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat)
@@ -117,15 +117,26 @@ class Model(nn.Module):
         all_child, all_head = None, None
         if args.use_gold_annotations_for_decode:
             if args.use_weighted_annotations:
-                permuted_all_head = weighted_adj_mat[:, :, :].permute(0,2,1)
-                all_head = permuted_all_head.clone()
-                row_sums = torch.sum(permuted_all_head, dim=2, keepdim=True)
-                all_head[row_sums.expand_as(permuted_all_head)!=0] = permuted_all_head[row_sums.expand_as(permuted_all_head)!=0]/row_sums.expand_as(permuted_all_head)[row_sums.expand_as(permuted_all_head)!=0]
-                
-                base_all_child = weighted_adj_mat[:, :, :]
-                all_child = base_all_child.clone()
-                row_sums = torch.sum(base_all_child, dim=2, keepdim=True)
-                all_child[row_sums.expand_as(base_all_child)!=0] = base_all_child[row_sums.expand_as(base_all_child)!=0]/row_sums.expand_as(base_all_child)[row_sums.expand_as(base_all_child)!=0]
+                if args.use_undirected_weighted_graphs:
+                    permuted_all_head = undir_weighted_adj_mat[:, :, :].permute(0,2,1)
+                    all_head = permuted_all_head.clone()
+                    row_sums = torch.sum(permuted_all_head, dim=2, keepdim=True)
+                    all_head[row_sums.expand_as(permuted_all_head)!=0] = permuted_all_head[row_sums.expand_as(permuted_all_head)!=0]/row_sums.expand_as(permuted_all_head)[row_sums.expand_as(permuted_all_head)!=0]
+
+                    base_all_child = undir_weighted_adj_mat[:, :, :]
+                    all_child = base_all_child.clone()
+                    row_sums = torch.sum(base_all_child, dim=2, keepdim=True)
+                    all_child[row_sums.expand_as(base_all_child)!=0] = base_all_child[row_sums.expand_as(base_all_child)!=0]/row_sums.expand_as(base_all_child)[row_sums.expand_as(base_all_child)!=0]
+                else:
+                    permuted_all_head = weighted_adj_mat[:, :, :].permute(0,2,1)
+                    all_head = permuted_all_head.clone()
+                    row_sums = torch.sum(permuted_all_head, dim=2, keepdim=True)
+                    all_head[row_sums.expand_as(permuted_all_head)!=0] = permuted_all_head[row_sums.expand_as(permuted_all_head)!=0]/row_sums.expand_as(permuted_all_head)[row_sums.expand_as(permuted_all_head)!=0]
+
+                    base_all_child = weighted_adj_mat[:, :, :]
+                    all_child = base_all_child.clone()
+                    row_sums = torch.sum(base_all_child, dim=2, keepdim=True)
+                    all_child[row_sums.expand_as(base_all_child)!=0] = base_all_child[row_sums.expand_as(base_all_child)!=0]/row_sums.expand_as(base_all_child)[row_sums.expand_as(base_all_child)!=0]
             else:
                 permuted_all_head = adj_mat[:, :, :].permute(0,2,1)
                 all_head = permuted_all_head.clone()

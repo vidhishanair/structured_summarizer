@@ -93,7 +93,7 @@ class Example(object):
         if self.args.heuristic_chains:
             # self.sup_adj_mat, self.parent_heads = self.generate_adj_mat_sup(len(article_words), links)
             self.adj_mat, self.weighted_adj_mat, self.norm_adj_mat, \
-                self.parent_heads = self.generate_adj_mat_sup(len(article_words), links)
+                self.parent_heads, self.undir_weighted_adj_mat = self.generate_adj_mat_sup(len(article_words), links)
 
         # Store the original strings
         self.enc_tags = all_article_tags
@@ -140,6 +140,7 @@ class Example(object):
     def generate_adj_mat_sup(self, no_sents, links):
         adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
         weighted_adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
+        undir_weighted_adj_mat = np.zeros((no_sents, no_sents), dtype='float32')
         parent_heads = np.full(no_sents, fill_value=-1, dtype='int')
 
         if self.args.sm_ner_model:
@@ -150,6 +151,8 @@ class Example(object):
                     continue
                 adj_mat[parent][child] = 1
                 weighted_adj_mat[parent][child] += 1
+                undir_weighted_adj_mat[parent][child] += 1
+                undir_weighted_adj_mat[child][parent] += 1
 
             adjusted_adj_mat = weighted_adj_mat + config.eps
             row_sums = adjusted_adj_mat.sum(axis=0)
@@ -199,7 +202,7 @@ class Example(object):
                 parent_heads[sent_idx] = head
         #print("here: ", links, adj_mat)
         #exit()
-        return adj_mat, weighted_adj_mat, norm_adj_mat, parent_heads
+        return adj_mat, weighted_adj_mat, norm_adj_mat, parent_heads, undir_weighted_adj_mat
 
     def get_dec_inp_targ_seqs(self, sequence, max_len, start_id, stop_id):
         inp = [start_id] + sequence[:]
@@ -290,10 +293,11 @@ class Batch(object):
         self.enc_padding_word_mask = np.zeros((self.batch_size, max_enc_word_len), dtype=np.float32)
 
         if self.heuristic_chains:
-            self.adj_mat = np.full((self.batch_size, max_enc_doc_len, max_enc_doc_len), fill_value=-1, dtype=np.float32)
-            self.weighted_adj_mat = np.full((self.batch_size, max_enc_doc_len, max_enc_doc_len), fill_value=-1, dtype=np.float32)
+            self.adj_mat = np.full((self.batch_size, max_enc_doc_len, max_enc_doc_len), fill_value=0, dtype=np.float32)
+            self.weighted_adj_mat = np.full((self.batch_size, max_enc_doc_len, max_enc_doc_len), fill_value=0, dtype=np.float32)
             self.norm_adj_mat = np.zeros((self.batch_size, max_enc_doc_len, max_enc_doc_len), dtype=np.float32)
-            self.parent_heads = np.full((self.batch_size, max_enc_doc_len), fill_value=-1, dtype=np.int32)
+            self.parent_heads = np.full((self.batch_size, max_enc_doc_len), fill_value=0, dtype=np.int32)
+            self.undir_weighted_adj_mat = np.full((self.batch_size, max_enc_doc_len, max_enc_doc_len), fill_value=0, dtype=np.float32)
 
         # Fill in the numpy arrays
         for i, ex in enumerate(example_list):
@@ -319,6 +323,7 @@ class Batch(object):
             if self.heuristic_chains:
                 self.adj_mat[i, :ex.adj_mat.shape[0], :ex.adj_mat.shape[1]] = ex.adj_mat
                 self.weighted_adj_mat[i, :ex.weighted_adj_mat.shape[0], :ex.weighted_adj_mat.shape[1]] = ex.weighted_adj_mat
+                self.undir_weighted_adj_mat[i, :ex.undir_weighted_adj_mat.shape[0], :ex.undir_weighted_adj_mat.shape[1]] = ex.undir_weighted_adj_mat
                 self.norm_adj_mat[i, :ex.norm_adj_mat.shape[0], :ex.norm_adj_mat.shape[1]] = ex.norm_adj_mat
                 self.parent_heads[i, :ex.parent_heads.shape[0]] = ex.parent_heads
 

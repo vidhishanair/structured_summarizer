@@ -186,7 +186,7 @@ class Train(object):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
             enc_batch_extend_vocab, extra_zeros, c_t_1, coverage, word_batch, word_padding_mask, enc_word_lens, \
                 enc_tags_batch, enc_sent_tags, enc_sent_token_mat, adj_mat, weighted_adj_mat, norm_adj_mat,\
-                    parent_heads = get_input_from_batch(batch, use_cuda, args)
+                    parent_heads, undir_weighted_adj_mat = get_input_from_batch(batch, use_cuda, args)
         #print("time for input func: "+str(time.time() - s2))
 
         final_dist_list, attn_dist_list, p_gen_list, coverage_list, sent_attention_matrix, \
@@ -205,7 +205,8 @@ class Train(object):
                                                                                         enc_sent_token_mat,
                                                                                         max_dec_len,
                                                                                         dec_batch, adj_mat,
-                                                                                        weighted_adj_mat, args)
+                                                                                        weighted_adj_mat,
+                                                                                        undir_weighted_adj_mat, args)
 
         step_losses = []
         loss = 0
@@ -545,6 +546,8 @@ if __name__ == '__main__':
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_gold_annotations_for_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_weighted_annotations', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--use_undirected_weighted_graphs', action='store_true', default=False, help='decode summarization')
+
     parser.add_argument('--bu_coverage_penalty', action='store_true', default=False, help='decode summarization')
     
     parser.add_argument('--predict_sent_single_head', action='store_true', default=False, help='decode summarization')

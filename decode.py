@@ -23,8 +23,8 @@ from utils import data, config
 from models.model import Model
 from utils.utils import write_for_rouge, rouge_eval, rouge_log, write_to_json_file, write_tags
 from utils.train_util import get_input_from_batch, get_output_from_batch
-from pycocoevalcap.eval import COCOEvalCap
-from pycocoevalcap.coco import COCO
+# from pycocoevalcap.eval import COCOEvalCap
+# from pycocoevalcap.coco import COCO
 
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
@@ -271,7 +271,7 @@ class BeamSearch(object):
         enc_batch, enc_padding_token_mask, enc_padding_sent_mask, enc_doc_lens, enc_sent_lens, \
             enc_batch_extend_vocab, extra_zeros, c_t_0, coverage_t_0, word_batch, word_padding_mask, enc_word_lens, \
                 enc_tags_batch, enc_sent_tags, enc_sent_token_mat, adj_mat, weighted_adj_mat, norm_adj_mat, \
-                    parent_heads = get_input_from_batch(batch, use_cuda, self.args)
+                    parent_heads, undir_weighted_adj_mat = get_input_from_batch(batch, use_cuda, self.args)
 
 
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
@@ -353,15 +353,26 @@ class BeamSearch(object):
             all_child, all_head = None, None
             if args.use_gold_annotations_for_decode:
                 if args.use_weighted_annotations:
-                    permuted_all_head = weighted_adj_mat[:, :, :].permute(0,2,1)
-                    all_head = permuted_all_head.clone()
-                    row_sums = torch.sum(permuted_all_head, dim=2, keepdim=True)
-                    all_head[row_sums.expand_as(permuted_all_head)!=0] = permuted_all_head[row_sums.expand_as(permuted_all_head)!=0]/row_sums.expand_as(permuted_all_head)[row_sums.expand_as(permuted_all_head)!=0]
+                    if args.use_undirected_weighted_graphs:
+                        permuted_all_head = undir_weighted_adj_mat[:, :, :].permute(0,2,1)
+                        all_head = permuted_all_head.clone()
+                        row_sums = torch.sum(permuted_all_head, dim=2, keepdim=True)
+                        all_head[row_sums.expand_as(permuted_all_head)!=0] = permuted_all_head[row_sums.expand_as(permuted_all_head)!=0]/row_sums.expand_as(permuted_all_head)[row_sums.expand_as(permuted_all_head)!=0]
 
-                    base_all_child = weighted_adj_mat[:, :, :]
-                    all_child = base_all_child.clone()
-                    row_sums = torch.sum(base_all_child, dim=2, keepdim=True)
-                    all_child[row_sums.expand_as(base_all_child)!=0] = base_all_child[row_sums.expand_as(base_all_child)!=0]/row_sums.expand_as(base_all_child)[row_sums.expand_as(base_all_child)!=0]
+                        base_all_child = undir_weighted_adj_mat[:, :, :]
+                        all_child = base_all_child.clone()
+                        row_sums = torch.sum(base_all_child, dim=2, keepdim=True)
+                        all_child[row_sums.expand_as(base_all_child)!=0] = base_all_child[row_sums.expand_as(base_all_child)!=0]/row_sums.expand_as(base_all_child)[row_sums.expand_as(base_all_child)!=0]
+                    else:
+                        permuted_all_head = weighted_adj_mat[:, :, :].permute(0,2,1)
+                        all_head = permuted_all_head.clone()
+                        row_sums = torch.sum(permuted_all_head, dim=2, keepdim=True)
+                        all_head[row_sums.expand_as(permuted_all_head)!=0] = permuted_all_head[row_sums.expand_as(permuted_all_head)!=0]/row_sums.expand_as(permuted_all_head)[row_sums.expand_as(permuted_all_head)!=0]
+
+                        base_all_child = weighted_adj_mat[:, :, :]
+                        all_child = base_all_child.clone()
+                        row_sums = torch.sum(base_all_child, dim=2, keepdim=True)
+                        all_child[row_sums.expand_as(base_all_child)!=0] = base_all_child[row_sums.expand_as(base_all_child)!=0]/row_sums.expand_as(base_all_child)[row_sums.expand_as(base_all_child)!=0]
                 else:
                     permuted_all_head = adj_mat[:, :, :].permute(0,2,1)
                     all_head = permuted_all_head.clone()
@@ -514,7 +525,8 @@ if __name__ == '__main__':
     parser.add_argument('--use_single_sent_head_at_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_gold_annotations_for_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_weighted_annotations', action='store_true', default=False, help='decode summarization')
-    
+    parser.add_argument('--use_undirected_weighted_graphs', action='store_true', default=False, help='decode summarization')
+
     parser.add_argument('--use_sent_single_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_child_loss', action='store_true', default=False, help='heuristic ner for training')
