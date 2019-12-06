@@ -7,9 +7,10 @@ OUTPUT='bbc_test_low_resource_nocov_chain_undirected'
 CUDA_VISIBLE_DEVICES=1 python main.py \
        --pointer_gen \
        --save_path=${OUTPUT} \
-       --lr 0.15 \
+       --lr 0.01 \
        --batch_size 8 \
-       --max_dec_steps 20 \
+       --max_dec_steps 100 \
+       --reload_path=log/${OUTPUT}/model/model_17000_1575614100 \
        --train_data_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/chunked/train_* \
        --eval_data_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/val.bin \
        --vocab_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/vocab \
@@ -36,7 +37,7 @@ CUDA_VISIBLE_DEVICES=1 python main.py \
 
 # To reload
 # log/FOLDERNAME/model/modelNAME
-#       --reload_path=log/sent_level_tag_coverage/model/model_315000_1557756822 \
+#       --reload_path=log/sent_level_tag_coverage/model/model_17000_1575614100 \
 
 
 #       --use_summ_loss \

@@ -5,15 +5,15 @@ OUTPUT='bbc_test_low_resource_nocov'
 # RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
 MODEL='model_21000_1575592129'
 CUDA_VISIBLE_DEVICES=3 python decode.py \
-       --is_coverage \
+       --bu_coverage_penalty \
        --pointer_gen \
        --decode_data_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/test.bin \
        --vocab_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/vocab \
        --save_path=${OUTPUT} \
        --reload_path=log/${OUTPUT}/model/${MODEL} \
        --predict_summaries \
-       --max_dec_steps 70 \
-       --beam_size 3 \
+       --max_dec_steps 100 \
+       --beam_size 4 \
 
 
 cd ../artidoro-pointer_summarizer/

@@ -74,7 +74,7 @@ def get_sent_dist(summary, article):
     """
     # tsplit = t.split()
     article = [sent.split() for sent in article.split("<split1>")]
-    ssplit = summary.split()  # .split()
+    ssplit = summary.replace('.', '').split()  # .split()
     startix = 0
     endix = 0
     matches = []
@@ -82,15 +82,17 @@ def get_sent_dist(summary, article):
     seen_sentences = set()
     sentence_copy_id = defaultdict(set)
     
-    for sent in summary.strip().split('.'):
-        print(sent)
+    # for sent in summary.strip().split('.'):
+    #     print(sent)
     sent_len = [len(sent.split()) for sent in summary.strip().split('.')]
     if 0 in sent_len:
         sent_len.remove(0)
     summary_sent_idx = [sum(sent_len[:i+1]) for i in range(len(sent_len))]
-    print(summary_sent_idx)
-    print(sent_len)
+    # print(summary_sent_idx)
+    # print(sent_len)
     
+    # for word in ssplit:
+    #     print("'", word, "'")
     # current_match_sidx = startix
     # current_match_eidx = endix
     longest_match_list = []
@@ -128,8 +130,8 @@ def get_sent_dist(summary, article):
                     matchstrings[full_string] += 1
 
                 # Extract the index of the sentence in the summary from which the subsequence was coming from.
-                print(endix)
-                print(summary_sent_idx)
+                # print(endix)
+                # print(summary_sent_idx)
                 sentence_index = summary_sent_idx.index(min(i for i in summary_sent_idx if i > endix-1))
                 # Save the sentence that it was coming from in the article.
                 sentence_copy_id[sentence_index].update(longest_match_list)
