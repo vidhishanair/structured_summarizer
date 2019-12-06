@@ -1,23 +1,25 @@
 #Namespace(L1_structure_penalty=False, autoencode=False, is_coverage=True, pointer_gen=True, reload_path=None, reload_pretrained_clf_path='log/token_sent_level_tag/model/model_455000_1555707099', save_path='sent_level_tag_coverage', sent_scores=True, sep_sent_features=False, token_scores=False)
 
-OUTPUT='bbc_test_full'
+OUTPUT='bbc_test_low_resource_nocov'
 # OUTPUT='test_loading_summ2'
 #RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
 
-#--reload_path=log/${OUTPUT}/model/model_156000_1574266495 \
-CUDA_VISIBLE_DEVICES=2 python main.py \
+CUDA_VISIBLE_DEVICES=0 python main.py \
        --pointer_gen \
        --save_path=${OUTPUT} \
-       --lr_coverage 0.15 \
+       --lr 0.01 \
        --batch_size 8 \
-       --max_dec_steps 20 \
-       --train_data_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/chunked/train_* \
-       --eval_data_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/val.bin \
-       --vocab_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/vocab \
+       --max_dec_steps 100 \
+       --reload_path=log/${OUTPUT}/model/model_13000_1575587205 \
+       --train_data_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/chunked/train_* \
+       --eval_data_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/val.bin \
+       --vocab_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/vocab \
        --use_summ_loss \
+
+       # --lr_coverage 0.01 \
+       # --is_coverage \
        # --heuristic_chains \
        # --use_coref \
-       # --is_coverage \
 
        # Weighted coref
        # --use_gold_annotations_for_decode
@@ -50,3 +52,6 @@ CUDA_VISIBLE_DEVICES=2 python main.py \
 #       --eval_data_path \
 #       --heuristic_chains \
 #       --link_id_typed \
+
+
+#model_13000_1575587205

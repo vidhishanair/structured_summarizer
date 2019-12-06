@@ -12,7 +12,7 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
        --save_path=${OUTPUT} \
        --reload_path=log/${OUTPUT}/model/${MODEL} \
        --predict_summaries \
-       --max_dec_steps 120 \
+       --max_dec_steps 100 \
        --beam_size 4 \
 
 

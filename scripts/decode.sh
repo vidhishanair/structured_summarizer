@@ -20,15 +20,15 @@ CUDA_VISIBLE_DEVICES=3 python decode.py \
 
 cd ../pointer_summarizer/
 
-source activate pointgen
+# source activate pointgen
 
 python pyrouge_eval.py ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_ref/ ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_dec_dir/ > ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
 
 cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/rouge_results.txt
 cat ../structured_summarizer/log/${OUTPUT}/decode_${MODEL}/stats.txt
 
-conda deactivate
+# conda deactivate
 
-source activate py3.7tor1.1
+# source activate py3.7tor1.1
 
 cd ../structured_summarizer/

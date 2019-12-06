@@ -157,6 +157,7 @@ class BeamSearch(object):
         abstract_ref = []
         abstract_pred = []
         sentence_count = []
+        avg_max_seq_len_list = []
         batch = self.batcher.next_batch()
         sent_count_fp = open(self.sent_count_file, 'w')
 
@@ -223,8 +224,10 @@ class BeamSearch(object):
 
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
-            sentences_used, count_sent = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
+            sentences_used, count_sent, avg_max_seq_len = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
             sentence_count.append((sentences_used, count_sent))
+            if avg_max_seq_len is not None:
+                avg_max_seq_len_list.append(avg_max_seq_len)
             sent_count_fp.write(str(counter)+"\t"+str(count_sent)+"\t"+str(sentences_used)+"\n")
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
@@ -250,8 +253,10 @@ class BeamSearch(object):
         total_sent = [len(seen_sent) for seen_sent, seen_count in sentence_count]
         percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sentence_count]
         avg_percentage = sum(percentages)/float(len(percentages))
-        fp.write("Average percentage of sentences copied: "+str(avg_percentage))
-        fp.write("Average count of sentences copied: "+str(float(sum(total_sent))/float(len(total_sent))))
+        tot_avg_max_seq_len = sum(avg_max_seq_len_list)/len(avg_max_seq_len_list)
+        fp.write("Average percentage of sentences copied: "+str(avg_percentage) + "\n")
+        fp.write("Average count of sentences copied: "+str(float(sum(total_sent))/float(len(total_sent)))+"\n")
+        fp.write("Average length of matching subsequences: "+str(tot_avg_max_seq_len)+"\n")
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:
@@ -524,7 +529,7 @@ if __name__ == '__main__':
     parser.add_argument('--sm_ner_model', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_ner', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_coref', action='store_true', default=False, help='heuristic coref for training')
-    parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
+    parser.add_argument('--max_dec_steps', type=int, default=-1, help='Max Dec Steps')
     parser.add_argument('--beam_size', type=int, default=3, help='Max Dec Steps')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
