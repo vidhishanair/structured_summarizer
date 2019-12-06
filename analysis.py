@@ -5,6 +5,58 @@ nlp = spacy.load("en_core_web_lg")
 
 from collections import Counter, defaultdict
 
+def leaf_node_proportion(parent):
+    n = len(parent)
+    # Start with all nodes being leafs.
+    is_leaf = [1 for i in range(n)]
+    for i in range(1, n): # starts at -1 for the first artificial token.
+        # Set the array to 0 for nodes that are someone's head.
+        is_leaf[parent[i]] = 0
+    return sum(is_leaf)/(len(is_leaf) - 1) # -1 for the first artificial node
+
+# This functio fills depth of i'th element in parent[] 
+# The depth is filled in depth[i]   
+def fill_depth(parent, i , depth): 
+      
+    # If depth[i] is already filled 
+    if depth[i] != 0: 
+        return 
+      
+    # If node at index i is root 
+    if parent[i] == -1: 
+        depth[i] = 0
+        return 
+  
+    # If depth of parent is not evaluated before, 
+    # then evaluate depth of parent first 
+    if depth[parent[i]] == 0: 
+        fill_depth(parent, parent[i] , depth) 
+  
+    # Depth of this node is depth of parent plus 1 
+    depth[i] = depth[parent[i]] + 1
+  
+# This function reutns height of binary tree represented 
+# by parent array 
+def find_height(parent): 
+    n = len(parent)   
+    # Create an array to store depth of all nodes and  
+    # initialize depth of every node as 0 
+    # Depth of root is 1 
+    depth = [0 for i in range(n)] 
+  
+    # fill depth of all nodes 
+    for i in range(n): 
+        fill_depth(parent, i, depth) 
+  
+    # The height of binary tree is maximum of all  
+    # depths. Find the maximum in depth[] and assign  
+    # it to ht 
+    ht = depth[0] 
+    for i in range(1,n): 
+        ht = max(ht, depth[i]) 
+  
+    return ht 
+
 def compile_substring(start, end, split):
     """
     Return the substring starting at start and ending at end.
@@ -28,7 +80,17 @@ def get_sent_dist(summary, article):
     matches = []
     matchstrings = Counter()
     seen_sentences = set()
-
+    sentence_copy_id = defaultdict(set)
+    
+    for sent in summary.strip().split('.'):
+        print(sent)
+    sent_len = [len(sent.split()) for sent in summary.strip().split('.')]
+    if 0 in sent_len:
+        sent_len.remove(0)
+    summary_sent_idx = [sum(sent_len[:i+1]) for i in range(len(sent_len))]
+    print(summary_sent_idx)
+    print(sent_len)
+    
     # current_match_sidx = startix
     # current_match_eidx = endix
     longest_match_list = []
@@ -64,6 +126,14 @@ def get_sent_dist(summary, article):
                     #print(full_string)
                     seen_sentences.update(longest_match_list)
                     matchstrings[full_string] += 1
+
+                # Extract the index of the sentence in the summary from which the subsequence was coming from.
+                print(endix)
+                print(summary_sent_idx)
+                sentence_index = summary_sent_idx.index(min(i for i in summary_sent_idx if i > endix-1))
+                # Save the sentence that it was coming from in the article.
+                sentence_copy_id[sentence_index].update(longest_match_list)
+
                 longest_match_list = []
                 # endix += 1
             startix = endix
@@ -74,6 +144,9 @@ def get_sent_dist(summary, article):
         tot_seq_len = [len(susequence.split()) * matchstrings[susequence] for susequence in matchstrings.keys()]
         # Get the average by summing and deviding by the total number of susequence matches.
         avg_max_seq_len = sum(tot_seq_len) / sum(matchstrings.values())
+
+    # We want to calculate the average number of tokens that we copied from each original sentence.
+
 
     return list(seen_sentences), len(article), avg_max_seq_len
 
@@ -114,9 +187,13 @@ if __name__ == '__main__':
     # print("Pointgen: "+str(pointgen_avg_nosents)+" "+str(pointgen_avg_percent))
     # print("Pointgen_Cov: "+str(pointgen_cov_avg_nosents)+" "+str(pointgen_cov_avg_percent))
     
-    article = "artidoro is this is the longest string . <split1> this is the longest there are also other words in the summary . <split1> is the longest string ."
+    # article = "artidoro is this is the longest string . <split1> this is the longest there are also other words in the summary . <split1> is the longest string ."
 
     # summary = "this is a the longest string a string . hello hello other words in . artidoro is the . artidoro is this is . is this is the longest string ."
-    summary = "hello my friend ."
+    # summary = "hello my friend ."
 
-    print(get_sent_dist(summary, article))
+    # print(get_sent_dist(summary, article))
+
+    print(leaf_node_number([-1, 0, 1, 1, 1, 1, 2, 3]))
+
+    print(find_height([-1, 0, 1, 1, 1, 1, 2, 2]))

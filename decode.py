@@ -16,7 +16,7 @@ from torch.autograd import Variable
 from dependency_decoding import chu_liu_edmonds
 import numpy as np
 
-from analysis import get_sent_dist
+from analysis import get_sent_dist, find_height, leaf_node_proportion
 from utils.batcher import Batcher
 from utils.data import Vocab
 from utils import data, config
@@ -137,6 +137,8 @@ class BeamSearch(object):
         #print(new_scores.sum(dim=1))
         #print(new_scores.size())
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
+        height = find_height(heads)
+        leaf_nodes = leaf_node_proportion(heads)
         #print(heads, tree_score)
         fp.write("\n")
         sentences = str(batch.original_articles[0]).split("<split1>")
@@ -145,11 +147,16 @@ class BeamSearch(object):
         #fp.write(str("\n".join(batch.original_articles[0].split("<split1>"))+"\n")
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
+        fp.write(str(height)+"\n")
         s = sent_scores[0].data.cpu().numpy()
         for val in s:
             fp.write(str(val))
         fp.close()
         #exit()
+        structure_info = dict()
+        structure_info['height'] = height
+        structure_info['leaf_nodes'] = leaf_nodes
+        return structure_info
 
     def decode(self):
         start = time.time()
@@ -158,6 +165,8 @@ class BeamSearch(object):
         abstract_pred = []
         sentence_count = []
         avg_max_seq_len_list = []
+        height_avg = []
+        leaf_node_proportion_avg = []
         batch = self.batcher.next_batch()
         sent_count_fp = open(self.sent_count_file, 'w')
 
@@ -174,7 +183,7 @@ class BeamSearch(object):
         while batch is not None:
             # Run beam search to get best Hypothesis
             #start = time.process_time()
-            has_summary, best_summary, sample_predictions, sample_counts = self.get_decoded_outputs(batch, counter)
+            has_summary, best_summary, sample_predictions, sample_counts, structure_info = self.get_decoded_outputs(batch, counter)
             #print('Time taken for decoder: ', time.process_time() - start)
             # token_contsel_tot_correct += token_consel_num_correct
             # token_contsel_tot_num += token_consel_num
@@ -222,6 +231,8 @@ class BeamSearch(object):
 
             original_abstract_sents = batch.original_abstracts_sents[0]
 
+            height_avg.append(structure_info['height'])
+            leaf_node_proportion_avg.append(structure_info['leaf_nodes'])
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
             sentences_used, count_sent, avg_max_seq_len = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
@@ -257,6 +268,8 @@ class BeamSearch(object):
         fp.write("Average percentage of sentences copied: "+str(avg_percentage) + "\n")
         fp.write("Average count of sentences copied: "+str(float(sum(total_sent))/float(len(total_sent)))+"\n")
         fp.write("Average length of matching subsequences: "+str(tot_avg_max_seq_len)+"\n")
+        fp.write("Average depth of RST tree: "+str(sum(height_avg)/len(height_avg))+"\n")
+        fp.write("Average proportion of leaf nodes in RST tree: "+str(sum(leaf_node_proportion_avg)/len(leaf_node_proportion_avg))+"\n")
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:
@@ -301,7 +314,7 @@ class BeamSearch(object):
         mask = torch.cat((enc_padding_sent_mask[0].unsqueeze(1), mask), dim=1)
         mat = encoder_output['sent_attention_matrix'][0][:,:] * mask
 
-        self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
+        structure_info = self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
 
         counts = {}
         predictions = {}
@@ -506,7 +519,7 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0], predictions, counts
+        return has_summary, beams_sorted[0], predictions, counts, structure_info
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
@@ -567,5 +580,3 @@ if __name__ == '__main__':
     save_path = args.save_path
     beam_Search_processor = BeamSearch(args, model_filename, save_path)
     beam_Search_processor.decode()
-
-
