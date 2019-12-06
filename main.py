@@ -548,6 +548,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_gold_annotations_for_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_weighted_annotations', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_undirected_weighted_graphs', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--use_coref_param', action='store_true', default=False, help='decode summarization')
 
     parser.add_argument('--bu_coverage_penalty', action='store_true', default=False, help='decode summarization')
     

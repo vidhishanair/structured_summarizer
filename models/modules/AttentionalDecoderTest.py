@@ -55,6 +55,10 @@ class Attention(nn.Module):
 
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
+
+        if self.args.use_coref_param:
+            self.p_use_gold = nn.Linear(config.hidden_dim * 2, 1)
+
         if self.args.sent_attention_at_dec:
             self.decode_proj_sent = nn.Linear(config.hidden_dim * 2, 2*config.sem_dim_size)
             self.v2 = nn.Linear(2*config.hidden_dim, 1, bias=False)
@@ -111,6 +115,9 @@ class Attention(nn.Module):
             new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1),
                                               new_attended_sent_scores).view(scores.size(0), scores.size(1))
             new_head_token_scores = F.softmax(new_head_token_scores, dim=1)*enc_padding_mask
+            if self.args.use_coref_param:
+                p_gold = self.p_use_gold(dec_fea)
+                new_head_token_scores = p_gold * new_head_token_scores
             attn_dist_ += new_head_token_scores # to add to attention, need to test multiplication
         if self.args.use_all_sent_child_at_decode:
             sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
