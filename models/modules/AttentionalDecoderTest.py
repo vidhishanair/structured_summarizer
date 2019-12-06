@@ -116,7 +116,7 @@ class Attention(nn.Module):
                                               new_attended_sent_scores).view(scores.size(0), scores.size(1))
             new_head_token_scores = F.softmax(new_head_token_scores, dim=1)*enc_padding_mask
             if self.args.use_coref_param:
-                p_gold = self.p_use_gold(dec_fea)
+                p_gold = F.sigmoid(self.p_use_gold(dec_fea))
                 new_head_token_scores = p_gold * new_head_token_scores
             attn_dist_ += new_head_token_scores # to add to attention, need to test multiplication
         if self.args.use_all_sent_child_at_decode:
