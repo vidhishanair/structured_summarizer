@@ -410,6 +410,7 @@ class BeamSearch(object):
 
             while steps < args.max_dec_steps and len(results) < args.beam_size:
                 latest_tokens = [h.latest_token for h in beams]
+                # cur_len = torch.stack([len(h.tokens) for h in beams])
                 latest_tokens = [t if t < self.vocab.size() else self.vocab.word2id(data.UNKNOWN_TOKEN) \
                                  for t in latest_tokens]
                 y_t_1 = Variable(torch.LongTensor(latest_tokens))
@@ -448,8 +449,9 @@ class BeamSearch(object):
                     penalty = torch.max(coverage_t, coverage_t.clone().fill_(1.0)).sum(-1)
                     penalty -= coverage_t.size(-1)
                     final_dist -= args.beta*penalty.unsqueeze(1).expand_as(final_dist)
-                # if args.bu_length_penalty:
-                #     penalty = ((5 + cur_len) / 6.0) ** alpha
+                if args.bu_length_penalty:
+                    penalty = ((5 + steps+1) / 6.0) ** args.alpha
+                    final_dist = final_dist/penalty
 
 
                 topk_log_probs, topk_ids = torch.topk(final_dist, args.beam_size * 2)
@@ -538,6 +540,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--decode_for_subset', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--bu_coverage_penalty', action='store_true', default=False, help='heuristic ner for training')
+    parser.add_argument('--bu_length_penalty', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--beta', type=int, default=5, help='heuristic ner for training')
 
     args = parser.parse_args()
