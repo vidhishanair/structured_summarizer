@@ -16,7 +16,8 @@ from torch.autograd import Variable
 from dependency_decoding import chu_liu_edmonds
 import numpy as np
 
-from analysis import get_sent_dist, find_height, leaf_node_proportion
+from summary_analysis import get_sent_dist
+from tree_analysis import find_height, leaf_node_proportion
 from utils.batcher import Batcher
 from utils.data import Vocab
 from utils import data, config
