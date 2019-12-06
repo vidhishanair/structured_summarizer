@@ -533,6 +533,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_gold_annotations_for_decode', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_weighted_annotations', action='store_true', default=False, help='decode summarization')
     parser.add_argument('--use_undirected_weighted_graphs', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--use_coref_param', action='store_true', default=False, help='decode summarization')
 
     parser.add_argument('--use_sent_single_head_loss', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_sent_all_head_loss', action='store_true', default=False, help='heuristic ner for training')
