@@ -543,6 +543,7 @@ if __name__ == '__main__':
     parser.add_argument('--vocab_path', type=str, default=None, help='location of the eval data path')
     # parser.add_argument('--train_data_path', type=str, default=None, help='location of the train data path')
     parser.add_argument('--use_small_train_data', action='store_true', default=False, help='use_small_data for training')
+    parser.add_argument('--keep_ckpts', type=int, default=15, help='No of checkpoints to save')
 
     #Summ Decoding args
     parser.add_argument('--pointer_gen', action='store_true', default=False, help='use pointer-generator')
