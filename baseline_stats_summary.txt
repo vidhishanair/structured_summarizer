@@ -1,16 +1,40 @@
-Baseline:
+---------- Sequences of length 3 ----------
+- Baseline:
 Average percentage of sentences copied: 0.10795248989104994
 Average count of sentences copied: 3.0320278503046127
 Average length of matching subsequences: 8.090230392576759
 Distribution over copied sentences id:
-Counter({0: 19967, 1: 18228, 2: 11478, 3: 1824, 4: 222, 5: 83, 6: 45, 8: 24, 7: 14, 9: 7, 10: 6, 11: 2, 12: 2})Pointgen:
+Counter({0: 19967, 1: 18228, 2: 11478, 3: 1824, 4: 222, 5: 83, 6: 45, 8: 24, 7: 14, 9: 7, 10: 6, 11: 2, 12: 2})
+- Pointgen:
 Average percentage of sentences copied: 0.10503747930845066
 Average count of sentences copied: 2.900522193211488
 Average length of matching subsequences: 14.352611035130623
 Distribution over copied sentences id:
-Counter({0: 16180, 1: 14268, 2: 10405, 3: 1728, 4: 308, 5: 92, 6: 56, 7: 19, 8: 10, 10: 2, 9: 2, 11: 2})Pointgen_Cov:
+Counter({0: 16180, 1: 14268, 2: 10405, 3: 1728, 4: 308, 5: 92, 6: 56, 7: 19, 8: 10, 10: 2, 9: 2, 11: 2})
+- Pointgen_Cov:
 Average percentage of sentences copied: 0.12177960599962602
 Average count of sentences copied: 3.3631853785900785
 Average length of matching subsequences: 16.61563035866561
 Distribution over copied sentences id:
 Counter({0: 15299, 1: 13815, 2: 10389, 3: 1774, 4: 342, 5: 86, 6: 37, 7: 9, 8: 8, 9: 1, 11: 1})
+
+
+---------- Sequences of length 2 ----------
+- Baseline:
+Average percentage of sentences copied: 0.1678898766666492
+Average count of sentences copied: 5.050913838120104
+Average length of matching subsequences: 6.865722422121005
+Distribution over copied sentences id:
+Counter({0: 28373, 1: 25055, 2: 15941, 3: 2508, 4: 316, 5: 120, 6: 65, 8: 32, 7: 26, 9: 12, 10: 6, 11: 2, 12: 2})
+- Pointgen:
+Average percentage of sentences copied: 0.1231420895297362
+Average count of sentences copied: 3.47319408181027
+Average length of matching subsequences: 13.553009324347432
+Distribution over copied sentences id:
+Counter({0: 18894, 1: 15736, 2: 11305, 3: 1888, 4: 336, 5: 99, 6: 62, 7: 19, 8: 11, 10: 2, 9: 2, 11: 2})
+- Pointgen_Cov:
+Average percentage of sentences copied: 0.13241267108208854
+Average count of sentences copied: 3.7006962576153177
+Average length of matching subsequences: 16.002148835112276
+Distribution over copied sentences id:
+Counter({0: 16775, 1: 14611, 2: 10950, 3: 1868, 4: 373, 5: 93, 6: 40, 7: 10, 8: 9, 9: 1, 11: 1})

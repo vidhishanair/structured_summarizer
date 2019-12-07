@@ -13,7 +13,7 @@ def compile_substring(start, end, split):
         return split[start]
     return " ".join(split[start:end + 1])
 
-def get_sent_dist(summary, article):
+def get_sent_dist(summary, article, minimum_seq=3):
     """
     Returns the number of sentences that were copied from the article,
     and the number of sentences in the article.
@@ -22,7 +22,7 @@ def get_sent_dist(summary, article):
     """
     # tsplit = t.split()
     article = [sent.split() for sent in article.split("<split1>")]
-    ssplit = summary.replace('.', '').split() 
+    ssplit = summary.replace('.', '').split()
     startix = 0
     endix = 0
     matchstrings = Counter()
@@ -51,7 +51,7 @@ def get_sent_dist(summary, article):
             longest_match_list = current_match_list
         else:
             # only phrases of length 3+ words should be considered.
-            if startix >= endix - 2:
+            if startix >= endix - (minimum_seq - 1):
                 endix += 1
             else:
                 full_string = compile_substring(startix, endix - 1, ssplit)
@@ -85,7 +85,7 @@ def get_sent_dist(summary, article):
 
     return list(seen_sentences), len(article), avg_max_seq_len, sentence_copy_id_count
 
-def get_avg_sent_copied(article_dir, summary_dir):
+def get_avg_sent_copied(article_dir, summary_dir, minimum_seq=2):
     article_files = os.listdir(article_dir)
     # summary_files = os.listdir(summary_dir)
     sent_counter = []
@@ -98,7 +98,7 @@ def get_avg_sent_copied(article_dir, summary_dir):
         summary = open(os.path.join(summary_dir, summ)).read()
         doc = nlp(article)
         article_sents = " <split1> ".join([sent.text for sent in doc.sents])
-        seen_sent, art_len, avg_max_seq_len, sent_id_count = get_sent_dist(summary, article_sents)
+        seen_sent, art_len, avg_max_seq_len, sent_id_count = get_sent_dist(summary, article_sents, minimum_seq=minimum_seq)
         sent_counter.append((seen_sent, art_len))
         if avg_max_seq_len is not None:
             avg_max_seq_len_list.append(avg_max_seq_len)
@@ -110,6 +110,13 @@ def get_avg_sent_copied(article_dir, summary_dir):
     avg_max_seq_len_tot = sum(avg_max_seq_len_list) / len(avg_max_seq_len_list)
     return avg_percentage, avg_nosents, avg_max_seq_len_tot, tot_sent_id_count
 
+def get_avg_sent_len(summary_dir):
+    summary_files = os.listdir(summary_dir)
+    avg_sum_len = []
+    for summary in tqdm(summary_files):
+        summary = open(os.path.join(summary_dir, summary)).read()
+        print()
+        avg_sum_len.append(len(' '.join(summary.split('\n')).split()))
 
 if __name__ == '__main__':
     article_dir = "/home/artidoro/data/Pointer Generator Network Test Output/test_output/articles"
@@ -119,35 +126,42 @@ if __name__ == '__main__':
 
     out_file_path = 'stats_summary.txt'
 
-    print("Doing baseline")
-    baseline_avg_percent, baseline_avg_nosents, baseline_avg_seq_len, baseline_tot_sent_id_count = get_avg_sent_copied(article_dir, baseline_dir)
-    print("Doing pointgen")
-    pointgen_avg_percent, pointgen_avg_nosents, pointgen_avg_seq_len, pointgen_tot_sent_id_count = get_avg_sent_copied(article_dir, pointgen_dir)
-    print("Doing coverage")
-    pointgen_cov_avg_percent, pointgen_cov_avg_nosents, pointgen_cov_avg_seq_len, pointgen_cov_tot_sent_id_count = get_avg_sent_copied(article_dir, pointgen_cov_dir)
+    minimum_seq = [2]
+    # minimum_seq = [2, 3]
 
-    # Write to file.
-    with open(out_file_path, 'w') as out_file:
-        out_file.write("Baseline:\n")
-        out_file.write("Average percentage of sentences copied: "+str(baseline_avg_percent) + "\n")
-        out_file.write("Average count of sentences copied: "+str(baseline_avg_nosents)+"\n")
-        out_file.write("Average length of matching subsequences: "+str(baseline_avg_seq_len)+"\n")
-        out_file.write("Distribution over copied sentences id:\n")
-        out_file.write(str(baseline_tot_sent_id_count) + "\n")
+    for min_seq in minimum_seq:
+        print("Minimum sequence {}".format(min_seq))
+        # Sequences of length min_seq.
+        print("Doing baseline")
+        baseline_avg_percent, baseline_avg_nosents, baseline_avg_seq_len, baseline_tot_sent_id_count = get_avg_sent_copied(article_dir, baseline_dir, minimum_seq=min_seq)
+        print("Doing pointgen")
+        pointgen_avg_percent, pointgen_avg_nosents, pointgen_avg_seq_len, pointgen_tot_sent_id_count = get_avg_sent_copied(article_dir, pointgen_dir, minimum_seq=min_seq)
+        print("Doing coverage")
+        pointgen_cov_avg_percent, pointgen_cov_avg_nosents, pointgen_cov_avg_seq_len, pointgen_cov_tot_sent_id_count = get_avg_sent_copied(article_dir, pointgen_cov_dir, minimum_seq=min_seq)
 
-        out_file.write("Pointgen:\n")
-        out_file.write("Average percentage of sentences copied: "+str(pointgen_avg_percent) + "\n")
-        out_file.write("Average count of sentences copied: "+str(pointgen_avg_nosents)+"\n")
-        out_file.write("Average length of matching subsequences: "+str(pointgen_avg_seq_len)+"\n")
-        out_file.write("Distribution over copied sentences id:\n")
-        out_file.write(str(pointgen_tot_sent_id_count) + "\n")
+        # Write to file.
+        with open(out_file_path, 'w') as out_file:
+            out_file.write("---------- Sequences of length {} ----------\n".format(min_seq))
+            out_file.write("- Baseline:\n")
+            out_file.write("Average percentage of sentences copied: "+str(baseline_avg_percent) + "\n")
+            out_file.write("Average count of sentences copied: "+str(baseline_avg_nosents)+"\n")
+            out_file.write("Average length of matching subsequences: "+str(baseline_avg_seq_len)+"\n")
+            out_file.write("Distribution over copied sentences id:\n")
+            out_file.write(str(baseline_tot_sent_id_count) + "\n")
 
-        out_file.write("Pointgen_Cov:\n")
-        out_file.write("Average percentage of sentences copied: "+str(pointgen_cov_avg_percent) + "\n")
-        out_file.write("Average count of sentences copied: "+str(pointgen_cov_avg_nosents)+"\n")
-        out_file.write("Average length of matching subsequences: "+str(pointgen_cov_avg_seq_len)+"\n")
-        out_file.write("Distribution over copied sentences id:\n")
-        out_file.write(str(pointgen_cov_tot_sent_id_count) + "\n")
+            out_file.write("- Pointgen:\n")
+            out_file.write("Average percentage of sentences copied: "+str(pointgen_avg_percent) + "\n")
+            out_file.write("Average count of sentences copied: "+str(pointgen_avg_nosents)+"\n")
+            out_file.write("Average length of matching subsequences: "+str(pointgen_avg_seq_len)+"\n")
+            out_file.write("Distribution over copied sentences id:\n")
+            out_file.write(str(pointgen_tot_sent_id_count) + "\n")
+
+            out_file.write("- Pointgen_Cov:\n")
+            out_file.write("Average percentage of sentences copied: "+str(pointgen_cov_avg_percent) + "\n")
+            out_file.write("Average count of sentences copied: "+str(pointgen_cov_avg_nosents)+"\n")
+            out_file.write("Average length of matching subsequences: "+str(pointgen_cov_avg_seq_len)+"\n")
+            out_file.write("Distribution over copied sentences id:\n")
+            out_file.write(str(pointgen_cov_tot_sent_id_count) + "\n")
 
     # Dump to stout.
     with open(out_file_path) as out_file:
