@@ -34,6 +34,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Train(object):
     def __init__(self, args, model_name=None):
+        self.args = args
         vocab = args.vocab_path if args.vocab_path is not None else config.vocab_path
         self.vocab = Vocab(vocab, config.vocab_size, config.embeddings_file, args)
         self.train_batcher = Batcher(args.train_data_path, self.vocab, mode='train',
@@ -69,9 +70,9 @@ class Train(object):
         print(model_save_path)
         logger.debug(model_save_path)
         torch.save(state, model_save_path)
-        self.clear_model_dir()
+        self.clear_model_dir(checkpoints=self.args.keep_ckpts, logger=logger)
 
-    def clear_model_dir(self, checkpoints=10):
+    def clear_model_dir(self, checkpoints, logger):
         """
         Clears the model directory and only maintains the latest `checkpoints` number of checkpoints.
         """
@@ -82,8 +83,14 @@ class Train(object):
         last_modification.sort(key=itemgetter(0))
 
         # Delete everything but the last 10 files.
+        ckpnt_no = 0
         for time, f in last_modification[:-checkpoints]:
+            ckpnt_no += 1
             os.remove(os.path.join(self.model_dir, f))
+        msg = "Deleted %d checkpoints" % (ckpnt_no)
+        logger.debug(msg)
+        print(msg)
+
 
     def setup_train(self, args):
         self.model = nn.DataParallel(Model(args, self.vocab)).to(device)
