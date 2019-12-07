@@ -15,6 +15,7 @@ import torch
 from torch.autograd import Variable
 from dependency_decoding import chu_liu_edmonds
 import numpy as np
+from collections import Counter
 
 from summary_analysis import get_sent_dist
 from tree_analysis import find_height, leaf_node_proportion
@@ -165,6 +166,7 @@ class BeamSearch(object):
         abstract_ref = []
         abstract_pred = []
         sentence_count = []
+        tot_sentence_id_count = Counter()
         avg_max_seq_len_list = []
         height_avg = []
         leaf_node_proportion_avg = []
@@ -236,13 +238,14 @@ class BeamSearch(object):
             leaf_node_proportion_avg.append(structure_info['leaf_nodes'])
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
-            sentences_used, count_sent, avg_max_seq_len = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
+            sentences_used, count_sent, avg_max_seq_len, sent_id_count = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
             sentence_count.append((sentences_used, count_sent))
             if avg_max_seq_len is not None:
                 avg_max_seq_len_list.append(avg_max_seq_len)
             sent_count_fp.write(str(counter)+"\t"+str(count_sent)+"\t"+str(sentences_used)+"\n")
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
+            tot_sentence_id_count += sent_id_count
             #counter += 1
             #if counter % 1000 == 0:
             #    print('%d example in %d sec'%(counter, time.time() - start))
@@ -271,6 +274,8 @@ class BeamSearch(object):
         fp.write("Average length of matching subsequences: "+str(tot_avg_max_seq_len)+"\n")
         fp.write("Average depth of RST tree: "+str(sum(height_avg)/len(height_avg))+"\n")
         fp.write("Average proportion of leaf nodes in RST tree: "+str(sum(leaf_node_proportion_avg)/len(leaf_node_proportion_avg))+"\n")
+        fp.write("Distribution over copied sentences id:\n")
+        fp.write(str(tot_sentence_id_count))
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:
