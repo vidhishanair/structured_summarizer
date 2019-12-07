@@ -7,6 +7,8 @@ import argparse
 import logging
 import math
 import numpy as np
+from operator import itemgetter
+
 # from tensorboardX import SummaryWriter
 
 import torch
@@ -67,6 +69,21 @@ class Train(object):
         print(model_save_path)
         logger.debug(model_save_path)
         torch.save(state, model_save_path)
+        self.clear_model_dir()
+
+    def clear_model_dir(self, checkpoints=10):
+        """
+        Clears the model directory and only maintains the latest `checkpoints` number of checkpoints.
+        """
+        files = os.listdir(self.model_dir)
+        last_modification = [(os.path.getmtime(os.path.join(self.model_dir, f)), f) for f in files]
+
+        # Sort the list by last modified.
+        last_modification.sort(key=itemgetter(0))
+
+        # Delete everything but the last 10 files.
+        for time, f in last_modification[:-checkpoints]:
+            os.remove(os.path.join(self.model_dir, f))
 
     def setup_train(self, args):
         self.model = nn.DataParallel(Model(args, self.vocab)).to(device)
