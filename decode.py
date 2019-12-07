@@ -275,7 +275,7 @@ class BeamSearch(object):
         fp.write("Average depth of RST tree: "+str(sum(height_avg)/len(height_avg))+"\n")
         fp.write("Average proportion of leaf nodes in RST tree: "+str(sum(leaf_node_proportion_avg)/len(leaf_node_proportion_avg))+"\n")
         fp.write("Distribution over copied sentences id:\n")
-        fp.write(str(tot_sentence_id_count))
+        fp.write(str(tot_sentence_id_count) + "\n")
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:

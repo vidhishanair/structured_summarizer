@@ -133,21 +133,21 @@ if __name__ == '__main__':
         out_file.write("Average count of sentences copied: "+str(baseline_avg_nosents)+"\n")
         out_file.write("Average length of matching subsequences: "+str(baseline_avg_seq_len)+"\n")
         out_file.write("Distribution over copied sentences id:\n")
-        out_file.write(str(baseline_tot_sent_id_count))
+        out_file.write(str(baseline_tot_sent_id_count) + "\n")
 
         out_file.write("Pointgen:\n")
         out_file.write("Average percentage of sentences copied: "+str(pointgen_avg_percent) + "\n")
         out_file.write("Average count of sentences copied: "+str(pointgen_avg_nosents)+"\n")
         out_file.write("Average length of matching subsequences: "+str(pointgen_avg_seq_len)+"\n")
         out_file.write("Distribution over copied sentences id:\n")
-        out_file.write(str(pointgen_tot_sent_id_count))
+        out_file.write(str(pointgen_tot_sent_id_count) + "\n")
 
         out_file.write("Pointgen_Cov:\n")
         out_file.write("Average percentage of sentences copied: "+str(pointgen_cov_avg_percent) + "\n")
         out_file.write("Average count of sentences copied: "+str(pointgen_cov_avg_nosents)+"\n")
         out_file.write("Average length of matching subsequences: "+str(pointgen_cov_avg_seq_len)+"\n")
         out_file.write("Distribution over copied sentences id:\n")
-        out_file.write(str(pointgen_cov_tot_sent_id_count))
+        out_file.write(str(pointgen_cov_tot_sent_id_count) + "\n")
 
     # Dump to stout.
     with open(out_file_path) as out_file:
