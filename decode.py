@@ -543,7 +543,7 @@ if __name__ == '__main__':
     parser.add_argument('--bu_coverage_penalty', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--bu_length_penalty', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--beta', type=int, default=5, help='heuristic ner for training')
-    parser.add_argument('--alpha', type=int, default=0.8, help='heuristic ner for training')
+    parser.add_argument('--alpha', type=float, default=0.8, help='heuristic ner for training')
 
     args = parser.parse_args()
     model_filename = args.reload_path
