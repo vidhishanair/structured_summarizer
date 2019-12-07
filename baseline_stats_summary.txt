@@ -1,0 +1,16 @@
+Baseline:
+Average percentage of sentences copied: 0.10795248989104994
+Average count of sentences copied: 3.0320278503046127
+Average length of matching subsequences: 8.090230392576759
+Distribution over copied sentences id:
+Counter({0: 19967, 1: 18228, 2: 11478, 3: 1824, 4: 222, 5: 83, 6: 45, 8: 24, 7: 14, 9: 7, 10: 6, 11: 2, 12: 2})Pointgen:
+Average percentage of sentences copied: 0.10503747930845066
+Average count of sentences copied: 2.900522193211488
+Average length of matching subsequences: 14.352611035130623
+Distribution over copied sentences id:
+Counter({0: 16180, 1: 14268, 2: 10405, 3: 1728, 4: 308, 5: 92, 6: 56, 7: 19, 8: 10, 10: 2, 9: 2, 11: 2})Pointgen_Cov:
+Average percentage of sentences copied: 0.12177960599962602
+Average count of sentences copied: 3.3631853785900785
+Average length of matching subsequences: 16.61563035866561
+Distribution over copied sentences id:
+Counter({0: 15299, 1: 13815, 2: 10389, 3: 1774, 4: 342, 5: 86, 6: 37, 7: 9, 8: 8, 9: 1, 11: 1})
