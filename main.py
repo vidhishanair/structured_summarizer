@@ -176,6 +176,12 @@ class Train(object):
                     self.save_model(running_avg_loss, iter, logger, best_val_loss)
                     print("Saving best model")
                     logger.debug("Saving best model")
+                    print("Deleting older checkpoints")
+                    ckpt_no = 0
+                    for f in sorted(os.listdir(self.model_dir))[:-10]:
+                        ckpt_no +=1
+                        os.remove(f)
+                    print("Deleted %d checkpoints" % (ckpt_no))
 
     def get_loss(self, batch, args, mode='train'):
 
