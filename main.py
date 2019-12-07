@@ -558,6 +558,7 @@ if __name__ == '__main__':
     parser.add_argument('--predict_contsel_tags', action='store_true', default=False, help='decode summarization')
 
     parser.add_argument('--use_coref_att_encoder', action='store_true', default=False, help='decode summarization')
+    parser.add_argument('--no_latent_str', action='store_true', default=False, help='decode summarization')
 
 
     parser.add_argument('--lr', type=float, default=0.15, help='Learning Rate')

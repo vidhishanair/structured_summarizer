@@ -63,8 +63,10 @@ class StructuredEncoder(nn.Module):
                                               bidirectional=bidirectional)
         self.sentence_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "1.3.0")
         self.document_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "1.3.0")
-        self.sent_op_size = self.sem_dim_size
-        if self.args.use_coref_att_encoder:
+        self.sent_op_size = 0
+        if not self.args.no_latent_str:
+            self.sent_op_size += self.sem_dim_size
+        if self.args.use_coref_att_encoder or self.args.no_latent_str:
             self.sem_structure_att = SemanticStrAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "1.3.0")
             self.sent_op_size += self.sem_dim_size
 
@@ -125,11 +127,12 @@ class StructuredEncoder(nn.Module):
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.doc_hidden_size)
         bilstm_encoded_sents = bilstm_encoded_sents * mask
         # structure Att
-        sa_encoded_sents, sent_attention_matrix = self.document_structure_att.forward(bilstm_encoded_sents)
-        mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
-        sa_encoded_sents = sa_encoded_sents * mask
+        if not self.args.no_latent_str:
+            sa_encoded_sents, sent_attention_matrix = self.document_structure_att.forward(bilstm_encoded_sents)
+            mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
+            sa_encoded_sents = sa_encoded_sents * mask
 
-        if self.args.use_coref_att_encoder:
+        if self.args.use_coref_att_encoder or self.args.no_latent_str:
             sem_sa_encoded_sents = self.sem_structure_att.forward(bilstm_encoded_sents, weighted_adj_mat)
             mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
             sem_sa_encoded_sents = sem_sa_encoded_sents * mask
