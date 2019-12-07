@@ -6,7 +6,7 @@ OUTPUT='bbc_test_low_resource_nocov'
 MODEL='model_21000_1575592129'
 CUDA_VISIBLE_DEVICES=3 python decode.py \
        --bu_coverage_penalty \
-       --pointer_gen \
+       --pointer_gen \      
        --decode_data_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/test.bin \
        --vocab_path=../data/finished_files_wlabels_wner_wcoref_chains_reduced_1/vocab \
        --save_path=${OUTPUT} \
