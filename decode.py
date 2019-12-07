@@ -274,9 +274,17 @@ class BeamSearch(object):
                     parent_heads, undir_weighted_adj_mat = get_input_from_batch(batch, use_cuda, self.args)
 
 
+        enc_adj_mat = adj_mat
+        if args.use_weighted_annotations:
+            if args.use_undirected_weighted_graphs:
+                enc_adj_mat = undir_weighted_adj_mat
+            else:
+                enc_adj_mat = weighted_adj_mat
+         
         encoder_output = self.model.encoder.forward_test(enc_batch,enc_sent_lens,enc_doc_lens,enc_padding_token_mask,
                                                          enc_padding_sent_mask, word_batch, word_padding_mask,
-                                                         enc_word_lens, enc_tags_batch, enc_sent_token_mat)
+                                                         enc_word_lens, enc_tags_batch, enc_sent_token_mat,
+                                                         enc_adj_mat)
         encoder_outputs, enc_padding_mask, encoder_last_hidden, max_encoder_output, \
         enc_batch_extend_vocab, token_level_sentence_scores, sent_outputs, token_scores, \
         sent_scores, sent_matrix, sent_level_rep = \

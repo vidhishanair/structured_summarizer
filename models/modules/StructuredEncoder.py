@@ -127,6 +127,8 @@ class StructuredEncoder(nn.Module):
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.doc_hidden_size)
         bilstm_encoded_sents = bilstm_encoded_sents * mask
         # structure Att
+        sa_encoded_sents = None
+        sent_attention_matrix = torch.rand(batch_size, sent_size, 1+sent_size).cuda()
         if not self.args.no_latent_str:
             sa_encoded_sents, sent_attention_matrix = self.document_structure_att.forward(bilstm_encoded_sents)
             mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
@@ -136,7 +138,10 @@ class StructuredEncoder(nn.Module):
             sem_sa_encoded_sents = self.sem_structure_att.forward(bilstm_encoded_sents, weighted_adj_mat)
             mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
             sem_sa_encoded_sents = sem_sa_encoded_sents * mask
-            sa_encoded_sents = torch.cat([sa_encoded_sents, sem_sa_encoded_sents], dim=2)
+            if sa_encoded_sents is None:
+                sa_encoded_sents = sem_sa_encoded_sents
+            else:
+                sa_encoded_sents = torch.cat([sa_encoded_sents, sem_sa_encoded_sents], dim=2)
 
         sa_encoded_sent_token_rep = torch.bmm(enc_sent_token_mat.permute(0,2,1).float(), sa_encoded_sents) # b * n_tokens * hid_dim
 
