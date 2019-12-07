@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from models.modules.BiLSTMEncoder import BiLSTMEncoder
 from models.modules.BilinearMatrixAttention import BilinearMatrixAttention
 from models.modules.StructuredAttention import StructuredAttention
+from models.modules.SemanticStrAttention import SemanticStrAttention
 from models.model_utils import init_wt_normal
 from utils import config
 from numpy import random
@@ -62,29 +63,34 @@ class StructuredEncoder(nn.Module):
                                               bidirectional=bidirectional)
         self.sentence_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.sent_hidden_size, bidirectional, "1.3.0")
         self.document_structure_att = StructuredAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "1.3.0")
+        self.sent_op_size = self.sem_dim_size
+        if self.args.use_coref_att_encoder:
+            self.sem_structure_att = SemanticStrAttention(self.device, self.sem_dim_size, self.doc_hidden_size, bidirectional, "1.3.0")
+            self.sent_op_size += self.sem_dim_size
 
-        self.sent_pred_linear = nn.Linear(self.sem_dim_size, 1)
+        self.sent_pred_linear = nn.Linear(self.sent_op_size, 1)
         self.token_pred_linear = nn.Linear(self.sent_hidden_size, 2)
-        self.doc_pred_linear = nn.Linear(self.sent_hidden_size+self.sem_dim_size, 1)
+        self.doc_pred_linear = nn.Linear(self.sent_hidden_size+self.sent_op_size, 1)
         self.sm = nn.Softmax(dim=1)
 
         if args.heuristic_chains:
-                self.bilinear = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, False, 1)
-                self.sent_p_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
-                self.sent_c_linear = nn.Linear(self.sem_dim_size, self.sem_dim_size)
+                self.bilinear = BilinearMatrixAttention(self.sent_op_size, self.sent_op_size, False, 1)
+                self.sent_p_linear = nn.Linear(self.sent_op_size, self.sent_op_size)
+                self.sent_c_linear = nn.Linear(self.sent_op_size, self.sent_op_size)
                 self.sm2 = nn.Softmax(dim=2)
-                self.bilinear_pall = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, True, self.sem_dim_size)
-                self.sent_p_linear_pall = nn.Linear(self.sem_dim_size, self.sem_dim_size)
-                self.sent_c_linear_pall = nn.Linear(self.sem_dim_size, self.sem_dim_size)
-                self.pred_linear_pall = nn.Linear(self.sem_dim_size, 2)
-                self.bilinear_call = BilinearMatrixAttention(self.sem_dim_size, self.sem_dim_size, True, self.sem_dim_size)
-                self.sent_p_linear_call = nn.Linear(self.sem_dim_size, self.sem_dim_size)
-                self.sent_c_linear_call = nn.Linear(self.sem_dim_size, self.sem_dim_size)
-                self.pred_linear_call = nn.Linear(self.sem_dim_size, 2)
+                self.bilinear_pall = BilinearMatrixAttention(self.sent_op_size, self.sent_op_size, True, self.sent_op_size)
+                self.sent_p_linear_pall = nn.Linear(self.sent_op_size, self.sent_op_size)
+                self.sent_c_linear_pall = nn.Linear(self.sent_op_size, self.sent_op_size)
+                self.pred_linear_pall = nn.Linear(self.sent_op_size, 2)
+                self.bilinear_call = BilinearMatrixAttention(self.sent_op_size, self.sent_op_size, True, self.sent_op_size)
+                self.sent_p_linear_call = nn.Linear(self.sent_op_size, self.sent_op_size)
+                self.sent_c_linear_call = nn.Linear(self.sent_op_size, self.sent_op_size)
+                self.pred_linear_call = nn.Linear(self.sent_op_size, 2)
 
 
     #seq_lens should be in descending order
-    def forward_test(self, input, sent_l, doc_l, tokens_mask, sent_mask, word_batch, word_padding_mask, enc_word_lens, enc_tags_batch, enc_sent_token_mat):
+    def forward_test(self, input, sent_l, doc_l, tokens_mask, sent_mask, word_batch, word_padding_mask,
+                     enc_word_lens, enc_tags_batch, enc_sent_token_mat, weighted_adj_mat):
 
 
         batch_size, sent_size, token_size = input.size()
@@ -122,6 +128,12 @@ class StructuredEncoder(nn.Module):
         sa_encoded_sents, sent_attention_matrix = self.document_structure_att.forward(bilstm_encoded_sents)
         mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
         sa_encoded_sents = sa_encoded_sents * mask
+
+        if self.args.use_coref_att_encoder:
+            sem_sa_encoded_sents = self.sem_structure_att.forward(bilstm_encoded_sents, weighted_adj_mat)
+            mask = sent_mask.unsqueeze(2).repeat(1,1, self.sem_dim_size)
+            sem_sa_encoded_sents = sem_sa_encoded_sents * mask
+            sa_encoded_sents = torch.cat([sa_encoded_sents, sem_sa_encoded_sents], dim=2)
 
         sa_encoded_sent_token_rep = torch.bmm(enc_sent_token_mat.permute(0,2,1).float(), sa_encoded_sents) # b * n_tokens * hid_dim
 

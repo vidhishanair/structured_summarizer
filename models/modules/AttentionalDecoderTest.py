@@ -44,10 +44,14 @@ class Attention(nn.Module):
         # attention
         self.is_coverage = args.is_coverage
         self.args = args
+        self.encoder_sent_size = 2*config.sem_dim_size
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
+        if self.args.use_coref_att_encoder:
+            self.encoder_op_size = self.encoder_op_size + 2*config.sem_dim_size
+            self.encoder_sent_size += 2*config.sem_dim_size
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
         if self.args.sep_sent_features or self.args.sent_attention_at_dec:
-            self.W_s = nn.Linear(2*config.sem_dim_size, config.hidden_dim * 2, bias=False)
+            self.W_s = nn.Linear(self.encoder_sent_size, config.hidden_dim * 2, bias=False)
 
 
         if self.is_coverage:
@@ -60,7 +64,7 @@ class Attention(nn.Module):
             self.p_use_gold = nn.Linear(config.hidden_dim * 2, 1)
 
         if self.args.sent_attention_at_dec:
-            self.decode_proj_sent = nn.Linear(config.hidden_dim * 2, 2*config.sem_dim_size)
+            self.decode_proj_sent = nn.Linear(config.hidden_dim * 2, self.encoder_sent_size)
             self.v2 = nn.Linear(2*config.hidden_dim, 1, bias=False)
 
     def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores, sent_level_rep):
@@ -154,6 +158,8 @@ class Decoder(nn.Module):
         self.pointer_gen = args.pointer_gen
         self.args = args
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
+        if self.args.use_coref_att_encoder:
+            self.encoder_op_size = self.encoder_op_size + 2*config.sem_dim_size
         # decoder
         # self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
         # init_wt_normal(self.embedding.weight)
