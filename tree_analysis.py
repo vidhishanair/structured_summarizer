@@ -1,5 +1,6 @@
 import os
 import argparse
+import numpy as np
 from collections import Counter, defaultdict
 
 
@@ -79,6 +80,27 @@ def read_tree_from_file(file_path):
         assert tree_list != None, "Problem with the tree structure extracted."
         return tree_list
 
+def tree_distance(latent_tree, explicit_tree):
+    """
+    Computes precision and recall of shared links between latent tree and explicit structure.
+    latent_tree should be represent with a parent array of size n + 1
+    explicit_tree should be a numpy matrix of size n x n (undirected).
+
+    The weights don't matter, we consider any non zero entry to correspond to a link.
+    """
+    n = len(latent_tree) - 1
+    shared_links = [0 for _ in range(n)]
+    for i in range(1, n + 1):
+        if explicit_tree[i][latent_tree[i]] != 0 or explicit_tree[latent_tree[i]][i] != 0:
+            shared_links[i-1] = 1
+
+    # Precision over the edges in the latent tree.
+    precision = sum(shared_links) / len(shared_links)
+    # Recall over the edges in the explicit structure.
+    recall = sum(shared_links) / np.sum(explicit_tree != 0)
+
+    return precision, recall
+
 if __name__ == '__main__':
     """
     Provide the path to the structures folder.
@@ -89,7 +111,6 @@ if __name__ == '__main__':
     TODO: Normalized arc length?
 
     """
-
     parser = argparse.ArgumentParser(description='anlyze tree structures.')
     parser.add_argument('--structures_path', type=str, default=None, help='location of the structures folder')
     parser.add_argument('--result_file_path', type=str, default='stats_tree.txt', help='file path of results stats.')
