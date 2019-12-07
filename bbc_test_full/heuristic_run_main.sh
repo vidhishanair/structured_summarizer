@@ -9,9 +9,9 @@ CUDA_VISIBLE_DEVICES=2 python main.py \
        --pointer_gen \
        --save_path=${OUTPUT} \
        --lr_coverage 0.01 \
-       --batch_size 20 \
-       --max_dec_steps 20 \
-       --reload_path=log/${OUTPUT}/model/model_272000_1575644543 \
+       --batch_size 40 \
+       --max_dec_steps 40 \
+       --reload_path=log/${OUTPUT}/model/model_287000_1575695380 \
        --train_data_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/chunked/train_* \
        --eval_data_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/val.bin \
        --vocab_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/vocab \

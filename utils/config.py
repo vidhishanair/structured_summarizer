@@ -58,5 +58,5 @@ use_gpu=True
 lr_coverage=0.75
 
 use_maxpool_init_ctx = True
-# Default seed used to be 123
-seed = 1
+# Default sed used to be 123
+seed = 4
