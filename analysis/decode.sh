@@ -11,7 +11,7 @@ CUDA_VISIBLE_DEVICES=2 python decode.py \
        --max_dec_steps 70 \
        --beam_size 3 \
        --heuristic_chains \
-       --use_coref \
+       --use_ner \
 
 
 cd ../artidoro-pointer_summarizer/
