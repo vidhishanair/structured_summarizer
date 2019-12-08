@@ -16,5 +16,5 @@ CUDA_VISIBLE_DEVICES=3 python main.py \
        --use_weighted_annotations \
        --use_undirected_weighted_graphs \
        --use_coref_att_encoder \
-       --sent_attention_at_dec \ 
-       --clear_old_checkpoints
+       --sent_attention_at_dec \
+       --clear_old_checkpoints \
