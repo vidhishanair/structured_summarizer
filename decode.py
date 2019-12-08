@@ -18,7 +18,7 @@ import numpy as np
 from collections import Counter
 
 from summary_analysis import get_sent_dist
-from tree_analysis import find_height, leaf_node_proportion
+from tree_analysis import find_height, leaf_node_proportion, tree_distance
 from utils.batcher import Batcher
 from utils.data import Vocab
 from utils import data, config
@@ -156,6 +156,7 @@ class BeamSearch(object):
         fp.close()
         #exit()
         structure_info = dict()
+        structure_info['heads'] = heads
         structure_info['height'] = height
         structure_info['leaf_nodes'] = leaf_nodes
         return structure_info
@@ -170,7 +171,12 @@ class BeamSearch(object):
         avg_max_seq_len_list = []
         height_avg = []
         leaf_node_proportion_avg = []
+        precision_tree_dist = []
+        recall_tree_dist = []
         batch = self.batcher.next_batch()
+        summary_len = []
+        height_counter = Counter()
+        leaf_nodes_counter = Counter()
         sent_count_fp = open(self.sent_count_file, 'w')
 
 
@@ -186,7 +192,7 @@ class BeamSearch(object):
         while batch is not None:
             # Run beam search to get best Hypothesis
             #start = time.process_time()
-            has_summary, best_summary, sample_predictions, sample_counts, structure_info = self.get_decoded_outputs(batch, counter)
+            has_summary, best_summary, sample_predictions, sample_counts, structure_info, adj_mat = self.get_decoded_outputs(batch, counter)
             #print('Time taken for decoder: ', time.process_time() - start)
             # token_contsel_tot_correct += token_consel_num_correct
             # token_contsel_tot_num += token_consel_num
@@ -234,8 +240,14 @@ class BeamSearch(object):
 
             original_abstract_sents = batch.original_abstracts_sents[0]
 
+            summary_len.append(len(decoded_words))
+            precision, recall = tree_distance(structure_info['heads'], adj_mat)
+            precision_tree_dist.append(precision)
+            recall_tree_dist.append(recall)
+            height_counter[structure_info['height']] += 1
             height_avg.append(structure_info['height'])
             leaf_node_proportion_avg.append(structure_info['leaf_nodes'])
+            leaf_nodes_counter[structure_info['leaf_nodes']] += 1
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
             sentences_used, count_sent, avg_max_seq_len, sent_id_count = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
@@ -269,13 +281,21 @@ class BeamSearch(object):
         percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sentence_count]
         avg_percentage = sum(percentages)/float(len(percentages))
         tot_avg_max_seq_len = sum(avg_max_seq_len_list)/len(avg_max_seq_len_list)
+        fp.write("Summary metrics\n")
+        fp.write("Average summary length: "+str(np.average(summary_len))+"\n")
         fp.write("Average percentage of sentences copied: "+str(avg_percentage) + "\n")
         fp.write("Average count of sentences copied: "+str(float(sum(total_sent))/float(len(total_sent)))+"\n")
         fp.write("Average length of matching subsequences: "+str(tot_avg_max_seq_len)+"\n")
+        fp.write("Distribution over copied sentences id:\n")
+        fp.write(str(tot_sentence_id_count) + "\n\n")
+        fp.write("Structures metrics\n")
         fp.write("Average depth of RST tree: "+str(sum(height_avg)/len(height_avg))+"\n")
         fp.write("Average proportion of leaf nodes in RST tree: "+str(sum(leaf_node_proportion_avg)/len(leaf_node_proportion_avg))+"\n")
-        fp.write("Distribution over copied sentences id:\n")
-        fp.write(str(tot_sentence_id_count) + "\n")
+        fp.write("Precision of edges latent to explicit: "+str(np.average(precision_tree_dist))+"\n")
+        fp.write("Recall of edges latent to explicit: "+str(np.average(recall_tree_dist))+"\n")
+        fp.write(str(height_counter) + "\n")
+        fp.write(str(leaf_nodes_counter) + "\n")
+
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:
@@ -525,7 +545,7 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0], predictions, counts, structure_info
+        return has_summary, beams_sorted[0], predictions, counts, structure_info, undir_weighted_adj_mat
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')

@@ -1,3 +1,7 @@
+Baseline Summary len 48.40905134899913
+Point Gen Summary len 55.51984334203655
+Point Gen Cov Summary len 61.59147084421236
+
 ---------- Sequences of length 3 ----------
 - Baseline:
 Average percentage of sentences copied: 0.10795248989104994

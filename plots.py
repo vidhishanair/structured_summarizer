@@ -84,3 +84,5 @@ plot_calc_stats(baseline_counter_3, pointgen_counter_3, pointgen_cov_counter_3, 
 
 #%%
 plot_calc_stats(baseline_counter_2, pointgen_counter_2, pointgen_cov_counter_2, strcut_sum_counter_2)
+
+# %%

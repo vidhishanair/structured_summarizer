@@ -2,6 +2,7 @@ import os
 from tqdm import tqdm
 import spacy
 from collections import Counter, defaultdict
+import numpy as np
 
 nlp = spacy.load("en_core_web_lg")
 
@@ -115,8 +116,9 @@ def get_avg_sent_len(summary_dir):
     avg_sum_len = []
     for summary in tqdm(summary_files):
         summary = open(os.path.join(summary_dir, summary)).read()
-        print()
         avg_sum_len.append(len(' '.join(summary.split('\n')).split()))
+
+    return np.average(avg_sum_len)
 
 if __name__ == '__main__':
     article_dir = "/home/artidoro/data/Pointer Generator Network Test Output/test_output/articles"
@@ -128,21 +130,31 @@ if __name__ == '__main__':
 
     minimum_seq = [2]
     # minimum_seq = [2, 3]
+    baseline_summary_len = get_avg_sent_len(baseline_dir)
+    pointgen_summary_len = get_avg_sent_len(pointgen_dir)
+    pointgen_cov_summary_len = get_avg_sent_len(pointgen_cov_dir)
+    print("Baseline ", baseline_summary_len)
+    print("Point Gen ", pointgen_summary_len)
+    print("Point Gen Cov ", pointgen_cov_summary_len)
 
     for min_seq in minimum_seq:
         print("Minimum sequence {}".format(min_seq))
         # Sequences of length min_seq.
         print("Doing baseline")
+        baseline_summary_len = get_avg_sent_len(baseline_dir)
         baseline_avg_percent, baseline_avg_nosents, baseline_avg_seq_len, baseline_tot_sent_id_count = get_avg_sent_copied(article_dir, baseline_dir, minimum_seq=min_seq)
         print("Doing pointgen")
+        pointgen_summary_len = get_avg_sent_len(pointgen_dir)
         pointgen_avg_percent, pointgen_avg_nosents, pointgen_avg_seq_len, pointgen_tot_sent_id_count = get_avg_sent_copied(article_dir, pointgen_dir, minimum_seq=min_seq)
         print("Doing coverage")
+        pointgen_cov_summary_len = get_avg_sent_len(pointgen_cov_dir)
         pointgen_cov_avg_percent, pointgen_cov_avg_nosents, pointgen_cov_avg_seq_len, pointgen_cov_tot_sent_id_count = get_avg_sent_copied(article_dir, pointgen_cov_dir, minimum_seq=min_seq)
 
         # Write to file.
         with open(out_file_path, 'w') as out_file:
             out_file.write("---------- Sequences of length {} ----------\n".format(min_seq))
             out_file.write("- Baseline:\n")
+            out_file.write("Average length of summaries: "+str(baseline_summary_len))
             out_file.write("Average percentage of sentences copied: "+str(baseline_avg_percent) + "\n")
             out_file.write("Average count of sentences copied: "+str(baseline_avg_nosents)+"\n")
             out_file.write("Average length of matching subsequences: "+str(baseline_avg_seq_len)+"\n")
@@ -150,6 +162,7 @@ if __name__ == '__main__':
             out_file.write(str(baseline_tot_sent_id_count) + "\n")
 
             out_file.write("- Pointgen:\n")
+            out_file.write("Average length of summaries: "+str(pointgen_summary_len))
             out_file.write("Average percentage of sentences copied: "+str(pointgen_avg_percent) + "\n")
             out_file.write("Average count of sentences copied: "+str(pointgen_avg_nosents)+"\n")
             out_file.write("Average length of matching subsequences: "+str(pointgen_avg_seq_len)+"\n")
@@ -157,6 +170,7 @@ if __name__ == '__main__':
             out_file.write(str(pointgen_tot_sent_id_count) + "\n")
 
             out_file.write("- Pointgen_Cov:\n")
+            out_file.write("Average length of summaries: "+str(pointgen_cov_summary_len))
             out_file.write("Average percentage of sentences copied: "+str(pointgen_cov_avg_percent) + "\n")
             out_file.write("Average count of sentences copied: "+str(pointgen_cov_avg_nosents)+"\n")
             out_file.write("Average length of matching subsequences: "+str(pointgen_cov_avg_seq_len)+"\n")
