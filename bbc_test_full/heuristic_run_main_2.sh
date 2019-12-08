@@ -1,17 +1,16 @@
 #Namespace(L1_structure_penalty=False, autoencode=False, is_coverage=True, pointer_gen=True, reload_path=None, reload_pretrained_clf_path='log/token_sent_level_tag/model/model_455000_1555707099', save_path='sent_level_tag_coverage', sent_scores=True, sep_sent_features=False, token_scores=False)
 
-OUTPUT='bbc_test_full'
+OUTPUT='bbc_test_full_2'
 # OUTPUT='test_loading_summ2'
 #RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
 
 #--reload_path=log/${OUTPUT}/model/model_156000_1574266495 \
-CUDA_VISIBLE_DEVICES=2 python main.py \
+CUDA_VISIBLE_DEVICES=3 python main.py \
        --pointer_gen \
        --save_path=${OUTPUT} \
-       --lr_coverage 0.01 \
-       --batch_size 40 \
-       --max_dec_steps 50 \
-       --reload_path=log/${OUTPUT}/model/model_300000_1575711197 \
+       --lr_coverage 0.15 \
+       --batch_size 20 \
+       --max_dec_steps 20 \
        --train_data_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/chunked/train_* \
        --eval_data_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/val.bin \
        --vocab_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/vocab \
@@ -27,6 +26,7 @@ CUDA_VISIBLE_DEVICES=2 python main.py \
 
 # Learning rate
 # 0.75    ----    0.01
+#       --reload_path=log/${OUTPUT}/model/model_300000_1575711197 \
 
 # To reload
 # log/FOLDERNAME/model/modelNAME
