@@ -1,10 +1,10 @@
 #Namespace(L1_structure_penalty=False, autoencode=False, is_coverage=True, pointer_gen=True, reload_path=None, reload_pretrained_clf_path='log/token_sent_level_tag/model/model_455000_1555707099', save_path='sent_level_tag_coverage', sent_scores=True, sep_sent_features=False, token_scores=False)
 
 #OUTPUT='test_loading_summ2'
-OUTPUT='bbc_test_full'
+OUTPUT='cnn_dm_full_2'
 # RELOAD_CLF_PATH='log/token_sent_level_tag/model/model_455000_1555707099'
-MODEL='model_272000_1575644543'
-CUDA_VISIBLE_DEVICES=3 python decode.py \
+MODEL='model_76000_1575767768'
+CUDA_VISIBLE_DEVICES=2 python decode.py \
        --bu_coverage_penalty \
        --pointer_gen \
        --decode_data_path=../artidoro-cnn-dailymail/finished_files_wlabels_wner_wcoref_chains/test.bin \

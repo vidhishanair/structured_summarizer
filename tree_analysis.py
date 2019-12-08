@@ -88,9 +88,13 @@ def tree_distance(latent_tree, explicit_tree):
 
     The weights don't matter, we consider any non zero entry to correspond to a link.
     """
-    assert np.sum(explicit_tree.diagonal()) == 0, "Non zero diagonal elements."
-
     undirected = explicit_tree + explicit_tree.T
+    undirected -= undirected.diagonal()
+    assert np.sum(undirected.diagonal()) == 0, "Non zero diagonal elements after removal of diagonal elements."
+
+    if np.sum(undirected != 0) == 0:
+        return None, None
+    
     # undirected = explicit_tree
     n = len(latent_tree) - 1
     shared_links = [0 for _ in range(n)]
@@ -98,7 +102,6 @@ def tree_distance(latent_tree, explicit_tree):
         if undirected[i][latent_tree[i+1]-1] != 0 or undirected[latent_tree[i+1]-1][i] != 0:
             shared_links[i] = 1
 
-    print(shared_links)
     # Precision over the edges in the latent tree.
     precision = sum(shared_links) / (n - 1)
     # Recall over the edges in the explicit structure.
@@ -146,7 +149,7 @@ if __name__ == '__main__':
         print(stats_file.read())
 
 
-# adj_matrix = np.array([
+    # adj_matrix = np.array([
     #     [0, 0, 0],
     #     [1, 0, 0],
     #     [1, 0, 0]])
@@ -170,3 +173,13 @@ if __name__ == '__main__':
     # print()
     # print(tree_distance(heads_2, adj_matrix))
     # print(tree_distance(heads_3, adj_matrix))
+    # print(tree_distance(heads, np.zeros((3,3))))
+
+    # Output
+    # (1.0, 1.0)
+    # (1.0, 0.6666666666666666)
+    # (0.5, 1.0)
+
+    # (0.0, 0.0)
+    # (0.5, 0.5)
+    # (None, None)

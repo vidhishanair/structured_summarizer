@@ -241,13 +241,16 @@ class BeamSearch(object):
             original_abstract_sents = batch.original_abstracts_sents[0]
 
             summary_len.append(len(decoded_words))
-            precision, recall = tree_distance(structure_info['heads'], adj_mat)
-            precision_tree_dist.append(precision)
-            recall_tree_dist.append(recall)
+            assert adj_mat is not None, "Explicit matrix is none."
+            assert structure_info['heads'] is not None, "Heads is none."
+            precision, recall = tree_distance(structure_info['heads'], adj_mat.cpu().data.numpy()[0,:,:])
+            if precision is not None and recall is not None:
+                precision_tree_dist.append(precision)
+                recall_tree_dist.append(recall)
             height_counter[structure_info['height']] += 1
             height_avg.append(structure_info['height'])
             leaf_node_proportion_avg.append(structure_info['leaf_nodes'])
-            leaf_nodes_counter[structure_info['leaf_nodes']] += 1
+            leaf_nodes_counter[np.floor(structure_info['leaf_nodes']*10)] += 1
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
             sentences_used, count_sent, avg_max_seq_len, sent_id_count = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
@@ -293,7 +296,9 @@ class BeamSearch(object):
         fp.write("Average proportion of leaf nodes in RST tree: "+str(sum(leaf_node_proportion_avg)/len(leaf_node_proportion_avg))+"\n")
         fp.write("Precision of edges latent to explicit: "+str(np.average(precision_tree_dist))+"\n")
         fp.write("Recall of edges latent to explicit: "+str(np.average(recall_tree_dist))+"\n")
+        fp.write("Tree height counter:\n")
         fp.write(str(height_counter) + "\n")
+        fp.write("Tree leaf proportion counter:")
         fp.write(str(leaf_nodes_counter) + "\n")
 
         if args.predict_contsel_tags:
