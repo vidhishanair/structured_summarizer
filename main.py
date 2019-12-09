@@ -599,6 +599,8 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=32, help='Batch Size')
     parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
 
+    parser.add_argument('--minimum_seq', type=int, default=3, help='Min sequence len')
+
 
     # if all false - summarization with just plain attention over sentences - 17.6 or so rouge
 

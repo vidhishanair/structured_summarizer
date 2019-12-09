@@ -164,17 +164,27 @@ class BeamSearch(object):
     def decode(self):
         start = time.time()
         counter = 0
+        sent_counter = []
+        avg_max_seq_len_list = []
+        copied_sequence_len = Counter()
+        copied_sequence_per_sent = []
+        article_copy_id_count_tot = Counter()
+        sentence_copy_id_count = Counter()
+        novel_counter = Counter()
+        repeated_counter = Counter()
+        summary_sent_count = Counter()
+        summary_sent = []
+        article_sent = []
+        summary_len = []
         abstract_ref = []
         abstract_pred = []
         sentence_count = []
         tot_sentence_id_count = Counter()
-        avg_max_seq_len_list = []
         height_avg = []
         leaf_node_proportion_avg = []
         precision_tree_dist = []
         recall_tree_dist = []
         batch = self.batcher.next_batch()
-        summary_len = []
         height_counter = Counter()
         leaf_nodes_counter = Counter()
         sent_count_fp = open(self.sent_count_file, 'w')
@@ -253,18 +263,26 @@ class BeamSearch(object):
             leaf_nodes_counter[np.floor(structure_info['leaf_nodes']*10)] += 1
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
-            sentences_used, count_sent, avg_max_seq_len, sent_id_count = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
-            sentence_count.append((sentences_used, count_sent))
-            if avg_max_seq_len is not None:
-                avg_max_seq_len_list.append(avg_max_seq_len)
-            sent_count_fp.write(str(counter)+"\t"+str(count_sent)+"\t"+str(sentences_used)+"\n")
+
+            sent_res = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode(), minimum_seq=self.args.minimum_seq)
+
+            sent_counter.append((sent_res['seen_sent'], sent_res['article_sent']))
+            summary_len.append(sent_res['summary_len'])
+            summary_sent.append(sent_res['summary_sent'])
+            summary_sent_count[sent_res['summary_sent']] += 1
+            article_sent.append(sent_res['article_sent'])
+            if sent_res['avg_copied_seq_len'] is not None:
+                avg_max_seq_len_list.append(sent_res['avg_copied_seq_len'])
+                copied_sequence_per_sent.append(np.average(list(sent_res['counter_summary_sent_id'].values())))
+            copied_sequence_len.update(sent_res['counter_copied_sequence_len'])
+            sentence_copy_id_count.update(sent_res['counter_summary_sent_id'])
+            article_copy_id_count_tot.update(sent_res['counter_article_sent_id'])
+            novel_counter.update(sent_res['novel_ngram_counter'])
+            repeated_counter.update(sent_res['repeated_ngram_counter'])
+
+            sent_count_fp.write(str(counter)+"\t"+str(sent_res['article_sent'])+"\t"+str(sent_res['seen_sent'])+"\n")
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
-            tot_sentence_id_count += sent_id_count
-            #counter += 1
-            #if counter % 1000 == 0:
-            #    print('%d example in %d sec'%(counter, time.time() - start))
-            #    start = time.time()
 
             batch = self.batcher.next_batch()
 
@@ -280,17 +298,30 @@ class BeamSearch(object):
         print("Decoder has finished reading dataset for single_pass.")
 
         fp = open(self.stat_res_file, 'w')
-        total_sent = [len(seen_sent) for seen_sent, seen_count in sentence_count]
-        percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sentence_count]
+        percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sent_counter]
         avg_percentage = sum(percentages)/float(len(percentages))
-        tot_avg_max_seq_len = sum(avg_max_seq_len_list)/len(avg_max_seq_len_list)
+        nosents = [len(seen_sent) for seen_sent, sent_count in sent_counter]
+        avg_nosents = sum(nosents)/float(len(nosents))
+
+        res = dict()
+        res['avg_percentage_seen_sent'] = avg_percentage
+        res['avg_nosents'] = avg_nosents
+        res['summary_len'] = summary_sent_count
+        res['avg_summary_len'] = np.average(summary_len)
+        res['summary_sent'] = np.average(summary_sent)
+        res['article_sent'] = np.average(article_sent)
+        res['avg_copied_seq_len'] = np.average(avg_max_seq_len_list)
+        res['avg_sequences_per_sent'] = np.average(copied_sequence_per_sent)
+        res['counter_copied_sequence_len'] = copied_sequence_len
+        res['counter_summary_sent_id'] = sentence_copy_id_count
+        res['counter_article_sent_id'] = article_copy_id_count_tot
+        res['novel_ngram_counter'] = novel_counter
+        res['repeated_ngram_counter'] = repeated_counter
+
         fp.write("Summary metrics\n")
-        fp.write("Average summary length: "+str(np.average(summary_len))+"\n")
-        fp.write("Average percentage of sentences copied: "+str(avg_percentage) + "\n")
-        fp.write("Average count of sentences copied: "+str(float(sum(total_sent))/float(len(total_sent)))+"\n")
-        fp.write("Average length of matching subsequences: "+str(tot_avg_max_seq_len)+"\n")
-        fp.write("Distribution over copied sentences id:\n")
-        fp.write(str(tot_sentence_id_count) + "\n\n")
+        for key in res:
+            fp.write('{}: {}\n'.format(key, res[key]))
+
         fp.write("Structures metrics\n")
         fp.write("Average depth of RST tree: "+str(sum(height_avg)/len(height_avg))+"\n")
         fp.write("Average proportion of leaf nodes in RST tree: "+str(sum(leaf_node_proportion_avg)/len(leaf_node_proportion_avg))+"\n")
