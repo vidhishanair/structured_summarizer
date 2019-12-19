@@ -1,0 +1,27 @@
+---------- Sequences of length 2 ----------
+
+Average length of summaries: 58.315404699738906
+Average percentage of sentences copied: 0.29208857649315284
+
+Average count of sentences copied: 9.40443864229765
+
+Average length of matching subsequences: 3.670333237072093
+
+Distribution over copied sentences id:
+
+Counter({0: 28514, 1: 25249, 2: 22620, 3: 14471, 4: 5637, 5: 2360, 6: 1027, 7: 462, 8: 165, 9: 77, 10: 49, 11: 18, 13: 16, 14: 16, 15: 14, 12: 13, 16: 11, 17: 9, 22: 8, 19: 7, 18: 6, 21: 6, 23: 5, 28: 5, 26: 4, 20: 4, 27: 4, 25: 3, 24: 3, 29: 3, 30: 2, 35: 2, 37: 2, 33: 1})
+
+
+
+---------- Sequences of length 3 ----------
+
+Average length of summaries: 58.315404699738906
+Average percentage of sentences copied: 0.1380089008286535
+
+Average count of sentences copied: 4.095474325500435
+
+Average length of matching subsequences: 5.085288619120516
+
+Distribution over copied sentences id:
+
+Counter({0: 13688, 1: 11517, 2: 10327, 3: 6527, 4: 2490, 5: 1085, 6: 456, 7: 198, 8: 85, 9: 35, 10: 17, 11: 7, 13: 6, 14: 4, 16: 4, 17: 2, 18: 2, 22: 2, 30: 2, 35: 2, 19: 1, 21: 1, 23: 1, 26: 1, 28: 1, 27: 1, 29: 1, 12: 1, 25: 1})
