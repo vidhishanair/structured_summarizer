@@ -8,5 +8,3 @@ pycocoevalcap/*
 *.swp
 log/
 .vscode/
-
-bbc_test*
