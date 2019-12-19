@@ -1,8 +1,0 @@
-Baseline:
-roberta-large_L17_no-idf_version=0.2.2 BERT-P: 0.804243 BERT-R: 0.802034 BERT-F1: 0.803023
-PointerGen
-roberta-large_L17_no-idf_version=0.2.2 BERT-P: 0.805838 BERT-R: 0.807810 BERT-F1: 0.806728
-PointerGenCov
-roberta-large_L17_no-idf_version=0.2.2 BERT-P: 0.805838 BERT-R: 0.807810 BERT-F1: 0.806728
-StructSum
-roberta-large_L17_no-idf_version=0.2.2 BERT-P: 0.802200 BERT-R: 0.805237 BERT-F1: 0.803626
