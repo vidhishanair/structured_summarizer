@@ -604,7 +604,7 @@ if __name__ == '__main__':
     parser.add_argument('--sm_ner_model', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_ner', action='store_true', default=False, help='heuristic ner for training')
     parser.add_argument('--use_coref', action='store_true', default=False, help='heuristic coref for training')
-    parser.add_argument('--max_dec_steps', type=int, default=-1, help='Max Dec Steps')
+    parser.add_argument('--max_dec_steps', type=int, default=100, help='Max Dec Steps')
     parser.add_argument('--beam_size', type=int, default=3, help='Max Dec Steps')
     parser.add_argument('--use_glove', action='store_true', default=False, help='use_glove_embeddings for training')
 
