@@ -14,7 +14,7 @@ import ast
 
 import random
 
-random.seed(1234)
+random.seed(config.seed)
 
 
 class Example(object):

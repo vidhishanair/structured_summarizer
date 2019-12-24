@@ -22,10 +22,10 @@ use_cuda = config.use_gpu and torch.cuda.is_available()
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cuda" if config.use_gpu else "cpu")
 
-random.seed(123)
-torch.manual_seed(123)
+random.seed(config.seed)
+torch.manual_seed(config.seed)
 if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(123)
+    torch.cuda.manual_seed_all(config.seed)
 
 
 class Model(nn.Module):

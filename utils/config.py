@@ -50,7 +50,7 @@ cov_loss_wt = 1.0
 
 eps = 1e-12
 max_iterations = 500000
-eval_interval = 1000
+eval_interval = 2000
 
 use_gpu=True
 
@@ -58,3 +58,5 @@ use_gpu=True
 lr_coverage=0.75
 
 use_maxpool_init_ctx = True
+# Default sed used to be 123
+seed = 4

@@ -15,8 +15,10 @@ import torch
 from torch.autograd import Variable
 from dependency_decoding import chu_liu_edmonds
 import numpy as np
+from collections import Counter
 
-from analysis import get_sent_dist
+from summary_analysis import get_sent_dist
+from tree_analysis import find_height, leaf_node_proportion, tree_distance
 from utils.batcher import Batcher
 from utils.data import Vocab
 from utils import data, config
@@ -137,6 +139,8 @@ class BeamSearch(object):
         #print(new_scores.sum(dim=1))
         #print(new_scores.size())
         heads, tree_score = chu_liu_edmonds(new_scores.data.cpu().numpy().astype(np.float64))
+        height = find_height(heads)
+        leaf_nodes = leaf_node_proportion(heads)
         #print(heads, tree_score)
         fp.write("\n")
         sentences = str(batch.original_articles[0]).split("<split1>")
@@ -145,19 +149,44 @@ class BeamSearch(object):
         #fp.write(str("\n".join(batch.original_articles[0].split("<split1>"))+"\n")
         fp.write(str(heads)+" ")
         fp.write(str(tree_score)+"\n")
+        fp.write(str(height)+"\n")
         s = sent_scores[0].data.cpu().numpy()
         for val in s:
             fp.write(str(val))
         fp.close()
         #exit()
+        structure_info = dict()
+        structure_info['heads'] = heads
+        structure_info['height'] = height
+        structure_info['leaf_nodes'] = leaf_nodes
+        return structure_info
 
     def decode(self):
         start = time.time()
         counter = 0
+        sent_counter = []
+        avg_max_seq_len_list = []
+        copied_sequence_len = Counter()
+        copied_sequence_per_sent = []
+        article_copy_id_count_tot = Counter()
+        sentence_copy_id_count = Counter()
+        novel_counter = Counter()
+        repeated_counter = Counter()
+        summary_sent_count = Counter()
+        summary_sent = []
+        article_sent = []
+        summary_len = []
         abstract_ref = []
         abstract_pred = []
         sentence_count = []
+        tot_sentence_id_count = Counter()
+        height_avg = []
+        leaf_node_proportion_avg = []
+        precision_tree_dist = []
+        recall_tree_dist = []
         batch = self.batcher.next_batch()
+        height_counter = Counter()
+        leaf_nodes_counter = Counter()
         sent_count_fp = open(self.sent_count_file, 'w')
 
 
@@ -173,7 +202,7 @@ class BeamSearch(object):
         while batch is not None:
             # Run beam search to get best Hypothesis
             #start = time.process_time()
-            has_summary, best_summary, sample_predictions, sample_counts = self.get_decoded_outputs(batch, counter)
+            has_summary, best_summary, sample_predictions, sample_counts, structure_info, adj_mat = self.get_decoded_outputs(batch, counter)
             #print('Time taken for decoder: ', time.process_time() - start)
             # token_contsel_tot_correct += token_consel_num_correct
             # token_contsel_tot_num += token_consel_num
@@ -221,17 +250,39 @@ class BeamSearch(object):
 
             original_abstract_sents = batch.original_abstracts_sents[0]
 
+            summary_len.append(len(decoded_words))
+            assert adj_mat is not None, "Explicit matrix is none."
+            assert structure_info['heads'] is not None, "Heads is none."
+            precision, recall = tree_distance(structure_info['heads'], adj_mat.cpu().data.numpy()[0,:,:])
+            if precision is not None and recall is not None:
+                precision_tree_dist.append(precision)
+                recall_tree_dist.append(recall)
+            height_counter[structure_info['height']] += 1
+            height_avg.append(structure_info['height'])
+            leaf_node_proportion_avg.append(structure_info['leaf_nodes'])
+            leaf_nodes_counter[np.floor(structure_info['leaf_nodes']*10)] += 1
             abstract_ref.append(" ".join(original_abstract_sents))
             abstract_pred.append(" ".join(decoded_words))
-            sentences_used, count_sent = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode())
-            sentence_count.append((sentences_used, count_sent))
-            sent_count_fp.write(str(counter)+"\t"+str(count_sent)+"\t"+str(sentences_used)+"\n")
+
+            sent_res = get_sent_dist(" ".join(decoded_words), batch.original_articles[0].decode(), minimum_seq=self.args.minimum_seq)
+
+            sent_counter.append((sent_res['seen_sent'], sent_res['article_sent']))
+            summary_len.append(sent_res['summary_len'])
+            summary_sent.append(sent_res['summary_sent'])
+            summary_sent_count[sent_res['summary_sent']] += 1
+            article_sent.append(sent_res['article_sent'])
+            if sent_res['avg_copied_seq_len'] is not None:
+                avg_max_seq_len_list.append(sent_res['avg_copied_seq_len'])
+                copied_sequence_per_sent.append(np.average(list(sent_res['counter_summary_sent_id'].values())))
+            copied_sequence_len.update(sent_res['counter_copied_sequence_len'])
+            sentence_copy_id_count.update(sent_res['counter_summary_sent_id'])
+            article_copy_id_count_tot.update(sent_res['counter_article_sent_id'])
+            novel_counter.update(sent_res['novel_ngram_counter'])
+            repeated_counter.update(sent_res['repeated_ngram_counter'])
+
+            sent_count_fp.write(str(counter)+"\t"+str(sent_res['article_sent'])+"\t"+str(sent_res['seen_sent'])+"\n")
             write_for_rouge(original_abstract_sents, decoded_words, counter,
                             self._rouge_ref_dir, self._rouge_dec_dir)
-            #counter += 1
-            #if counter % 1000 == 0:
-            #    print('%d example in %d sec'%(counter, time.time() - start))
-            #    start = time.time()
 
             batch = self.batcher.next_batch()
 
@@ -247,11 +298,40 @@ class BeamSearch(object):
         print("Decoder has finished reading dataset for single_pass.")
 
         fp = open(self.stat_res_file, 'w')
-        total_sent = [len(seen_sent) for seen_sent, seen_count in sentence_count]
-        percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sentence_count]
+        percentages = [float(len(seen_sent))/float(sent_count) for seen_sent, sent_count in sent_counter]
         avg_percentage = sum(percentages)/float(len(percentages))
-        fp.write("Average percentage of sentences copied: "+str(avg_percentage))
-        fp.write("Average count of sentences copied: "+str(float(sum(total_sent))/float(len(total_sent))))
+        nosents = [len(seen_sent) for seen_sent, sent_count in sent_counter]
+        avg_nosents = sum(nosents)/float(len(nosents))
+
+        res = dict()
+        res['avg_percentage_seen_sent'] = avg_percentage
+        res['avg_nosents'] = avg_nosents
+        res['summary_len'] = summary_sent_count
+        res['avg_summary_len'] = np.average(summary_len)
+        res['summary_sent'] = np.average(summary_sent)
+        res['article_sent'] = np.average(article_sent)
+        res['avg_copied_seq_len'] = np.average(avg_max_seq_len_list)
+        res['avg_sequences_per_sent'] = np.average(copied_sequence_per_sent)
+        res['counter_copied_sequence_len'] = copied_sequence_len
+        res['counter_summary_sent_id'] = sentence_copy_id_count
+        res['counter_article_sent_id'] = article_copy_id_count_tot
+        res['novel_ngram_counter'] = novel_counter
+        res['repeated_ngram_counter'] = repeated_counter
+
+        fp.write("Summary metrics\n")
+        for key in res:
+            fp.write('{}: {}\n'.format(key, res[key]))
+
+        fp.write("Structures metrics\n")
+        fp.write("Average depth of RST tree: "+str(sum(height_avg)/len(height_avg))+"\n")
+        fp.write("Average proportion of leaf nodes in RST tree: "+str(sum(leaf_node_proportion_avg)/len(leaf_node_proportion_avg))+"\n")
+        fp.write("Precision of edges latent to explicit: "+str(np.average(precision_tree_dist))+"\n")
+        fp.write("Recall of edges latent to explicit: "+str(np.average(recall_tree_dist))+"\n")
+        fp.write("Tree height counter:\n")
+        fp.write(str(height_counter) + "\n")
+        fp.write("Tree leaf proportion counter:")
+        fp.write(str(leaf_nodes_counter) + "\n")
+
         if args.predict_contsel_tags:
             fp.write("Avg token_contsel: "+str((counts['token_consel_num_correct']/float(counts['token_consel_num']))))
         if args.predict_sent_single_head:
@@ -296,7 +376,7 @@ class BeamSearch(object):
         mask = torch.cat((enc_padding_sent_mask[0].unsqueeze(1), mask), dim=1)
         mat = encoder_output['sent_attention_matrix'][0][:,:] * mask
 
-        self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
+        structure_info = self.extract_structures(batch, encoder_output['token_attention_matrix'], mat, count, use_cuda, encoder_output['sent_score'])
 
         counts = {}
         predictions = {}
@@ -501,7 +581,7 @@ class BeamSearch(object):
 
             beams_sorted = self.sort_beams(results)
 
-        return has_summary, beams_sorted[0], predictions, counts
+        return has_summary, beams_sorted[0], predictions, counts, structure_info, undir_weighted_adj_mat
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Structured Summarization Model')
@@ -562,5 +642,3 @@ if __name__ == '__main__':
     save_path = args.save_path
     beam_Search_processor = BeamSearch(args, model_filename, save_path)
     beam_Search_processor.decode()
-
-
