@@ -128,6 +128,58 @@ def plot_calc_stats_bin(baseline_counter, pointgen_counter, pointgen_cov_counter
     struct_sum_stats = statistics(reference_counter, max_key=max_key)
     print('Reference: mean {}, stdv {}'.format(struct_sum_stats[0], struct_sum_stats[1]))
 
+#%%
+def plot_calc_stats_line(baseline_counter, pointgen_counter, pointgen_cov_counter, strcut_sum_counter, reference_counter, max_key=10):
+    X_bin = range(0, 21, 4)
+    X = range(20)
+    baseline_y = np.array([[baseline_counter[x] for x in X if x < b and x >= b-4] for b in X_bin[1:]])
+    baseline_y_sum= np.sum(baseline_y, axis=1)
+    pointgen_y = np.array([[pointgen_counter[x] for x in X if x < b and x >= b-4] for b in X_bin[1:]])
+    pointgen_y_sum= np.sum(pointgen_y, axis=1)
+    pointgen_cov_y = np.array([[pointgen_cov_counter[x] for x in X if x < b and x >= b-4] for b in X_bin[1:]])
+    pointgen_cov_y_sum= np.sum(pointgen_cov_y, axis=1)
+    reference_y = np.array([[reference_counter[x] for x in X if x < b and x >= b-4] for b in X_bin[1:]])
+    reference_y_sum= np.sum(reference_y, axis=1)
+    struct_sum_y = np.array([[strcut_sum_counter[x] for x in X if x < b and x >= b-4] for b in X_bin[1:]])
+    struct_sum_y_sum= np.sum(struct_sum_y, axis=1)
+
+    baseline_ynorm = baseline_y_sum / np.sum(baseline_y_sum)
+    pointgen_ynorm = pointgen_y_sum / np.sum(pointgen_y_sum)
+    pointgen_cov_ynorm = pointgen_cov_y_sum / np.sum(pointgen_cov_y_sum)
+    struct_sum_ynorm = struct_sum_y_sum / np.sum(struct_sum_y_sum)
+    reference_ynorm = reference_y_sum / np.sum(reference_y_sum)
+
+    X_bin = range(5)
+
+    fig, axs = plt.subplots(1, 1, sharey=True, tight_layout=True)
+    axs.plot(X_bin, baseline_ynorm, label='S2S')
+
+    axs.plot(X_bin, pointgen_ynorm, label='PG')
+
+    axs.plot(X_bin, pointgen_cov_ynorm, label='PG+Co')
+
+    axs.plot(X_bin, struct_sum_ynorm, label='StructS')
+
+    axs.plot(X_bin, reference_ynorm, label='Ref')
+
+    plt.show()
+
+    baseline_stats = statistics(baseline_counter, max_key=max_key)
+    print('Baseline: mean {}, stdv {}'.format(baseline_stats[0], baseline_stats[1]))
+
+    pointgen_stats = statistics(pointgen_counter, max_key=max_key)
+    print('PointerGen: mean {}, stdv {}'.format(pointgen_stats[0], pointgen_stats[1]))
+
+    pointergen_cov_stats = statistics(pointgen_cov_counter, max_key=max_key)
+    print('PointerGen + Cov: mean {}, stdv {}'.format(pointergen_cov_stats[0], pointergen_cov_stats[1]))
+
+    struct_sum_stats = statistics(strcut_sum_counter, max_key=max_key)
+    print('StructSum: mean {}, stdv {}'.format(struct_sum_stats[0], struct_sum_stats[1]))
+
+    struct_sum_stats = statistics(reference_counter, max_key=max_key)
+    print('Reference: mean {}, stdv {}'.format(struct_sum_stats[0], struct_sum_stats[1]))
+
+
 
 #%%
 # Baselines.
@@ -194,6 +246,8 @@ pgc_article_sent_id_counter = Counter({1: 8529, 2: 7633, 0: 4935, 3: 4753, 4: 41
 ref_article_sent_id_counter = Counter({1: 8743, 2: 6695, 0: 6180, 4: 5081, 3: 5065, 5: 4207, 6: 3298, 7: 2847, 8: 2425, 9: 2186, 10: 1954, 11: 1927, 12: 1728, 13: 1552, 14: 1494, 15: 1356, 16: 1337, 17: 1254, 18: 1130, 19: 1024, 20: 981, 21: 928, 22: 848, 23: 779, 24: 683, 25: 652, 26: 605, 27: 560, 28: 529, 30: 494, 29: 488, 31: 463, 32: 415, 33: 394, 34: 355, 37: 320, 35: 319, 36: 313, 38: 304, 39: 264, 40: 256, 41: 239, 43: 214, 42: 205, 44: 197, 45: 182, 47: 173, 48: 164, 46: 156, 49: 151, 51: 138, 50: 137, 53: 129, 54: 112, 52: 108, 55: 91, 56: 90, 57: 77, 65: 72, 60: 71, 58: 64, 59: 63, 67: 63, 62: 62, 61: 58, 63: 55, 64: 50, 72: 44, 69: 43, 66: 41, 68: 35, 71: 35, 74: 33, 80: 32, 70: 32, 82: 30, 78: 28, 76: 27, 79: 27, 73: 24, 75: 24, 77: 23, 81: 21, 83: 20, 85: 20, 84: 18, 86: 18, 98: 13, 89: 12, 87: 11, 97: 10, 96: 9, 88: 9, 91: 8, 99: 7, 95: 7, 93: 7, 92: 7, 106: 6, 94: 5, 112: 5, 100: 5, 110: 5, 119: 4, 105: 4, 103: 3, 101: 3, 170: 2, 109: 2, 108: 2, 115: 2, 118: 2, 90: 2, 107: 2, 132: 2, 144: 2, 134: 1, 166: 1, 127: 1, 104: 1, 111: 1, 117: 1, 129: 1, 135: 1, 155: 1, 153: 1, 125: 1, 154: 1, 157: 1, 126: 1, 136: 1, 156: 1})
 
 plot_calc_stats_bin(b_article_sent_id_counter, pg_article_sent_id_counter, pgc_article_sent_id_counter, ss_article_sent_id_counter, ref_article_sent_id_counter, max_key=20)
+plot_calc_stats_line(b_article_sent_id_counter, pg_article_sent_id_counter, pgc_article_sent_id_counter, ss_article_sent_id_counter, ref_article_sent_id_counter, max_key=20)
+
 #%%
 
 ###########################################
