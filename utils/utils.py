@@ -60,6 +60,17 @@ def calc_running_avg_loss(loss, running_avg_loss, step, decay=0.99):
     return running_avg_loss
 
 
+def write_tags(predictions, ref,  ex_index, _pred_dir, _ref_dir):
+    ref_file = os.path.join(_pred_dir, "%06d_preds.txt" % ex_index)
+    with open(ref_file, 'w') as fp:
+        fp.write(str(predictions))
+    ref_file = os.path.join(_ref_dir, "%06d_ref.txt" % ex_index)
+    with open(ref_file, 'w') as fp:
+        fp.write(str(ref))
+    fp.close()
+
+
+
 def write_for_rouge(reference_sents, decoded_words, ex_index,
                     _rouge_ref_dir, _rouge_dec_dir):
     decoded_sents = []

@@ -15,10 +15,10 @@ import itertools
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
-random.seed(123)
-torch.manual_seed(123)
+random.seed(config.seed)
+torch.manual_seed(config.seed)
 if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(123)
+    torch.cuda.manual_seed_all(config.seed)
 
 
 class ReduceState(nn.Module):
@@ -44,10 +44,14 @@ class Attention(nn.Module):
         # attention
         self.is_coverage = args.is_coverage
         self.args = args
+        self.encoder_sent_size = 2*config.sem_dim_size
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
+        if self.args.use_coref_att_encoder:
+            self.encoder_op_size = self.encoder_op_size + 2*config.sem_dim_size
+            self.encoder_sent_size += 2*config.sem_dim_size
         self.W_h = nn.Linear(self.encoder_op_size, config.hidden_dim * 2, bias=False)
-        if self.args.sep_sent_features:
-            self.W_s = nn.Linear(2*config.sem_dim_size, config.hidden_dim * 2, bias=False)
+        if self.args.sep_sent_features or self.args.sent_attention_at_dec:
+            self.W_s = nn.Linear(self.encoder_sent_size, config.hidden_dim * 2, bias=False)
 
 
         if self.is_coverage:
@@ -56,7 +60,14 @@ class Attention(nn.Module):
         self.decode_proj = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2)
         self.v = nn.Linear(config.hidden_dim * 2, 1, bias=False)
 
-    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s):
+        if self.args.use_coref_param:
+            self.p_use_gold = nn.Linear(config.hidden_dim * 2, 1)
+
+        if self.args.sent_attention_at_dec:
+            self.decode_proj_sent = nn.Linear(config.hidden_dim * 2, self.encoder_sent_size)
+            self.v2 = nn.Linear(2*config.hidden_dim, 1, bias=False)
+
+    def forward(self, s_t_hat, h, enc_padding_mask, coverage, token_scores, sent_scores, s, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores, sent_level_rep):
         b, t_k, n1 = list(h.size())
         h = h.view(-1, n1)  # B * t_k x 2*hidden_dim
         encoder_feature = self.W_h(h)
@@ -82,17 +93,50 @@ class Attention(nn.Module):
         e = F.tanh(att_features) # B * t_k x 2*hidden_dim
         scores = self.v(e)  # B * t_k x 1
         scores = scores.view(-1, t_k)  # B x t_k
-        if self.args.token_scores:
-            #print(scores.size())
-            #print(token_scores.size())
-            scores = scores * token_scores[:,:,1]
-        if self.args.sent_scores:
-            scores = scores * sent_scores
+        scores = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
+        attn_dist_ = scores.clone()
+        # if self.args.token_scores:
+        #     #print(scores.size())
+        #     #print(token_scores.size())
+        #     scores = scores * token_scores[:,:,1]
+        # if self.args.sent_scores:
+        #     scores = scores * sent_scores
 
-        attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
+        if self.args.sent_attention_at_dec:
+            bs, n_s, hsize = sent_level_rep.size()
+            dec_fea_sent = self.decode_proj_sent(s_t_hat)
+            current_dec_sent_rep = dec_fea_sent.unsqueeze(1).expand(b, n_s, hsize).contiguous()
+            sent_features = F.tanh(self.W_s(sent_level_rep + current_dec_sent_rep)) # B x n_s x 2*hdim
+            sent_scores = self.v2(sent_features) # B x n_s x 1
+            token_level_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1), sent_scores) # B x tk x 1
+            token_level_scores = token_level_scores.view(-1, t_k)
+            attn_dist_ *= F.softmax(token_level_scores, dim=1)*enc_padding_mask
+
+
+        if self.args.use_all_sent_head_at_decode:
+            sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
+            new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_head_scores).permute(0,2,1) # B x n_s x 1
+            new_head_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1),
+                                              new_attended_sent_scores).view(scores.size(0), scores.size(1))
+            new_head_token_scores = F.softmax(new_head_token_scores, dim=1)*enc_padding_mask
+            if self.args.use_coref_param:
+                p_gold = F.sigmoid(self.p_use_gold(dec_fea))
+                new_head_token_scores = p_gold * new_head_token_scores
+            attn_dist_ += new_head_token_scores # to add to attention, need to test multiplication
+        if self.args.use_all_sent_child_at_decode:
+            sent_att_scores = torch.bmm(enc_sent_token_mat, scores.unsqueeze(2)) # B x n_s x 1
+            new_attended_sent_scores = torch.bmm(sent_att_scores.permute(0,2,1), sent_all_child_scores).permute(0,2,1) # B x n_s x 1
+            new_child_token_scores = torch.bmm(enc_sent_token_mat.permute(0,2,1),
+                                               new_attended_sent_scores).view(scores.size(0), scores.size(1))
+            attn_dist_ += F.softmax(new_child_token_scores, dim=1)*enc_padding_mask
+        if self.args.use_single_sent_head_at_decode:
+            print("Not Implemented for single_sent_head in decode")
+            exit()
+
+        # attn_dist_ = F.softmax(scores, dim=1)*enc_padding_mask # B x t_k
         normalization_factor = attn_dist_.sum(1, keepdim=True)
         attn_dist = attn_dist_ / normalization_factor
-
+        #print(attn_dist)
         attn_dist = attn_dist.unsqueeze(1)  # B x 1 x t_k
         h = h.view(-1, t_k, n1)  # B x t_k x 2*hidden_dim
         c_t = torch.bmm(attn_dist, h)  # B x 1 x n
@@ -100,7 +144,7 @@ class Attention(nn.Module):
 
         attn_dist = attn_dist.view(-1, t_k)  # B x t_k
 
-        if self.is_coverage:
+        if self.is_coverage or self.args.bu_coverage_penalty:
             coverage = coverage.view(-1, t_k)
             coverage = coverage + attn_dist
 
@@ -108,28 +152,42 @@ class Attention(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, vocab):
         super(Decoder, self).__init__()
         self.attention_network = Attention(args)
         self.pointer_gen = args.pointer_gen
         self.args = args
         self.encoder_op_size = config.sem_dim_size * 2 + config.hidden_dim * 2
+        if self.args.use_coref_att_encoder:
+            self.encoder_op_size = self.encoder_op_size + 2*config.sem_dim_size
         # decoder
-        self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
-        init_wt_normal(self.embedding.weight)
-        self.x_context = nn.Linear(self.encoder_op_size + config.emb_dim, config.emb_dim)
+        # self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+        # init_wt_normal(self.embedding.weight)
+        
+        if not args.use_glove:
+            print("Using Random normal initialization for embeddings")
+            self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+            init_wt_normal(self.embedding.weight)
+            self.emb_dim = config.emb_dim
+        else:
+            print("Using Pre-trained embeddings")
+            emb_tensor = torch.from_numpy(vocab.embedding_matrix)
+            self.embedding = nn.Embedding.from_pretrained(emb_tensor)
+            self.emb_dim = emb_tensor.size(1)        
+  
+        self.x_context = nn.Linear(self.encoder_op_size + self.emb_dim, self.emb_dim)
 
-        self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
+        self.lstm = nn.LSTM(self.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
         init_lstm_wt(self.lstm)
 
-        self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + self.encoder_op_size + config.emb_dim, 1)
+        self.p_gen_linear = nn.Linear(config.hidden_dim * 2 + self.encoder_op_size + self.emb_dim, 1)
         self.out1 = nn.Linear(config.hidden_dim + self.encoder_op_size, config.hidden_dim)
         self.out2 = nn.Linear(config.hidden_dim, config.vocab_size)
 
         init_linear_wt(self.out2)
 
     def forward(self, y_t_1, s_t_1, encoder_outputs, enc_padding_mask,
-                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_scores, sent_scores, sent_features):
+                c_t_1, extra_zeros, enc_batch_extend_vocab, coverage, token_scores, sent_scores, sent_features, enc_sent_token_mat, sent_all_head_scores, sent_all_child_scores, sent_level_rep):
 
         y_t_1_embd = self.embedding(y_t_1)
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
@@ -139,7 +197,9 @@ class Decoder(nn.Module):
         s_t_hat = torch.cat((h_decoder.view(-1, config.hidden_dim),
                              c_decoder.view(-1, config.hidden_dim)), 1)  # B x 2*hidden_dim
         c_t, attn_dist, coverage = self.attention_network(s_t_hat, encoder_outputs,
-                                                          enc_padding_mask, coverage, token_scores, sent_scores, sent_features)
+                                                          enc_padding_mask, coverage, token_scores, sent_scores,
+                                                          sent_features, enc_sent_token_mat,
+                                                          sent_all_head_scores, sent_all_child_scores, sent_level_rep)
         p_gen = None
         if self.pointer_gen:
             p_gen_input = torch.cat((c_t, s_t_hat, x), 1)  # B x (2*2*hidden_dim + emb_dim)

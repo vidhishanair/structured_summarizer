@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from models.modules.BilinearMatrixAttention import BilinearMatrixAttention
 
 
-class StructuredAttention(nn.Module):
+class SentAttention(nn.Module):
     def __init__(self, device, sem_dim_size, sent_hiddent_size, bidirectional, py_version):
-        super(StructuredAttention, self).__init__()
+        super(SentAttention, self).__init__()
         self.device = device
         self.bidirectional = bidirectional
         self.sem_dim_size = sem_dim_size
@@ -55,7 +55,7 @@ class StructuredAttention(nn.Module):
         # tc = tc.unsqueeze(2).expand(tc.size(0), tc.size(1), tc.size(1), tc.size(2)).contiguous()
 
         f_ij = self.bilinear(tp, tc).view(batch_size, token_size, token_size) #.squeeze() # b*s, token , token
-        f_i = torch.exp(self.fi_linear(str_v)).view(batch_size, token_size)  # b*s, token
+        f_i = torch.exp(self.fi_linear(str_v)).squeeze()  # b*s, token
 
         mask = f_ij.new_ones((f_ij.size(1), f_ij.size(1))) - f_ij.new_tensor(torch.eye(f_ij.size(1), f_ij.size(1)))
         mask = mask.unsqueeze(0).expand(f_ij.size(0), mask.size(0), mask.size(1)) #.to(self.device)
@@ -71,7 +71,6 @@ class StructuredAttention(nn.Module):
         L_ij = -A_ij + res   #A_ij has 0s as diagonals
 
         L_ij_bar = L_ij.clone()
-        #print(L_ij_bar.size(), f_i.size())
         L_ij_bar[:,0,:] = f_i
 
         #No batch inverse
@@ -109,7 +108,7 @@ class StructuredAttention(nn.Module):
         cinp = torch.bmm(dx, sem_v)
 
         finp = torch.cat([sem_v, pinp, cinp],dim = 2)
-        
+
         output = F.relu(self.fzlinear(finp))
         #output = self.fzlinear(finp)
         #output = F.tanh(self.fzlinear(finp))

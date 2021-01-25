@@ -1,6 +1,10 @@
 .idea/
 saved_nodels/
 pycocoevalcap/*
-.pyc
+*.pyc
 .txt
 *.iml
+*.swo
+*.swp
+log/
+.vscode/

@@ -5,6 +5,7 @@ import random
 import struct
 import csv
 from tensorflow.core.example import example_pb2
+import numpy as np
 
 # <s> and </s> are used in the data files to segment the abstracts into sentences. They don't receive vocab ids.
 SENTENCE_START = '<s>'
@@ -20,7 +21,7 @@ STOP_DECODING = '[STOP]' # This has a vocab id, which is used at the end of untr
 
 class Vocab(object):
 
-  def __init__(self, vocab_file, max_size):
+  def __init__(self, vocab_file, max_size, embeddings_file=None, args=None):
     self._word_to_id = {}
     self._id_to_word = {}
     self._count = 0 # keeps track of total number of words in the Vocab
@@ -52,6 +53,26 @@ class Vocab(object):
 
     print("Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1]))
 
+    if args.use_glove:
+      print("Using pre-trained mebeddings from: "+str(embeddings_file))
+      embeddings_index = {}
+      f = open(embeddings_file)
+      for line in f:
+        values = line.split()
+        word = values[0]
+        coefs = np.asarray(values[1:], dtype='float32')
+        embeddings_index[word] = coefs
+      f.close()
+      self.embedding_dim = len(embeddings_index[list(embeddings_index.keys())[0]])
+      self.embedding_matrix = np.zeros((max_size, self.embedding_dim), dtype='float32')
+      for word,i in self._word_to_id.items():
+        embedding_vector = embeddings_index.get(word)
+        if embedding_vector is not None:
+          self.embedding_matrix[i] = embedding_vector
+        else:
+          # Words not found in glove will be random
+          self.embedding_matrix[i] = np.random.rand(self.embedding_dim)
+
   def word2id(self, word):
     if word not in self._word_to_id:
       return self._word_to_id[UNKNOWN_TOKEN]
@@ -74,9 +95,13 @@ class Vocab(object):
         writer.writerow({"word": self._id_to_word[i]})
 
 
-def example_generator(data_path, single_pass):
+def example_generator(data_path, single_pass, args):
   while True:
     filelist = glob.glob(data_path) # get the list of datafiles
+    if args.use_small_train_data:
+        filelist = filelist[:1]
+    #print(len(filelist))
+    #exit()
     assert filelist, ('Error: Empty filelist at %s' % data_path) # check filelist isn't empty
     if single_pass:
       filelist = sorted(filelist)
@@ -95,7 +120,7 @@ def example_generator(data_path, single_pass):
       break
 
 
-def article2ids(article_words, vocab):
+def sent_sep_article2ids(article_words, vocab):
   ids = []
   oovs = []
   unk_id = vocab.word2id(UNKNOWN_TOKEN)
@@ -111,6 +136,21 @@ def article2ids(article_words, vocab):
       else:
         tid.append(i)
     ids.append(tid)
+  return ids, oovs
+
+def article2ids(article_words, vocab):
+  ids = []
+  oovs = []
+  unk_id = vocab.word2id(UNKNOWN_TOKEN)
+  for w in article_words:
+    i = vocab.word2id(w)
+    if i == unk_id: # If w is OOV
+      if w not in oovs: # Add to list of OOVs
+        oovs.append(w)
+      oov_num = oovs.index(w) # This is 0 for the first article OOV, 1 for the second article OOV...
+      ids.append(vocab.size() + oov_num) # This is e.g. 50000 for the first article OOV, 50001 for the second...
+    else:
+      ids.append(i)
   return ids, oovs
 
 
